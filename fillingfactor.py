@@ -21,6 +21,7 @@ from astropy.table import Table,vstack
 
 
 sys.path.insert(1, '/home/qzyan/WORK/myDownloads/MWISPcloud')
+sys.path.insert(1, '/home/yqzpmo/github/MWISPdbscan')
 
 from onlyDBSCAN import allDBSCAN
 
