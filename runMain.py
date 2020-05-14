@@ -1,19 +1,106 @@
 from fillingfactor import checkFillingFactor
 import os
+import sys
+
 
 doFF=checkFillingFactor()
 
 
 
+if 1: #out CO 12
+
+    doFF.calCode= doFF.codeOutCO12
+    doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
+    sys.exit()
+
+if 0:
 
 
-if 1:#pipeline line
+    doFF.calCode="Q1LocalCO13" #-6-30 km/s
+    #doFF.calCode="Q1Sgr" #30-70 km/s
+
+    doFF.drawFluxOfNoise()
+
+
+
+
+if 0: #clean Q1LocalCO13
+
+    doFF.calCode="Q1LocalCO13" #30-70 km/s
+
+    smFiles= doFF.getSmFITSFileList()
+
+    for eachF in smFiles:
+        doFF.addNoiseSingle(eachF,absoluteNoise=doFF.MWISPrmsCO12 )
+
+    Q1LocalCO13SmFITS = doFF.getAbsNoiseFITSName()
+
+    for eachF in Q1LocalCO13SmFITS:
+        #continue  # Do not do this a second time
+
+        doFF.cleanFITSsigma2(eachF, removeFITS=False)
+
+
+
+if 0:#clean Sgr
+
+    doFF.calCode="Q1Sgr" #30-70 km/s
+
+    Q1SgrSmFITS = doFF.getAbsNoiseFITSName()
+
+    print Q1SgrSmFITS
+
+    for eachF in Q1SgrSmFITS:
+        #continue  # Do not do this a second time
+
+        doFF.cleanFITSsigma2(eachF, removeFITS=False)
+
+if 0:# local 13CO
+
+    doFF.calCode="Q1LocalCO13" #30-70 km/s
+    doFF.rawFITS="./data/G2650LocalCO13.fits"
+
+    #smFiles= doFF.getSmFITSFileList()
+
+    #add noise to 0.5 K
+
+    #for eachF in smFiles:
+        #doFF.addNoiseSingle(eachF,absoluteNoise=doFF.MWISPrmsCO12 )
+
+
+    #step 1 smooth by factor
+    doFF.smoothFITSbySMFactor(doFF.rawFITS)
+
+    #step 2, add noise to all smoothe filts
+    #doFF.addNoseToAllSmFiles( doClean=True)
+
+    sys.exit()
+
+
+
+
+
+if 0:
+    doFF.calCode = "Q1Local"  # deal with local
+    doFF.drawRMSwithBEAM()
+
+
+
+if 0:#pipeline line
 
     doFF.calCode="Q1Sgr" #30-70 km/s
     doFF.rawFITS="./data/G2650Sgr70.fits"
 
+    smFiles= doFF.getSmFITSFileList()
+
+    #add noise to 0.5 K
+
+    for eachF in smFiles:
+        doFF.addNoiseSingle(eachF,absoluteNoise=doFF.MWISPrmsCO12 )
+
+
     #step 1 smooth by factor
-    doFF.smoothFITSbySMFactor(doFF.rawFITS)
+    #doFF.smoothFITSbySMFactor(doFF.rawFITS)
 
     #step 2, add noise to all smoothe filts
     #doFF.addNoseToAllSmFiles( doClean=True)
@@ -71,8 +158,6 @@ if 0:# test DBSCAN
 
 
 
-
-
 if 0:#pipeline Q1Local
     pass
     doFF.calCode="Q1Local"
@@ -83,6 +168,9 @@ if 0:#pipeline Q1Local
 
     #step 2, add noise to all smoothe filts
     doFF.addNoseToAllSmFiles( doClean=True)
+
+
+
 if 0:  # pipeline test
 
     doFF.calCode="smallTest"

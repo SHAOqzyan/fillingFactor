@@ -35,16 +35,28 @@ class checkFillingFactor(object):
 
     rootPath="./"
 
-    dataPath=rootPath+"data/"
+    dataPath= "/home/qzyan/WORK/diskMWISP/fillingFactorData/data/"
     rawFITS=  dataPath + "G2650Local30.fits"
 
-    tmpPath= rootPath +"tmpFiles/"
+    #tmpPath= rootPath +"tmpFiles/"
+    tmpPath= "/home/qzyan/WORK/diskMWISP/fillingFactorData/tmpFiles/"
+
+
+    codeOutCO12="OutCO12"
+    outCO12FITS =dataPath+ "G2650OutCO12.fits"
+    outVrange=[-79,-6]
+    localVrange=[-6,30]
+    sgrVrange=[30,70]
+    sgrVrange=[30,70]
+
+
+
     #tmpPath=  "/home/qzyan/WORK/dataDisk/fillingFactorData/"
 
-    rawRMS = 0.5
+    #rawRMS = 0.5
     MWISPrmsCO12=0.5 #K
-    smoothFactors =  np.arange(1.0,10.5,0.5  ) #compared to beam size, this is also the distance factor, that push cloud away by this factor
-    noiseFactors =     np.arange(1.0,10.5,0.5  )  #compared to  raw data rms
+    smoothFactors =  np.arange(1.0,15.5,0.5  ) #compared to beam size, this is also the distance factor, that push cloud away by this factor
+    noiseFactors =     np.arange(1.0,10.5,0.5  )  # do not care about the noise Factores now
 
 
     #just for test
@@ -244,6 +256,9 @@ class checkFillingFactor(object):
 
 
 
+
+
+
     def calRMSSingle(self,fitsName,onlyValue=False):
         """
         the input is a fits file
@@ -264,12 +279,14 @@ class checkFillingFactor(object):
 
 
 
-    def calRMS(self,fitsFile ):
+    def calRMSList(self,fitsFile ):
         """
         useThis instead of calRMS single
         :param fitsFileList:
         :return:
         """
+
+        rmsList=[]
 
         #first check if the input fitsFile is
         if type(fitsFile) is list:
@@ -278,12 +295,11 @@ class checkFillingFactor(object):
 
                 print "Processing ", eachF
 
-                self.calRMSSingle(eachF)
+                rmsOneFile = self.calRMSSingle(eachF,onlyValue=True)
 
-        else:
-            self.calRMSSingle(fitsFile)
+                rmsList.append(rmsOneFile)
 
-
+        return rmsList
 
 
 
@@ -648,7 +664,7 @@ class checkFillingFactor(object):
 
     def getAbsNoiseCleanTBLIst(self,absK=0.5, dbscanCode="dbscanS2P4Con1"):
 
-        fitsList= []
+        tbList= []
         tbFileList= []
         for eachSF in self.smoothFactors:
             fileName="{}*SmFactor_{}*{}absK{}.fit".format(self.calCode, eachSF ,absK, dbscanCode )
@@ -657,13 +673,13 @@ class checkFillingFactor(object):
 
             if TBName!=None:
 
-                fitsList.append(Table.read(TBName) )
+                tbList.append(Table.read(TBName) )
 
             else:
 
-                fitsList.append(TBName )
+                tbList.append(TBName )
             tbFileList.append(TBName)
-        return fitsList,tbFileList
+        return tbList,tbFileList
 
 
     def sumVoxels(self,fitsName,downToK=1.0):
@@ -750,6 +766,7 @@ class checkFillingFactor(object):
         return np.nansum(data[data>cutoff])*0.2
 
 
+
     def getEqualCutOff(self,fitsFile,TBFile):
 
         """
@@ -801,6 +818,73 @@ class checkFillingFactor(object):
         return downToKTry
 
 
+
+    def drawFluxOfNoise(self, absK=0.5 ):
+
+        """
+        Get clean TB files to draw total flux change
+        :param calCode:
+        :param absK:
+        :return:
+        """
+
+
+        ##get clean file
+
+        TBCleanTB,TBFiles=self.getAbsNoiseCleanTBLIst(absK=absK)
+
+        y= self.getTotalFlux( TBCleanTB )
+        x =self.rawBeamSize*self.smoothFactors
+
+
+        ########
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        axFitting = fig.add_subplot(1,1, 1)
+
+        pnDegree= 4
+        z1 = np.polyfit(x, y, pnDegree )
+        p1 = np.poly1d(z1)
+
+        axFitting.plot( x,  p1(x) ,color='blue' ,lw=1 ,label="Polynomical fitting with degree {}".format(pnDegree ) )
+        axFitting.scatter( x, y , s= 15, color='red',label="The noise RMS is 0.5 K" )
+
+        ######
+        axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
+        axFitting.set_xlabel(r"Beam Size (arcmin)")
+
+
+
+
+
+        #at = AnchoredText(r"The noise rms is {} K (1$\sigma$)".format(self.MWISPrmsCO12), loc=1, frameon=False)
+        #axFitting.add_artist(at)
+
+
+        fillingWMISP =  "The filling factor ({}) of MWISP is: {:.3f}".format(self.calCode, p1(self.rawBeamSize)/p1(0) )
+        fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, p1(0.125*60)/p1(0) )
+
+        at = AnchoredText( fillingWMISP+"\n" +  fillingCfA , loc=1, frameon=False)
+        axFitting.add_artist(at)
+
+        #draw CfA resolution
+        axFitting.axvline(  x=8.5  , ymax= 0.5, ls="--" ,  color='green' ,  label="CfA resolutuion (8.5 arcmin)" )
+        axFitting.legend(loc= 3 )
+
+        fig.tight_layout()
+        plt.savefig("{}_factorFitting.pdf".format(self.calCode), bbox_inches='tight')
+        plt.savefig("{}_factorFitting.png".format(self.calCode), bbox_inches='tight', dpi=600)
+
+
     def factorFitting(self):
         """
 
@@ -825,23 +909,79 @@ class checkFillingFactor(object):
 
         axFitting = fig.add_subplot(1,1, 1)
 
-        axFitting.scatter( x, y , s= 6,color='red' )
-
-        z1 = np.polyfit(x, y,  4 )
+        pnDegree= 4
+        z1 = np.polyfit(x, y, pnDegree )
         p1 = np.poly1d(z1)
 
-        axFitting.plot( x,  p1(x) ,color='blue'    )
+        axFitting.plot( x,  p1(x) ,color='blue' ,lw=1 ,label="Polynomical fitting with degree {}".format(pnDegree ) )
+        axFitting.scatter( x, y , s= 15, color='red',label="The noise RMS is 0.5 K" )
+
+        ######
+        axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
+        axFitting.set_xlabel(r"Beam Size (arcmin)")
+        print "Filling factor MWISP,", p1(self.rawBeamSize)/p1(0)
+        print "Filling factor CfA,", p1(0.125*60)/p1(0)
 
 
-        print "Filling factor MWISP,",p1(self.rawBeamSize)/p1(0)
-        print "Filling factor CfA,",p1(0.125*60)/p1(0)
 
+        #draw CfA resolution
+        axFitting.axvline(  x=8.5  , ls="--" ,  color='green' ,  label="CfA resolutuion (8.5 arcmin)" )
+        axFitting.legend(loc= 3 )
 
         fig.tight_layout()
         plt.savefig("factorFitting.pdf", bbox_inches='tight')
         plt.savefig("factorFitting.png", bbox_inches='tight', dpi=600)
 
 
+    def drawRMSwithBEAM(self):
+        """
+        Show show how rms change with beam size
+        :return:
+        """
+        files=self.getSmFITSFileList()
+
+        beamSize=self.rawBeamSize*self.smoothFactors
+
+        if 0:
+            rmsList=self.calRMSList( files  )
+        else:
+            rmsList=np.load("beamRMSQ1Local.npy")
+        np.save("beamRMSQ1Local", rmsList )
+        #draw
+
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        axRMS = fig.add_subplot(1,1, 1)
+
+
+
+        ######
+        axRMS.set_ylabel(r"RMS (K)")
+        axRMS.set_xlabel(r"Beam Size (arcmin)")
+
+        axRMS.plot(beamSize , rmsList   ,'o-',color='blue')
+        #axRMS.plot(beamSize , rmsList   ,'o-',color='red', label="theoretical" )
+        axRMS.plot(beamSize ,  rmsList[0]/self.smoothFactors   ,'o-',color='red', label="theoretical RMS" )
+
+        #plot theretical
+
+
+        #draw CfA resolution
+        axRMS.axvline(  x=8.5  , ls="--" ,  color='green' ,  label="CfA resolutuion (8.5 arcmin)" )
+        axRMS.legend(loc= 1 )
+
+        fig.tight_layout()
+        plt.savefig("rmsWithBeam.pdf", bbox_inches='tight')
+        plt.savefig("rmsWithBeam.png", bbox_inches='tight', dpi=600)
 
 
     def pipeLineTestabsK(self,downToK=1.28, recalTotalFlux= False):
@@ -996,7 +1136,7 @@ class checkFillingFactor(object):
 
 
 
-    def drawfluxChange(self,cutoff=0.5):
+    def drawfluxChange(self, cutoff=0.5):
 
         fileList,smoothFactors=self.getSmFITSFileList()
 
@@ -1082,6 +1222,10 @@ class checkFillingFactor(object):
 
         for eachFile in  smoothFiles:
             self.addNoiseSingle(  eachFile,  absoluteNoise=self.MWISPrmsCO12 )
+
+
+
+
 
     def zzz(self):
         """
