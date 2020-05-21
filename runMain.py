@@ -7,11 +7,210 @@ doFF=checkFillingFactor()
 
 
 
-if 1: #out CO 12
+class fillingMain(object):
 
-    doFF.calCode= doFF.codeOutCO12
-    doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
+    def __init__(self):
+        pass
+
+
+    def addNoiseToSmFiles(self,calCode,targetNoise):
+        """
+
+        :return:
+        """
+
+        doFF.calCode=calCode
+        smFiles=doFF.getSmFITSFileList()
+
+        for eachF in  smFiles:
+            doFF.addNoiseSingle(eachF, absoluteNoise= targetNoise )
+
+
+    def cleanByCode(self,calCode,targetNoise, removeFITS=True):
+        """
+
+        :param calCode:
+        :param targetNoise:
+        :return:
+        """
+
+        #get all noise fits
+        doFF.calCode = calCode
+        noiseFiles=doFF.getAbsNoiseFITSName( targetNoise )
+
+
+
+        for eachF in noiseFiles:
+
+            doFF.cleanFITSsigma2(eachF, removeFITS= removeFITS )
+
+
+    def drawFillingFactor(self,calCode,targetNoise):
+        """
+
+        :return:
+        """
+        doFF.calCode = calCode
+
+        doFF.drawFillingFactor(absK=targetNoise,useArea=False )
+
+
+
+
+doMain=fillingMain()
+
+if 1:
+    doFF.getFFForEachCloud(doFF.codeLocalCO12, drawFigure=True, useSigmaCut=True)
+    #doFF.getFillingFactorByCloudID(doFF.codeLocalCO12,8570)
     sys.exit()
+
+
+
+if 0:
+    #pass
+    #recalculate fits and keep the dbscan and clean fits only for local fits
+
+    for eachCode, eachN in zip(doFF.scuCodeList, doFF.noiseList  ):
+        doMain.cleanByCode(eachCode,eachN,removeFITS=False)
+
+
+    for eachCode, eachN in zip(doFF.outCodeList, doFF.noiseList  ):
+        doMain.cleanByCode(eachCode,eachN,removeFITS=False)
+
+
+
+    #sys.exit()
+
+
+
+
+if 0:
+    #pass
+    #recalculate fits and keep the dbscan and clean fits only for local fits
+
+    for eachCode, eachN in zip(doFF.localCodeList, doFF.noiseList  ):
+        doMain.cleanByCode(eachCode,eachN,removeFITS=False)
+
+    for eachCode, eachN in zip(doFF.sgrCodeList, doFF.noiseList  ):
+        doMain.cleanByCode(eachCode,eachN,removeFITS=False)
+
+    #sys.exit()
+
+if 0:
+    #doFF.printFillingCat()
+    doFF.printFluxCat()
+    sys.exit()
+
+if 0: #calculate and save
+
+    doFF.recordFillingFactorData()
+    sys.exit()
+
+
+
+if 0: #test CO18
+
+    #doMain.drawFillingFactor(doFF.codeLocalCO12,doFF.MWISPrmsCO12)
+    #doMain.drawFillingFactor(doFF.codeLocalCO13,doFF.MWISPrmsCO13)
+    #doMain.drawFillingFactor(doFF.codeLocalCO18,doFF.MWISPrmsCO18)
+
+    #doMain.drawFillingFactor(doFF.codeOutCO13, doFF.MWISPrmsCO13)
+
+    doMain.drawFillingFactor(doFF.codeOutCO13, doFF.MWISPrmsCO13)
+
+    sys.exit()
+
+
+if 0: #test Main
+    #doMain.addNoiseToSmFiles(doFF.codeOutCO12,doFF.MWISPrmsCO12)
+
+    #doMain.cleanByCode(doFF.codeOutCO12,doFF.MWISPrmsCO12)
+    #doMain.drawFillingFactor(doFF.codeOutCO12,doFF.MWISPrmsCO12)
+
+
+    #doMain.addNoiseToSmFiles(doFF.codeOutCO13,doFF.MWISPrmsCO13)
+    #doMain.cleanByCode(doFF.codeOutCO13, doFF.MWISPrmsCO13)
+    #doMain.drawFillingFactor(doFF.codeOutCO13,doFF.MWISPrmsCO13)
+
+    codeList=[doFF.codeLocalCO12, doFF.codeOutCO12, doFF.codeSgrCO12, doFF.codeScuCO12, \
+              doFF.codeLocalCO13, doFF.codeOutCO13, doFF.codeSgrCO13, doFF.codeScuCO13, \
+              doFF.codeLocalCO18, doFF.codeOutCO18, doFF.codeSgrCO18, doFF.codeScuCO18,]
+
+
+
+    noiseList=[doFF.MWISPrmsCO12, doFF.MWISPrmsCO12, doFF.MWISPrmsCO12, doFF.MWISPrmsCO12, \
+              doFF.MWISPrmsCO13, doFF.MWISPrmsCO13,  doFF.MWISPrmsCO13, doFF.MWISPrmsCO13, \
+              doFF.MWISPrmsCO18, doFF.MWISPrmsCO18,  doFF.MWISPrmsCO18, doFF.MWISPrmsCO18,]
+
+
+    for i in range(len(codeList)):
+        code=codeList[i]
+        print "Calculating code ", code
+
+        noise=noiseList[i]
+
+        doMain.drawFillingFactor(code,noise)
+        #doMain.addNoiseToSmFiles( code ,noise )
+        #doMain.cleanByCode(code, noise )
+    sys.exit()
+
+if 0:
+    doFF.getArmSubFTS() #produce
+
+
+if 0: #out CO 12
+
+    #doFF.calCode= doFF.codeOutCO12
+    #doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
+    #sys.exit()
+
+    doFF.calCode= doFF.codeOutCO13
+    doFF.smoothFITSbySMFactor(doFF.outCO13FITS)
+
+
+    doFF.calCode= doFF.codeOutCO18
+    doFF.smoothFITSbySMFactor(doFF.outCO18FITS)
+
+
+    ##############Sgr
+    doFF.calCode= doFF.codeSgrCO12
+    doFF.smoothFITSbySMFactor(doFF.sgrCO12FITS)
+
+
+    doFF.calCode= doFF.codeSgrCO13
+    doFF.smoothFITSbySMFactor(doFF.sgrCO13FITS)
+
+    doFF.calCode= doFF.codeSgrCO18
+    doFF.smoothFITSbySMFactor(doFF.sgrCO18FITS)
+
+    sys.exit()
+
+
+if 0:
+
+    ##### Scu
+    doFF.calCode= doFF.codeScuCO12
+    doFF.smoothFITSbySMFactor(doFF.scuCO12FITS)
+
+    doFF.calCode= doFF.codeScuCO13
+    doFF.smoothFITSbySMFactor(doFF.scuCO13FITS)
+
+    doFF.calCode = doFF.codeScuCO18
+    doFF.smoothFITSbySMFactor(doFF.scuCO18FITS)
+
+    ##### Local
+    doFF.calCode = doFF.codeLocalCO18
+    doFF.smoothFITSbySMFactor(doFF.localCO18FITS)
+
+    doFF.calCode= doFF.codeLocalCO12
+    doFF.smoothFITSbySMFactor(doFF.localCO12FITS)
+
+    doFF.calCode= doFF.codeLocalCO13
+    doFF.smoothFITSbySMFactor(doFF.localCO13FITS)
+
+    sys.exit()
+
+
 
 if 0:
 

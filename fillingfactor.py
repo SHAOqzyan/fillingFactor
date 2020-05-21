@@ -12,13 +12,10 @@ import os
 import sys
 import seaborn as sns
 from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
-
-
+from scipy import optimize
+from progressbar import *
 from astropy.table import Table,vstack
-
-
-
-
+import gc
 
 sys.path.insert(1, '/home/qzyan/WORK/myDownloads/MWISPcloud')
 sys.path.insert(1, '/home/yqzpmo/github/MWISPdbscan')
@@ -28,6 +25,17 @@ from onlyDBSCAN import allDBSCAN
 doAllDBSCAN = allDBSCAN()
 
 doFITS=myFITS() #used to deal fits with myPYTHON
+
+
+########
+def ffFunction(x,a, b, c):
+
+    #return a*(x-x0)**2+c
+
+    return a*np.exp(-b*x)  +c
+
+
+
 
 
 
@@ -40,22 +48,77 @@ class checkFillingFactor(object):
 
     #tmpPath= rootPath +"tmpFiles/"
     tmpPath= "/home/qzyan/WORK/diskMWISP/fillingFactorData/tmpFiles/"
+    #########out
+    figurePath= "/home/qzyan/WORK/myDownloads/fillingFactor/figurePath/"
+
 
 
     codeOutCO12="OutCO12"
-    outCO12FITS =dataPath+ "G2650OutCO12.fits"
-    outVrange=[-79,-6]
-    localVrange=[-6,30]
-    sgrVrange=[30,70]
-    sgrVrange=[30,70]
+    outCO12FITS =dataPath+ "outCO12.fits"
+
+    codeOutCO13="OutCO13"
+    outCO13FITS =dataPath+ "outCO13.fits"
+
+    codeOutCO18="OutCO18"
+    outCO18FITS =dataPath+ "outCO18.fits"
+
+    ############## Local
+    codeLocalCO12="LocalCO12"
+    localCO12FITS =dataPath+ "localCO12.fits"
+
+
+    codeLocalCO13="LocalCO13"
+    localCO13FITS =dataPath+ "localCO13.fits"
+
+
+    codeLocalCO18="LocalCO18"
+    localCO18FITS =dataPath+ "localCO18.fits"
+
+
+
+    ########### Sgr
+
+    codeSgrCO12= "sgrCO12"
+    sgrCO12FITS =dataPath+ "sgrCO12.fits"
+
+    codeSgrCO13 = "sgrCO13"
+    sgrCO13FITS = dataPath+ "sgrCO13.fits"
+
+    codeSgrCO18 = "sgrCO18"
+    sgrCO18FITS = dataPath+ "sgrCO18.fits"
+
+    ###### Scu
+
+    codeScuCO12= "scuCO12"
+    scuCO12FITS = dataPath+ "scuCO12.fits"
+
+    codeScuCO13 = "scuCO13"
+    scuCO13FITS = dataPath+ "scuCO13.fits"
+
+    codeScuCO18 = "scuCO18"
+    scuCO18FITS = dataPath+ "scuCO18.fits"
+
+
+    outVrange=[-79,-6] #km/s
+    localVrange=[-6,30] #km/s
+    sgrVrange=[30,70] #km/s
+    scuVrange=[70,120] #km/s
 
 
 
     #tmpPath=  "/home/qzyan/WORK/dataDisk/fillingFactorData/"
 
     #rawRMS = 0.5
-    MWISPrmsCO12=0.5 #K
-    smoothFactors =  np.arange(1.0,15.5,0.5  ) #compared to beam size, this is also the distance factor, that push cloud away by this factor
+    MWISPrmsCO12=0.49 #K
+
+    MWISPrmsCO13=0.26  #K
+    MWISPrmsCO18=0.28 #K
+
+
+    #smoothFactors =  np.arange(1.0,15.5,0.5  ) #compared to beam size, this is also the distance factor, that push cloud away by this factor
+    smoothFactors =  np.arange(1.0, 10.5, 0.5  ) #compared to beam size, this is also the distance factor, that push cloud away by this factor
+
+
     noiseFactors =     np.arange(1.0,10.5,0.5  )  # do not care about the noise Factores now
 
 
@@ -76,8 +139,84 @@ class checkFillingFactor(object):
     smoothColor = plt.cm.ScalarMappable(norm=normNoise, cmap=plt.cm.jet)
 
 
+    #####################
+
+    noiseList= [ MWISPrmsCO12, MWISPrmsCO13,   MWISPrmsCO18  ]
+
+    #armStrList=["local", "Sagittarius", "Scutum-Centaurus","Outer" ] #the perseus arm are incorperated into the local arm
+
+    lineStrList=["\\cofs",  "\\coss", "\\cots" ]
+
+    localCodeList=[   codeLocalCO12,  codeLocalCO13,   codeLocalCO18  ]
+    sgrCodeList=  [   codeSgrCO12,    codeSgrCO13,     codeSgrCO18    ]
+    scuCodeList=  [   codeScuCO12,    codeScuCO13,     codeScuCO18    ]
+    outCodeList=  [   codeOutCO12,    codeOutCO13,     codeOutCO18    ]
+
+    allCodeList =  localCodeList+  sgrCodeList +  scuCodeList +  outCodeList
+    allNoiseList = noiseList + noiseList + noiseList + noiseList
+    allArmList=  ["local"]*3+  ["Sagittarius"]*3+  ["Scutum-Centaurus"]*3+  ["Outer"]*3    #armStrList+armStrList+armStrList+armStrList
+
+    allLineList= lineStrList+ lineStrList+lineStrList+lineStrList
+
+    ffMWISPCol="fillingFactorMWISP"
+    ffCfACol="fillingFactorCfa"
+
+    aCol="para_a"
+    bCol="para_b"
+    cCol="para_c"
+
+
+
+
+    aErrorCol="error_a"
+    bErrorCol="error_b"
+    cErrorCol="error_c"
+
+
+
+
+
     def __init__(self):
         pass
+
+
+
+    def getArmSubFTS(self):
+
+        """
+        Split fits into four arms
+        :return:
+        """
+        #deakubg withCO 12
+        CO12LocalAndOutFITS = "/home/qzyan/WORK/diskMWISP/fillingFactorData/q1Raw/Ua/mosaic_U.fits"
+        CO12SgrAndscuFITS = "/home/qzyan/WORK/diskMWISP/fillingFactorData/q1Raw/Ub/mosaic_U.fits"
+
+        CO13LocalAndOutFITS = "/home/qzyan/WORK/diskMWISP/fillingFactorData/q1Raw/La/mosaic_L.fits"
+        CO13SgrAndscuFITS = "/home/qzyan/WORK/diskMWISP/fillingFactorData/q1Raw/Lb/mosaic_L.fits"
+
+        CO18LocalAndOutFITS = "/home/qzyan/WORK/diskMWISP/fillingFactorData/q1Raw/L2a/mosaic_L2.fits"
+        CO18SgrAndscuFITS = "/home/qzyan/WORK/diskMWISP/fillingFactorData/q1Raw/L2b/mosaic_L2.fits"
+
+
+
+        doFITS.cropFITS(CO12LocalAndOutFITS, Vrange=self.outVrange,outFITS= self.outCO12FITS, overWrite=True )
+        doFITS.cropFITS(CO12LocalAndOutFITS, Vrange=self.localVrange,outFITS=  self.localCO12FITS, overWrite=True )
+        doFITS.cropFITS(CO12SgrAndscuFITS, Vrange=self.sgrVrange,outFITS= self.sgrCO12FITS, overWrite=True )
+        doFITS.cropFITS(CO12SgrAndscuFITS, Vrange=self.scuVrange,outFITS= self.scuCO12FITS, overWrite=True )
+
+
+
+        doFITS.cropFITS(CO13LocalAndOutFITS, Vrange=self.outVrange,outFITS= self.outCO13FITS, overWrite=True )
+        doFITS.cropFITS(CO13LocalAndOutFITS, Vrange=self.localVrange,outFITS=  self.localCO13FITS, overWrite=True )
+        doFITS.cropFITS(CO13SgrAndscuFITS, Vrange=self.sgrVrange,outFITS= self.sgrCO13FITS, overWrite=True )
+        doFITS.cropFITS(CO13SgrAndscuFITS, Vrange=self.scuVrange,outFITS= self.scuCO13FITS, overWrite=True )
+
+
+
+        doFITS.cropFITS(CO18LocalAndOutFITS, Vrange=self.outVrange,outFITS= self.outCO18FITS, overWrite=True )
+        doFITS.cropFITS(CO18LocalAndOutFITS, Vrange=self.localVrange,outFITS=  self.localCO18FITS, overWrite=True )
+        doFITS.cropFITS(CO18SgrAndscuFITS, Vrange=self.sgrVrange,outFITS= self.sgrCO18FITS, overWrite=True )
+        doFITS.cropFITS(CO18SgrAndscuFITS, Vrange=self.scuVrange,outFITS= self.scuCO18FITS, overWrite=True )
 
 
 
@@ -88,7 +227,7 @@ class checkFillingFactor(object):
         :return:
         """
 
-    def smoothFITSbySMFactor(self,rawCOFITS, rawBeamSize=52./60  ):
+    def smoothFITSbySMFactor(self,rawCOFITS, rawBeamSize = 52./60  ):
 
         """
         Default
@@ -150,6 +289,21 @@ class checkFillingFactor(object):
 
         return np.asarray(fluxList)
 
+    def getTotalArea(self,TBList):
+        """
+        return
+        :param TBList:
+        :return:
+        """
+        areaList = []
+
+        for eachTB in TBList:
+
+            totalArea=np.sum(eachTB["area_exact"])  #convert to 0.2 km/s
+            areaList.append(totalArea)
+
+        return np.asarray(areaList)
+
 
 
     def getTBFixSmFactor(self,smFactor=1.0, dbParameters="S2P4Con1" ):
@@ -178,6 +332,7 @@ class checkFillingFactor(object):
             else:
                 print "Multiple data found please check your data"
                 print tbFile
+
 
 
         return np.asarray( tbList ) , np.asarray( noiseList )
@@ -405,7 +560,11 @@ class checkFillingFactor(object):
                     self.cleanFITSsigma2(noiseFITS,removeFITS=True)
                     os.remove(noiseFITS) #if do clean, then remove the noisefits, only keep the table
 
-    def addNoiseSingle(self,smoothedFITS,  noiseFactor=2, absoluteNoise=None , returnData=False ):
+
+
+
+
+    def addNoiseSingle(self,smoothedFITS,  noiseFactor=2, absoluteNoise=None , returnData=False, redo=False ):
         """
 
         :param smoothedFITS:
@@ -416,6 +575,12 @@ class checkFillingFactor(object):
         saveSuffix= "_noiseFactor_{}".format( float(noiseFactor) )
 
         saveName=self.addFixToFITSName(smoothedFITS,saveSuffix,prefix=False)
+
+        if not redo and os.path.isfile( saveName ):
+            return
+
+
+
 
         if noiseFactor==1.0:
             data, head = myFITS.readFITS(smoothedFITS)
@@ -667,7 +832,7 @@ class checkFillingFactor(object):
         tbList= []
         tbFileList= []
         for eachSF in self.smoothFactors:
-            fileName="{}*SmFactor_{}*{}absK{}.fit".format(self.calCode, eachSF ,absK, dbscanCode )
+            fileName="{}*SmFactor_{}*{}absK{}_Clean.fit".format(self.calCode, eachSF ,absK, dbscanCode )
 
             TBName= self.getFileByStr(self.tmpPath,fileName)
 
@@ -817,9 +982,122 @@ class checkFillingFactor(object):
 
         return downToKTry
 
+    def convertFunction(self,x):
+
+        return np.sqrt(x)
+
+    def guessNoiseByCode(self):
+
+        noise = self.MWISPrmsCO12
+
+        if "CO13" in self.calCode:
+            noise=self.MWISPrmsCO13
+
+        if "CO18" in self.calCode:
+            noise=self.MWISPrmsCO18
+
+        return noise
+
+    def getNoiseDataList( self ):
+
+        targetNoise=self.guessNoiseByCode()
+
+        noiseFiles=self.getAbsNoiseFITSName( targetNoise )
+
+        dataList=[]
 
 
-    def drawFluxOfNoise(self, absK=0.5 ):
+        for eachF in noiseFiles:
+
+            dataN,headN=doFITS.readFITS( eachF )
+
+            dataList.append(dataN)
+
+        return dataList
+
+
+
+
+    def getFillingFactor(self,beamList,fluxList,calID,drawFigure=False):
+        """
+
+        :param beamList:
+        :param fluxList:
+        :return:
+        """
+
+        x=np.asarray( beamList )
+
+        y = np.asarray( fluxList )
+
+
+        #print x
+        #print y
+
+        params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, p0=[np.mean(y), 0.5, np.mean(y)])
+        errors = np.sqrt(np.diag(paramas_covariance))
+
+        fittingParaAndError = [params, errors]
+
+        # for i in range(len(params)):
+        # print params[i], errors[i],"Error in percentage", errors[i]/params[i]
+        cfaBeam=8.5
+        cfaFilling =        ffFunction(cfaBeam, params[0], params[1], params[2]) / ffFunction(0, params[0], params[1], params[2])
+        wmsipFilling = ffFunction(self.rawBeamSize, params[0], params[1], params[2]) / ffFunction(0, params[0], params[1],   params[2])
+        if not drawFigure:
+            return wmsipFilling, cfaFilling, fittingParaAndError
+
+        #drawTheFigure
+
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        axFitting = fig.add_subplot(1,1, 1)
+        #axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
+        #axFitting.scatter(x, x*y, s=15, color='red', label="The noise RMS is 0.5 K")
+        axFitting.scatter(  x  ,  y , s=15,  color='red'   )
+
+        fittingX = np.arange(0, np.max(x), 0.01)
+        # axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
+        axFitting.plot(fittingX, ffFunction(fittingX, *params), color='blue', lw=1.5)
+
+        fillingWMISP = "The filling factor ({}) of MWISP is: {:.3f}".format(self.calCode, wmsipFilling)
+        fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, cfaFilling)
+
+        # at = AnchoredText(r"The noise rms is {} K (1$\sigma$)".format(self.MWISPrmsCO12), loc=1, frameon=False)
+        # axFitting.add_artist(at)
+
+        # if cfaBeam> np.max(x):
+        # cfaFilling= 0
+
+        at = AnchoredText(fillingWMISP + "\n" + fillingCfA, loc=1, frameon=False)
+        axFitting.add_artist(at)
+        ###
+
+        axFitting.axvline(x=0, ls="--", color='black')
+
+        # draw CfA resolution
+        axFitting.axvline(x=cfaBeam, ymax=0.2, ls="--", color='green', label="CfA resolutuion (8.5 arcmin)")
+        axFitting.legend(loc=5)
+        ###########################
+        saveTag= "{}_factorFitting_ID{}".format(self.calCode,calID)
+
+        plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=600)
+
+
+
+        return wmsipFilling, cfaFilling,  fittingParaAndError
+
+
+    def drawFillingFactor(self, absK=0.5, useArea=False ):
 
         """
         Get clean TB files to draw total flux change
@@ -832,10 +1110,31 @@ class checkFillingFactor(object):
         ##get clean file
 
         TBCleanTB,TBFiles=self.getAbsNoiseCleanTBLIst(absK=absK)
-
+        print TBFiles[0]
         y= self.getTotalFlux( TBCleanTB )
-        x =self.rawBeamSize*self.smoothFactors
 
+        saveTag= "{}_factorFitting_flux".format(self.calCode)
+
+        if useArea:
+            y= self.getTotalArea( TBCleanTB )
+            saveTag= "{}_factorFitting_area".format(self.calCode)
+
+
+        x =self.rawBeamSize*self.smoothFactors
+        np.save(self.calCode+"X",x)
+        np.save(self.calCode+"Y",y)
+
+        #x=np.exp(x)
+
+        ################################################
+        #select=y>0
+        #x=x[select]
+        #y=y[select]
+
+        #x= self.convertFunction( x )
+        #x= x**2
+
+        #y= np.log(y)  #self.getTotalFlux( TBCleanTB )
 
         ########
         fig = plt.figure(figsize=(10, 8))
@@ -850,39 +1149,317 @@ class checkFillingFactor(object):
         ]
 
         axFitting = fig.add_subplot(1,1, 1)
+        #axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
+        #axFitting.scatter(x, x*y, s=15, color='red', label="The noise RMS is 0.5 K")
+        axFitting.scatter(  x  ,  y , s=15,  color='red', label="The noise RMS is {:.2f} K".format( absK ) )
 
-        pnDegree= 4
-        z1 = np.polyfit(x, y, pnDegree )
-        p1 = np.poly1d(z1)
 
-        axFitting.plot( x,  p1(x) ,color='blue' ,lw=1 ,label="Polynomical fitting with degree {}".format(pnDegree ) )
-        axFitting.scatter( x, y , s= 15, color='red',label="The noise RMS is 0.5 K" )
+        if 0: #curving fitting
+
+
+            params, paramas_covariance=optimize.curve_fit(ffFunction, x,y, p0=[10000, 0.5,   np.mean(y)  ] )
+            print params
+            fittingX=np.arange(0, np.max(x),0.01)
+            axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
+
+        if 1: #do not draw xy
+
+            cfaFilling = 1
+            wmsipFilling = 1
+            cfaBeam= 8.5 #arcmin
+            if 0:
+                pnDegree = 5
+
+                z1 = np.polyfit(x, y, pnDegree )
+                p1 = np.poly1d(z1)
+
+                cfaFilling= p1(  cfaBeam )/p1(0)
+
+
+                fittingX=np.arange(-0.2, np.max(x),0.1)
+                axFitting.plot( fittingX,  p1(fittingX) ,color='blue' ,lw=1 ,label="Polynomical fitting with degree {}".format(pnDegree ) )
+
+                fillingWMISP =  "The filling factor ({}) of MWISP is: {:.3f}".format(self.calCode, p1(self.rawBeamSize)/p1(0) )
+                fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, cfaFilling )
+
+
+            else:
+                params, paramas_covariance=optimize.curve_fit(ffFunction, x,y, p0=[10000, 0.5,   np.mean(y)  ] )
+                errors=np.sqrt(np.diag(paramas_covariance))
+
+                fittingParaAndError=[ params,  errors  ]
+
+                #for i in range(len(params)):
+                    #print params[i], errors[i],"Error in percentage", errors[i]/params[i]
+
+                cfaFilling =    ffFunction( cfaBeam , params[0], params[1] , params[2]   ) /  ffFunction(0, params[0], params[1] , params[2]   )
+                wmsipFilling =   ffFunction(self.rawBeamSize,  params[0], params[1] , params[2]    ) /  ffFunction(0, params[0], params[1] , params[2]   )
+
+                fittingX=np.arange(0, np.max(x),0.01)
+                #axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
+                axFitting.plot( fittingX  ,  ffFunction(fittingX,*params   ), color='blue' ,lw=1.5 )
+
+                fillingWMISP = "The filling factor ({}) of MWISP is: {:.3f}".format(self.calCode,   wmsipFilling )
+                fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, cfaFilling)
+
+                #at = AnchoredText(r"The noise rms is {} K (1$\sigma$)".format(self.MWISPrmsCO12), loc=1, frameon=False)
+                #axFitting.add_artist(at)
+
+
+            #if cfaBeam> np.max(x):
+                #cfaFilling= 0
+
+
+            at = AnchoredText( fillingWMISP+"\n" +  fillingCfA , loc=1, frameon=False)
+            axFitting.add_artist(at)
+
+            axFitting.axvline(  x=0  ,  ls="--" ,  color='black'   )
+
+
+            #draw CfA resolution
+            axFitting.axvline(  x=cfaBeam  , ymax= 0.2, ls="--" ,  color='green' ,  label="CfA resolutuion (8.5 arcmin)" )
+            axFitting.legend(loc= 5 )
 
         ######
-        axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
+        if useArea:
+            axFitting.set_ylabel(r"Angular area (square arcmin)")
+
+        else:
+            axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
+
+
         axFitting.set_xlabel(r"Beam Size (arcmin)")
 
 
 
 
 
-        #at = AnchoredText(r"The noise rms is {} K (1$\sigma$)".format(self.MWISPrmsCO12), loc=1, frameon=False)
-        #axFitting.add_artist(at)
-
-
-        fillingWMISP =  "The filling factor ({}) of MWISP is: {:.3f}".format(self.calCode, p1(self.rawBeamSize)/p1(0) )
-        fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, p1(0.125*60)/p1(0) )
-
-        at = AnchoredText( fillingWMISP+"\n" +  fillingCfA , loc=1, frameon=False)
-        axFitting.add_artist(at)
-
-        #draw CfA resolution
-        axFitting.axvline(  x=8.5  , ymax= 0.5, ls="--" ,  color='green' ,  label="CfA resolutuion (8.5 arcmin)" )
-        axFitting.legend(loc= 3 )
 
         fig.tight_layout()
-        plt.savefig("{}_factorFitting.pdf".format(self.calCode), bbox_inches='tight')
-        plt.savefig("{}_factorFitting.png".format(self.calCode), bbox_inches='tight', dpi=600)
+
+
+        #axFitting.set_yscale('log')
+        #axFitting.set_xscale('log')
+
+        plt.savefig("{}.pdf".format( saveTag  ), bbox_inches='tight')
+        plt.savefig("{}.png".format( saveTag ), bbox_inches='tight', dpi=600)
+        #the flux is saved in npy
+        return   wmsipFilling, cfaFilling  , fittingParaAndError
+
+
+    def printFillingCat(self):
+        """
+        print the filling factor for each arm, each lines and together with the fitting parameters
+        :return:
+        """
+
+        ###
+
+        mwispFillingList=np.load("mwispFilling.npy")
+        cfaFillingList=np.load("cfaFilling.npy")
+        paraFitting = np.load("fittingPara.npy")
+
+
+        for i in range(len(mwispFillingList)) :
+
+
+
+            armStr= self.allArmList[i]
+
+            lineStr= self.allLineList[i]
+
+
+            factorStr= "{:.3f}".format( mwispFillingList[i] )
+            para,paraError = paraFitting[i]
+
+            aStr= self.getScitificStr(para[0], paraError[0])
+            bStr=  "{:.3f} $\pm$ {:.3f}".format( para[1],paraError[1]  )
+            #cStr= "{:.2f} $\pm$ {:.2f}".format( para[2],paraError[2]  )
+
+
+            if para[2]<10:
+                cStr= "{:.3f} $\pm$ {:.3f}".format( para[2],paraError[2]  )
+            else:
+                cStr=  self.getScitificStr(para[2], paraError[2])
+
+            if i % 3 != 1:
+                armStr=""
+            lintStr="{} & {} & {} & {} & {} & {}  \\\\".format( armStr , lineStr , factorStr,  aStr, bStr, cStr   )
+
+
+
+            print lintStr
+
+            if i % 3 == 2 and i< len( mwispFillingList)-1:
+                print "\\hline"
+
+    def getScitificStr(self,value,valueError):
+        """
+
+        :param value:
+        :param valueError:
+        :return:
+        """
+
+        sciNote= "{:.3e}".format(value)
+        sciPart=sciNote[5:]
+
+        order = float( "1.0"+sciPart)
+        orderN= int( np.log10( order) )
+
+        valueFloat = value / order
+        errorFloat= valueError/order
+
+
+        finalStr= "({:.3f}$\\pm${:.3f})$\\times10^{{{}}}$".format(valueFloat ,errorFloat, orderN)
+        return finalStr
+
+
+
+
+
+    def printFluxCat(self):
+        """
+
+        :return:
+        """
+        mwispFillingList=np.load("mwispFilling.npy")
+        cfaFillingList=np.load("cfaFilling.npy")
+        paraFitting = np.load("fittingPara.npy")
+
+
+
+
+
+        for i in range(len(mwispFillingList)) :
+
+
+
+            armStr= self.allArmList[i]
+
+            lineStr= self.allLineList[i]
+
+
+            factorStr= "{:.3f}".format( mwispFillingList[i] )
+            para,paraError = paraFitting[i]
+
+            aStr= self.getScitificStr(para[0], paraError[0])
+            bStr=  "{:.3f} $\pm$ {:.3f}".format( para[1],paraError[1]  )
+            #cStr= "{:.2f} $\pm$ {:.2f}".format( para[2],paraError[2]  )
+
+
+            if para[2]<10:
+                cStr= "{:.3f} $\pm$ {:.3f}".format( para[2],paraError[2]  )
+
+            else:
+                cStr=  self.getScitificStr(para[2], paraError[2])
+
+            if i % 3 != 1:
+                armStr=""
+
+            codeI=self.allCodeList[i]
+            X=np.load(codeI+"X.npy")
+            Y=np.load(codeI+"Y.npy")
+
+            strFlux = self.getLatexFromArray(Y)
+
+            lintStr="{} & {} & {}  \\\\".format( armStr , lineStr , strFlux  )
+
+
+
+            print lintStr
+
+            if i % 3 == 2 and i< len( mwispFillingList)-1:
+                print "\\hline"
+
+
+
+    def getLatexFromArray(self , valueList ):
+        """
+
+        :param valueList:
+        :return:
+        """
+        str=""
+        for i in range( len(valueList)  ):
+            value=valueList[i]/1000.
+            latextFlux= self.latexFlux(value)
+            if i==0:
+
+                str=str +"{}".format( latextFlux )
+
+            else:
+
+                str=str +" & {}".format( latextFlux )
+
+        return str
+
+
+    def latexFlux(self,value):
+
+
+        if value>100:
+            return "{}".format(int(value))
+
+
+        if value>10:
+            return "{:.1f}".format( value )
+
+        if value>1:
+            return "{:.2f}".format( value )
+
+        return "{:.3f}".format( value )
+
+
+
+    def getScitificLatexSingle(self,value):
+        """
+
+        :param value:
+        :return:
+        """
+        sciNote= "{:.3e}".format(value)
+        sciPart=sciNote[5:]
+
+        order = float( "1.0"+sciPart)
+        orderN= int( np.log10( order) )
+
+
+        valueFloat = value / order
+
+        finalStr= "{:.2f}$\\times10^{{{}}}$".format(valueFloat ,  orderN)
+
+        return finalStr
+
+
+
+
+    def recordFillingFactorData(self):
+        """
+        print the filling factor of
+        :return:
+        """
+
+        mwispFillingList=[]
+        cfaFillingList=[]
+        fittingParaList=[]
+
+
+
+        for eachCode, eachNoise in zip(self.allCodeList,self.allNoiseList):
+
+            self.calCode=eachCode
+            mwispFilling ,cfaFilling, fittingParaAndError= self.drawFillingFactor(absK=eachNoise, useArea=False )
+
+            mwispFillingList.append( mwispFilling )
+            cfaFillingList.append( cfaFilling )
+            fittingParaList.append( fittingParaAndError )
+
+        np.save("mwispFilling", mwispFillingList )
+        np.save("cfaFilling", cfaFillingList )
+        np.save("fittingPara", fittingParaList )
+
+
 
 
     def factorFitting(self):
@@ -1222,6 +1799,274 @@ class checkFillingFactor(object):
 
         for eachFile in  smoothFiles:
             self.addNoiseSingle(  eachFile,  absoluteNoise=self.MWISPrmsCO12 )
+
+
+
+    def getRawBeamTBByCalcode(self,calCode,smFactor=1):
+
+        searchStr= "{}*SmFactor_{}*absKdbscanS2P4Con1_Clean.fit".format(calCode, float(smFactor) )
+        testSearch  = glob.glob( self.tmpPath+searchStr )
+
+
+        return   testSearch[0]
+
+    def getCleanFITSName(self,calCode,smFactor):
+
+        searchStr= "{}*SmFactor_{:.1f}*absKdbscanS2P4Con1_Clean.fits".format(calCode,float(smFactor))
+        testSearch  = glob.glob( self.tmpPath+searchStr )
+
+
+        return   testSearch[0]
+
+    def getRawCOFITS(self,calCode):
+        """
+
+        :param calCode:
+        :return:
+        """
+
+        return self.dataPath+calCode+".fits"
+
+
+
+
+    def getFluxListByIDTest2(self,calCode,ID):
+        """
+
+        :param ID:
+        :return:
+        """
+
+        fluxList=[]
+
+        rawCOFITS=self.getRawCOFITS(calCode)
+
+        CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+
+        cleanFITSRawBeam = self.getCleanFITSName(calCode, 1)
+
+        #step 1, get the
+        data,head=doFITS.readFITS(cleanFITSRawBeam)
+        cloudIndex= np.where( data==ID )
+
+        rawCOValues=  CODataRaw[cloudIndex]
+
+
+        for eachSm in self.smoothFactors:
+
+            print eachSm
+            cleanFITSSm =  self.getCleanFITSName(calCode, eachSm )
+
+            dataSm, headSm = doFITS.readFITS( cleanFITSSm )
+
+            #smLabels=  dataSm[cloudIndex]
+
+            indexSelect = np.logical_and(  data==ID , dataSm>0 )
+
+            coValues= CODataRaw[indexSelect]    #rawCOValues[smLabels>0]
+            flux=np.sum(coValues)*0.2
+            print flux
+            fluxList.append(flux)
+
+
+
+        return fluxList
+
+
+    def getCleanDataList(self,calCode):
+
+        dataArray=[]
+
+        for eachSm in self.smoothFactors:
+            
+            cleanFITSSm =  self.getCleanFITSName(calCode, eachSm )
+
+            dataSm, headSm = doFITS.readFITS( cleanFITSSm )
+            dataArray.append( dataSm )
+
+        return dataArray
+
+
+    def getFluxListByIDSigmaCut(self,  cleanDataSM1, smCODataList  ,ID ,sigmaCut=2.6 ):
+        """
+
+        :param ID:
+        :return:
+        """
+
+        fluxList=[]
+
+        #rawCOFITS=self.getRawCOFITS(calCode)
+
+        #CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+
+        #step 1, get the
+        #data,head=doFITS.readFITS(cleanFITSRawBeam)
+        cloudIndex= np.where( cleanDataSM1==ID )
+
+        #rawCOValues=  CODataRaw[cloudIndex]
+
+        noise=self.guessNoiseByCode()
+
+        for  dataSm in smCODataList:
+
+            coValues=   dataSm[cloudIndex]
+            coValues= coValues[coValues>=sigmaCut* noise ]
+            flux=np.sum(coValues)*0.2
+            fluxList.append(flux)
+
+
+        del cloudIndex
+        del coValues
+        return fluxList
+
+
+    def getFluxListByID(self,CODataRaw, cleanDataSM1, cleanDataList,  calCode,ID  ):
+        """
+
+        :param ID:
+        :return:
+        """
+
+        fluxList=[]
+
+        #rawCOFITS=self.getRawCOFITS(calCode)
+
+        #CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+
+        #step 1, get the
+        #data,head=doFITS.readFITS(cleanFITSRawBeam)
+        cloudIndex= np.where( cleanDataSM1==ID )
+
+        rawCOValues=  CODataRaw[cloudIndex]
+
+
+        for  dataSm in cleanDataList :
+
+            #print eachSm
+            #cleanFITSSm =  self.getCleanFITSName(calCode, eachSm )
+
+            #dataSm, headSm = doFITS.readFITS( cleanFITSSm )
+
+            smLabels=  dataSm[cloudIndex]
+
+            #indexSelect = np.logical_and( cloudMaskRaw , dataSm>0 )
+
+            coValues=    rawCOValues[smLabels>0]
+            flux=np.sum(coValues)*0.2
+
+            fluxList.append(flux)
+
+        return fluxList
+
+
+    def addFFColnames(self,cleanTB):
+        ffTB=cleanTB.copy()
+        ffTB[self.ffMWISPCol] = cleanTB["peak"] * 0
+        ffTB[self.ffCfACol] = cleanTB["peak"] * 0
+        ffTB[self.aCol] = cleanTB["peak"] * 0
+        ffTB[self.bCol] = cleanTB["peak"] * 0
+        ffTB[self.cCol] = cleanTB["peak"] * 0
+
+        ffTB[self.aErrorCol] = cleanTB["peak"] * 0
+        ffTB[self.bErrorCol] = cleanTB["peak"] * 0
+        ffTB[self.cErrorCol] = cleanTB["peak"] * 0
+
+        return ffTB
+
+
+    def getFillingFactorByCloudID(self, CODataRaw, cleanDataSM1,cleanDataList,calCode,ID, saveTB=None , drawFigure=False, useSigmaCut=False ):
+        """
+        :param ID:
+        :return:
+        """
+        self.calCode=calCode
+        #test an ID of 8570
+
+        if useSigmaCut:
+            fluxList = self.getFluxListByIDSigmaCut( cleanDataSM1,cleanDataList, ID  )
+
+        else:
+            fluxList = self.getFluxListByID(CODataRaw, cleanDataSM1,cleanDataList,calCode,ID)
+
+
+
+        wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactor(self.smoothFactors*self.rawBeamSize,fluxList,calID=ID,drawFigure=drawFigure)
+
+        #save
+        if saveTB!=None:
+
+            tbIndexOfCloud= np.where(  saveTB["_idx"] ==ID   )
+
+            para,paraError= fittingParaAndError
+            saveTB[tbIndexOfCloud][self.ffMWISPCol]=wmsipFilling
+            saveTB[tbIndexOfCloud][self.ffCfACol]=cfaFilling
+
+            saveTB[tbIndexOfCloud][self.aCol]=para[0]
+            saveTB[tbIndexOfCloud][self.bCol]=para[1]
+            saveTB[tbIndexOfCloud][self.cCol]=para[2]
+
+
+            saveTB[tbIndexOfCloud][self.aErrorCol]=paraError[0]
+            saveTB[tbIndexOfCloud][self.bErrorCol]=paraError[1]
+            saveTB[tbIndexOfCloud][self.cErrorCol]=paraError[2]
+
+
+    def getFFForEachCloud(self,calCode,drawFigure=False, useSigmaCut=False ):
+
+        TBName = self.getRawBeamTBByCalcode(calCode)
+        cleanTB = Table.read(TBName)
+
+        ffTB=self.addFFColnames( cleanTB )
+        self.calCode= calCode
+
+        #CODataRaw, cleanDataSM1, cleanDataList,
+
+        rawCOFITS=self.getRawCOFITS(calCode)
+        CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+
+        cleanFITSRawBeam = self.getCleanFITSName(calCode, 1)
+        cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
+
+        if useSigmaCut:
+            cleanDataList=self.getNoiseDataList()
+
+
+        else:
+            cleanDataList=self.getCleanDataList(calCode)
+
+        widgets = ['Calculating filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(ffTB))
+        pbar.start()
+
+
+        i=0
+
+        for eachR in ffTB:
+            i=i+1
+            gc.collect()
+
+            ID=eachR["_idx"]
+            pbar.update(i)
+
+            #try:
+            if useSigmaCut:
+                try:
+                    self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
+                except:
+                    continue
+            else:
+
+                try:
+                    self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure )
+
+                except:
+                    continue
+
+        pbar.finish()
+            #break
+        ffTB.write( calCode+"FillingFactorTB.fit",overwrite=True )
 
 
 
