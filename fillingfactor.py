@@ -43,11 +43,14 @@ class checkFillingFactor(object):
 
     rootPath="./"
 
-    dataPath= "/home/qzyan/WORK/diskMWISP/fillingFactorData/data/"
+    #saveFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/"
+    saveFITSPath="./"
+
+    dataPath= saveFITSPath+"data/"
     rawFITS=  dataPath + "G2650Local30.fits"
 
     #tmpPath= rootPath +"tmpFiles/"
-    tmpPath= "/home/qzyan/WORK/diskMWISP/fillingFactorData/tmpFiles/"
+    tmpPath= saveFITSPath +  "tmpFiles/"
     #########out
     figurePath= "/home/qzyan/WORK/myDownloads/fillingFactor/figurePath/"
 
