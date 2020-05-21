@@ -1058,7 +1058,7 @@ class checkFillingFactor(object):
         fig = plt.figure(figsize=(10, 8))
         rc('text', usetex=True)
         rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
-        
+
         if 0:
             mpl.rcParams['text.latex.preamble'] = [
                 r'\usepackage{tgheros}',  # helvetica font
@@ -2063,10 +2063,10 @@ class checkFillingFactor(object):
 
             #try:
             if useSigmaCut:
-                #try:
-                self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
-                #except:
-                    #continue
+                try:
+                    self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
+                except:
+                    continue
             else:
 
                 try:
