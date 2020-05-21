@@ -2047,6 +2047,17 @@ class checkFillingFactor(object):
         cleanTB = Table.read(TBName)
 
         ffTB=self.addFFColnames( cleanTB )
+
+        #remove small size clouds
+        if 0:
+            area=ffTB["area_exact"]
+
+            size= 2*np.sqrt(area/np.pi)
+
+            ffTB=ffTB[size>=self.smoothFactors[-1]*self.rawBeamSize]
+
+
+
         self.calCode= calCode
 
         #CODataRaw, cleanDataSM1, cleanDataList,
