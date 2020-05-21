@@ -1024,7 +1024,7 @@ class checkFillingFactor(object):
 
 
 
-    def getFillingFactor(self,beamList,fluxList,calID,drawFigure=False):
+    def getFillingFactorAndDraw(self,beamList,fluxList,calID,drawFigure=False):
         """
 
         :param beamList:
@@ -1039,8 +1039,13 @@ class checkFillingFactor(object):
 
         #print x
         #print y
+        try:
+            params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, p0=[np.mean(y), 0.5, np.mean(y)])
+        except:
+            return 0, 0, [[0,0,0],[0,0,0]]
 
-        params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, p0=[np.mean(y), 0.5, np.mean(y)])
+
+
         errors = np.sqrt(np.diag(paramas_covariance))
 
         fittingParaAndError = [params, errors]
@@ -1898,7 +1903,7 @@ class checkFillingFactor(object):
         return dataArray
 
 
-    def getFluxListByIDSigmaCut(self,  cleanDataSM1, smCODataList  ,ID ,sigmaCut=2.6 ):
+    def getFluxListByIDSigmaCut(self,  labelSets, smCODataList  ,ID ,sigmaCut=2.6 ):
         """
 
         :param ID:
@@ -1913,7 +1918,7 @@ class checkFillingFactor(object):
 
         #step 1, get the
         #data,head=doFITS.readFITS(cleanFITSRawBeam)
-        cloudIndex= np.where( cleanDataSM1==ID )
+        cloudIndex=  self.getIndices(labelSets,ID)  #np.where( cleanDataSM1==ID )
 
         #rawCOValues=  CODataRaw[cloudIndex]
 
@@ -1986,7 +1991,7 @@ class checkFillingFactor(object):
         return ffTB
 
 
-    def getFillingFactorByCloudID(self, CODataRaw, cleanDataSM1,cleanDataList,calCode,ID, saveTB=None , drawFigure=False, useSigmaCut=False ):
+    def getFillingFactorByCloudID(self, CODataRaw, labelSets,cleanDataList,calCode,ID, saveTB=None , drawFigure=False, useSigmaCut=False ):
         """
         :param ID:
         :return:
@@ -1995,14 +2000,18 @@ class checkFillingFactor(object):
         #test an ID of 8570
 
         if useSigmaCut:
-            fluxList = self.getFluxListByIDSigmaCut( cleanDataSM1,cleanDataList, ID  )
+            fluxList = self.getFluxListByIDSigmaCut( labelSets,cleanDataList, ID  )
 
         else:
-            fluxList = self.getFluxListByID(CODataRaw, cleanDataSM1,cleanDataList,calCode,ID)
+            fluxList = self.getFluxListByID(CODataRaw, labelSets,cleanDataList,calCode,ID)
+
+
+        #to test memory
+        #return
 
 
 
-        wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactor(self.smoothFactors*self.rawBeamSize,fluxList,calID=ID,drawFigure=drawFigure)
+        wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(self.smoothFactors*self.rawBeamSize,fluxList,calID=ID,drawFigure=drawFigure)
 
         #save
         if saveTB!=None:
@@ -2022,6 +2031,15 @@ class checkFillingFactor(object):
             saveTB[tbIndexOfCloud][self.bErrorCol]=paraError[1]
             saveTB[tbIndexOfCloud][self.cErrorCol]=paraError[2]
 
+    def getIndices(self,labelSets, choseID ):
+        Z0, Y0, X0, values1D =labelSets
+        cloudIndices = np.where(values1D == choseID)
+
+        cX0 = X0[cloudIndices]
+        cY0 = Y0[cloudIndices]
+        cZ0 = Z0[cloudIndices]
+
+        return tuple([cZ0, cY0, cX0])
 
     def getFFForEachCloud(self,calCode,drawFigure=False, useSigmaCut=False ):
 
@@ -2042,7 +2060,6 @@ class checkFillingFactor(object):
         if useSigmaCut:
             cleanDataList=self.getNoiseDataList()
 
-
         else:
             cleanDataList=self.getCleanDataList(calCode)
 
@@ -2054,6 +2071,13 @@ class checkFillingFactor(object):
 
         i=0
 
+        clusterIndex1D = np.where(cleanDataSM1 > 0)
+        clusterValue1D = cleanDataSM1[clusterIndex1D]
+
+        Z0, Y0, X0 = clusterIndex1D
+        labelSets=[Z0, Y0, X0, clusterValue1D ]
+
+
         for eachR in ffTB:
             i=i+1
             gc.collect()
@@ -2061,19 +2085,8 @@ class checkFillingFactor(object):
             ID=eachR["_idx"]
             pbar.update(i)
 
-            #try:
-            if useSigmaCut:
-                try:
-                    self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
-                except:
-                    continue
-            else:
+            self.getFillingFactorByCloudID(CODataRaw, labelSets,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
 
-                try:
-                    self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure )
-
-                except:
-                    continue
 
         pbar.finish()
             #break
