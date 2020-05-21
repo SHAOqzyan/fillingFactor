@@ -1058,13 +1058,15 @@ class checkFillingFactor(object):
         fig = plt.figure(figsize=(10, 8))
         rc('text', usetex=True)
         rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
-        mpl.rcParams['text.latex.preamble'] = [
-            r'\usepackage{tgheros}',  # helvetica font
-            r'\usepackage{sansmath}',  # math-font matching  helvetica
-            r'\sansmath'  # actually tell tex to use it!
-            r'\usepackage{siunitx}',  # micro symbols
-            r'\sisetup{detect-all}',  # force siunitx to use the fonts
-        ]
+        
+        if 0:
+            mpl.rcParams['text.latex.preamble'] = [
+                r'\usepackage{tgheros}',  # helvetica font
+                r'\usepackage{sansmath}',  # math-font matching  helvetica
+                r'\sansmath'  # actually tell tex to use it!
+                r'\usepackage{siunitx}',  # micro symbols
+                r'\sisetup{detect-all}',  # force siunitx to use the fonts
+            ]
 
         axFitting = fig.add_subplot(1,1, 1)
         #axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
@@ -1146,13 +1148,16 @@ class checkFillingFactor(object):
         fig = plt.figure(figsize=(10, 8))
         rc('text', usetex=True)
         rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
-        mpl.rcParams['text.latex.preamble'] = [
-            r'\usepackage{tgheros}',  # helvetica font
-            r'\usepackage{sansmath}',  # math-font matching  helvetica
-            r'\sansmath'  # actually tell tex to use it!
-            r'\usepackage{siunitx}',  # micro symbols
-            r'\sisetup{detect-all}',  # force siunitx to use the fonts
-        ]
+
+        if 0:
+
+            mpl.rcParams['text.latex.preamble'] = [
+                r'\usepackage{tgheros}',  # helvetica font
+                r'\usepackage{sansmath}',  # math-font matching  helvetica
+                r'\sansmath'  # actually tell tex to use it!
+                r'\usepackage{siunitx}',  # micro symbols
+                r'\sisetup{detect-all}',  # force siunitx to use the fonts
+            ]
 
         axFitting = fig.add_subplot(1,1, 1)
         #axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
