@@ -52,7 +52,7 @@ class checkFillingFactor(object):
     #tmpPath= rootPath +"tmpFiles/"
     tmpPath= saveFITSPath +  "tmpFiles/"
     #########out
-    figurePath= "/home/qzyan/WORK/myDownloads/fillingFactor/figurePath/"
+    figurePath=  rootPath +"figurePath/"
 
 
 
@@ -2055,10 +2055,10 @@ class checkFillingFactor(object):
 
             #try:
             if useSigmaCut:
-                try:
-                    self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
-                except:
-                    continue
+                #try:
+                self.getFillingFactorByCloudID(CODataRaw, cleanDataSM1,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
+                #except:
+                    #continue
             else:
 
                 try:
