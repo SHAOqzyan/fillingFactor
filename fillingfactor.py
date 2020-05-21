@@ -1042,6 +1042,7 @@ class checkFillingFactor(object):
         try:
             params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, p0=[np.mean(y), 0.5, np.mean(y)])
         except:
+
             return 0, 0, [[0,0,0],[0,0,0]]
 
 
@@ -1991,7 +1992,7 @@ class checkFillingFactor(object):
         return ffTB
 
 
-    def getFillingFactorByCloudID(self, CODataRaw, labelSets,cleanDataList,calCode,ID, saveTB=None , drawFigure=False, useSigmaCut=False ):
+    def getFillingFactorByCloudID(self, CODataRaw, labelSets,cleanDataList,calCode,ID, saveRow=None , drawFigure=False, useSigmaCut=False ):
         """
         :param ID:
         :return:
@@ -2012,24 +2013,26 @@ class checkFillingFactor(object):
 
 
         wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(self.smoothFactors*self.rawBeamSize,fluxList,calID=ID,drawFigure=drawFigure)
-
+        #print wmsipFilling
         #save
-        if saveTB!=None:
-
-            tbIndexOfCloud= np.where(  saveTB["_idx"] ==ID   )
+        if saveRow!=None:
+            #print "aaaaaaaaaaaaaaaaa"
+            #tbIndexOfCloud= np.where(  saveTB["_idx"] ==ID   )
 
             para,paraError= fittingParaAndError
-            saveTB[tbIndexOfCloud][self.ffMWISPCol]=wmsipFilling
-            saveTB[tbIndexOfCloud][self.ffCfACol]=cfaFilling
+            saveRow[self.ffMWISPCol]=wmsipFilling
+            saveRow[self.ffCfACol]=cfaFilling
 
-            saveTB[tbIndexOfCloud][self.aCol]=para[0]
-            saveTB[tbIndexOfCloud][self.bCol]=para[1]
-            saveTB[tbIndexOfCloud][self.cCol]=para[2]
+            saveRow[self.aCol]=para[0]
+            saveRow[self.bCol]=para[1]
+            saveRow[self.cCol]=para[2]
 
 
-            saveTB[tbIndexOfCloud][self.aErrorCol]=paraError[0]
-            saveTB[tbIndexOfCloud][self.bErrorCol]=paraError[1]
-            saveTB[tbIndexOfCloud][self.cErrorCol]=paraError[2]
+            saveRow[self.aErrorCol]=paraError[0]
+            saveRow[self.bErrorCol]=paraError[1]
+            saveRow[self.cErrorCol]=paraError[2]
+
+
 
     def getIndices(self,labelSets, choseID ):
         Z0, Y0, X0, values1D =labelSets
@@ -2054,7 +2057,7 @@ class checkFillingFactor(object):
 
             size= 2*np.sqrt(area/np.pi)
 
-            ffTB=ffTB[size>=self.smoothFactors[-1]*self.rawBeamSize]
+            ffTB=ffTB[size>= self.smoothFactors[-1]*self.rawBeamSize]
 
 
 
@@ -2096,11 +2099,12 @@ class checkFillingFactor(object):
             ID=eachR["_idx"]
             pbar.update(i)
 
-            self.getFillingFactorByCloudID(CODataRaw, labelSets,cleanDataList,calCode, ID,saveTB=ffTB,drawFigure=drawFigure, useSigmaCut=useSigmaCut)
+            self.getFillingFactorByCloudID(CODataRaw, labelSets,cleanDataList,calCode, ID, saveRow=eachR, drawFigure=drawFigure, useSigmaCut=useSigmaCut)
 
 
         pbar.finish()
             #break
+
         ffTB.write( calCode+"FillingFactorTB.fit",overwrite=True )
 
 
