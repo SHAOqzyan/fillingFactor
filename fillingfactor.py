@@ -1,9 +1,12 @@
 
 import numpy as np
+
+matplotlib.use('agg')
 import matplotlib as mpl
 import radio_beam
 from spectral_cube import SpectralCube
 from astropy import units as u
+
 import matplotlib.pyplot as plt
 from myPYTHON import *
 from astropy.io import fits
