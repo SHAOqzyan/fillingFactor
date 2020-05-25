@@ -54,15 +54,60 @@ class fillingMain(object):
 
         doFF.drawFillingFactor(absK=targetNoise,useArea=False )
 
+    def zzz(self):
+        """
 
-
+        :return:
+        """
+        pass
 
 doMain=fillingMain()
 
-if 1:
-    doFF.getFFForEachCloud(doFF.codeLocalCO12, drawFigure=True, useSigmaCut=True)
-    #doFF.getFillingFactorByCloudID(doFF.codeLocalCO12,8570)
+
+
+if 0: ###
+
+    cleanFITSName=doFF.tmpPath+"LocalCO12localCO12_SmFactor_1.0_noise_0.49absKdbscanS2P4Con1_Clean.fits"
+
+    tbName =  "LocalCO12FillingFactorTBAll.fit"
+    doFF.getCloudCubes(doFF.codeLocalCO12,doFF.localCO12FITS, cleanFITSName ,  tbName)
+
     sys.exit()
+
+#get systematic parameters and run the script
+
+if  1: #calculate filling factors for each molecular clouds
+    #to get enough memory
+
+    calCode= sys.argv[1]
+
+
+    #if calCode==doFF.codeLocalCO12:
+        #sys.exit()
+
+    doFF.getFFForEachCloud( calCode, drawFigure=True, useSigmaCut=True, calAllCloud=True)
+    sys.exit()
+
+
+if 0:
+    tbName =  "LocalCO12FillingFactorTBAll.fit"
+    doFF.addMWISPFFerror( tbName )
+
+if 0: #calculate filling factors for each molecular clouds
+
+    drawTB="edgeInfo_LocalCO12FillingFactorTBAll.fit"
+    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeFlux)
+
+    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeArea)
+    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeSize)
+
+
+    #doFF.drawFillingRelation( doFF.codeLocalCO12, "LocalCO12FillingFactorTB.fit")
+
+
+
+    sys.exit()
+
 
 
 

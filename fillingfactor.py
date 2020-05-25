@@ -30,14 +30,24 @@ doAllDBSCAN = allDBSCAN()
 doFITS=myFITS() #used to deal fits with myPYTHON
 
 
+
 ########
 def ffFunction(x,a, b, c):
-
     #return a*(x-x0)**2+c
-
     return a*np.exp(-b*x)  +c
+##########################################
 
+def dya(x,a,b,c):
+    return np.exp(-b*x)
 
+def dyb(x,a,b,c):
+    return a*(-b)*np.exp(-b*x)
+
+def dyc(x,a,b,c):
+    return 1
+####################################
+def aaaa():
+    pass
 
 
 
@@ -57,7 +67,7 @@ class checkFillingFactor(object):
     #########out
     figurePath=  rootPath +"figurePath/"
 
-
+    cloudCubePath= saveFITSPath+ "cloudCubes/"
 
     codeOutCO12="OutCO12"
     outCO12FITS =dataPath+ "outCO12.fits"
@@ -138,6 +148,7 @@ class checkFillingFactor(object):
     rawBeamSize =   52. / 60
 
 
+
     normNoise = mpl.colors.Normalize(vmin= min(noiseFactors) , vmax= max(noiseFactors) )
     noiseColor = plt.cm.ScalarMappable(norm=normNoise, cmap=plt.cm.jet)
 
@@ -165,13 +176,15 @@ class checkFillingFactor(object):
     allLineList= lineStrList+ lineStrList+lineStrList+lineStrList
 
     ffMWISPCol="fillingFactorMWISP"
+    ffMWISPErrorCol="fillingFactorMWISPError"
+
+    
     ffCfACol="fillingFactorCfa"
+    ffCfAErrorCol="fillingFactorErrorCfa"
 
     aCol="para_a"
     bCol="para_b"
     cCol="para_c"
-
-
 
 
     aErrorCol="error_a"
@@ -179,7 +192,14 @@ class checkFillingFactor(object):
     cErrorCol="error_c"
 
 
+    #################################
+    touchLedgeCol= "touchLedge"
+    touchBedgeCol= "touchBedge"
+    touchVedgeCol= "touchVedge"
 
+    drawCodeArea="area"
+    drawCodeFlux="flux"
+    drawCodeSize="size"
 
 
     def __init__(self):
@@ -225,6 +245,120 @@ class checkFillingFactor(object):
         doFITS.cropFITS(CO18SgrAndscuFITS, Vrange=self.scuVrange,outFITS= self.scuCO18FITS, overWrite=True )
 
 
+
+    def checkCloudCubeSavePath(self ):
+        """
+        Examine the calCode of molecular clouds
+        :param calCode:
+        :return:
+        """
+
+        savePath= self.cloudCubePath+self.calCode
+
+
+        if os.path.isdir( savePath ):
+            pass
+        else:
+            os.mkdir(savePath)
+        return savePath
+
+    def getIndicesRaw(self, Z0, Y0, X0, values1D, choseID):
+
+        cloudIndices = np.where(values1D == choseID)
+
+        cX0 = X0[cloudIndices]
+        cY0 = Y0[cloudIndices]
+        cZ0 = Z0[cloudIndices]
+
+        return tuple([cZ0, cY0, cX0])
+
+    def getCloudCubes(self, calCode,rawCOFITS, labelsFITS,cloudTBFile  ):
+
+        """
+
+        #output all data cubes for each cloud
+
+        :return:
+        """
+
+        #################
+        self.calCode=calCode
+        savePath =  self.checkCloudCubeSavePath() #"./cloudSubCubes/"
+
+
+        cloudTB = Table.read(cloudTBFile)
+        dataCluster, headCluster = myFITS.readFITS(labelsFITS)
+        dataCO, headCO = myFITS.readFITS( rawCOFITS)
+
+
+        minV = np.nanmin(dataCluster[0])
+        wcsCloud = WCS(headCluster)
+        clusterIndex1D = np.where(dataCluster > minV)
+        clusterValue1D = dataCluster[clusterIndex1D]
+        Z0, Y0, X0 = clusterIndex1D
+
+        fitsZero = np.zeros_like(dataCluster)
+        # print cloudTB.colnames
+
+        #add a function that check if the cloud touches L edge,B edges, or zEdges
+
+        Nz, Ny, Nx = dataCO.shape
+
+        ######
+        cloudTB[self.touchLedgeCol]=cloudTB["peak"]*0
+        cloudTB[self.touchBedgeCol]=cloudTB["peak"]*0
+        cloudTB[self.touchVedgeCol]=cloudTB["peak"]*0
+
+        widgets = ['Extracting cloud cubes: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(cloudTB))
+        pbar.start()
+        i=0
+        for eachC in cloudTB:
+
+            i=i+1
+
+            cloudID = eachC["_idx"]
+            saveName = "cloud{}cube.fits".format(cloudID)
+
+            cloudIndex = self.getIndicesRaw(Z0, Y0, X0, clusterValue1D, cloudID)
+            fitsZero[cloudIndex] = dataCO[cloudIndex]
+
+            cloudZ0, cloudY0, cloudX0 = cloudIndex
+
+            minZ = np.min(cloudZ0)
+            maxZ = np.max(cloudZ0)
+
+            minY = np.min(cloudY0)
+            maxY = np.max(cloudY0)
+
+            minX = np.min(cloudX0)
+            maxX = np.max(cloudX0)
+
+            ####
+            if minZ==0 or maxZ==Nz:
+                eachC[self.touchVedgeCol]=1
+
+
+            if minY==0 or maxY==Ny:
+                eachC[self.touchBedgeCol]=1
+
+            if minX==0 or maxX==Nx:
+                eachC[self.touchLedgeCol]=1
+
+
+
+            cropWCS = wcsCloud[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
+
+            cropData = fitsZero[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
+
+            fits.writeto(savePath + saveName, cropData, header=cropWCS.to_header(), overwrite=True)
+
+            fitsZero[cloudIndex] = 0
+
+            pbar.update(i)
+        pbar.finish()
+        cloudTB.write("edgeInfo_"+cloudTBFile,overwrite=True)
 
     def getTotalFlux(self,fitsFile):
         """
@@ -1935,6 +2069,8 @@ class checkFillingFactor(object):
 
         del cloudIndex
         del coValues
+
+
         return fluxList
 
 
@@ -2033,7 +2169,6 @@ class checkFillingFactor(object):
             saveRow[self.cErrorCol]=paraError[2]
 
 
-
     def getIndices(self,labelSets, choseID ):
         Z0, Y0, X0, values1D =labelSets
         cloudIndices = np.where(values1D == choseID)
@@ -2044,7 +2179,7 @@ class checkFillingFactor(object):
 
         return tuple([cZ0, cY0, cX0])
 
-    def getFFForEachCloud(self,calCode,drawFigure=False, useSigmaCut=False ):
+    def getFFForEachCloud(self,calCode,drawFigure=False, useSigmaCut=False, calAllCloud=False ):
 
         TBName = self.getRawBeamTBByCalcode(calCode)
         cleanTB = Table.read(TBName)
@@ -2052,7 +2187,7 @@ class checkFillingFactor(object):
         ffTB=self.addFFColnames( cleanTB )
 
         #remove small size clouds
-        if 0:
+        if not calAllCloud:
             area=ffTB["area_exact"]
 
             size= 2*np.sqrt(area/np.pi)
@@ -2094,7 +2229,7 @@ class checkFillingFactor(object):
 
         for eachR in ffTB:
             i=i+1
-            gc.collect()
+            #gc.collect()
 
             ID=eachR["_idx"]
             pbar.update(i)
@@ -2104,11 +2239,377 @@ class checkFillingFactor(object):
 
         pbar.finish()
             #break
+        if calAllCloud:
+            ffTB.write( calCode+"FillingFactorTBAll.fit",overwrite=True )
 
-        ffTB.write( calCode+"FillingFactorTB.fit",overwrite=True )
+        else:
+            ffTB.write( calCode+"FillingFactorTB.fit",overwrite=True )
 
 
 
+
+
+
+    def getFillingErrorAndError(self, beamSize , ffTB):
+
+        """
+
+        :param ffTB:
+        :return:
+        """
+        x=  beamSize #arcmin
+        a=ffTB[self.aCol]
+        b=ffTB[self.bCol]
+        c=ffTB[self.cCol]
+
+        stdA = ffTB[self.aErrorCol ]
+        stdB = ffTB[self.bErrorCol ]
+        stdC = ffTB[self.cErrorCol ]
+
+        fx=ffFunction(x,a,b,c)
+
+        f0= ffFunction(0,a,b,c)
+        varX = stdA**2* ( dya(x,a,b,c) )**2 + stdB**2* ( dyb(x,a,b,c) )**2 + stdC**2
+
+
+        var0=  stdA**2* ( dya(0,a,b,c) )**2 + stdB**2* ( dyb(0,a,b,c) )**2 + stdC**2
+
+
+        varFF=varX/f0**2 + (-fx/f0**2)**2*var0
+
+        return  fx/f0  ,  np.sqrt( varFF )
+        #beamSize
+
+
+    def addMWISPFFerror(self, TB ):
+        """
+
+        :return:
+        """
+
+        #TB = Table.read( TBName )
+        #print len(TB)
+
+        #TB=TB[TB[self.ffMWISPCol]>0]
+        #print len(TB)
+
+        mwispFF,mwispFFError= self.getFillingErrorAndError(self.rawBeamSize, TB   )
+
+
+        #relativeError= mwispFFError/mwispFF
+
+
+        #goodFF =  TB[ relativeError <0.3]
+
+        #print mwispFFError
+
+        TB[self.ffMWISPErrorCol] = mwispFFError
+
+        return TB
+
+    def addCfaFFerror(self, TB ):
+        """
+
+        :return:
+        """
+
+
+        cfaFF, cfaFFError= self.getFillingErrorAndError(8.5, TB   )
+
+
+        TB[self.ffCfAErrorCol] = cfaFFError
+
+        return TB
+
+
+
+
+    def getCloudWithGoodFF(self,ffTB):
+
+        ffTB=ffTB[ ffTB[self.ffMWISPCol]>0 ]
+
+        errorA = ffTB[self.aErrorCol]/ffTB[self.aCol]
+        errorB = ffTB[self.bErrorCol]/ffTB[self.bCol]
+        errorC = ffTB[self.cErrorCol]/ffTB[self.cCol]
+
+        errorThreshold = 0.3
+        selectCriteria=np.logical_and(errorA< errorThreshold ,errorB< errorThreshold )
+
+        selectCriteria=np.logical_and( selectCriteria  , errorC< errorThreshold )
+
+
+
+        ffTB=ffTB[ selectCriteria ]
+
+
+        return  ffTB
+
+
+    def getEdgeClouds(self, TB):
+        """
+
+        :param TB:
+        :return:
+        """
+
+        selectRow=  TB[self.touchVedgeCol] + TB[self.touchLedgeCol] + TB[self.touchBedgeCol]
+
+
+
+        return  TB[selectRow>0]
+
+
+
+
+
+    def pureVclip(self,TB):
+
+        """
+
+        only keep those clouds that are clipped in the v axis, but not clipped in the l and b axis
+
+        :param TB:
+        :return:
+        """
+
+        selectTB= TB[ TB[self.touchVedgeCol] >0 ]
+
+        selectTB= selectTB[ selectTB[self.touchLedgeCol] < 1  ]
+        selectTB= selectTB[ selectTB[self.touchBedgeCol] < 1  ]
+
+        return selectTB
+
+    def pureLclip(self,TB):
+
+        """
+
+        only keep those clouds that are clipped in the v axis, but not clipped in the l and b axis
+
+        :param TB:
+        :return:
+        """
+
+        selectTB= TB[ TB[self.touchLedgeCol] >0 ]
+
+        selectTB= selectTB[ selectTB[self.touchVedgeCol] < 1  ]
+        selectTB= selectTB[ selectTB[self.touchBedgeCol] < 1  ]
+
+        return selectTB
+
+    def pureBclip(self,TB):
+
+        """
+
+        only keep those clouds that are clipped in the v axis, but not clipped in the l and b axis
+
+        :param TB:
+        :return:
+        """
+
+        selectTB= TB[ TB[self.touchBedgeCol] >0 ]
+
+        selectTB= selectTB[ selectTB[self.touchLedgeCol] < 1  ]
+        selectTB= selectTB[ selectTB[self.touchVedgeCol] < 1  ]
+
+        return selectTB
+
+
+    def pureLBclip(self,TB):
+
+        """
+
+        only keep those clouds that are not clipped in the v axis, but   clipped in the l or b axis
+
+        :param TB:
+        :return:
+        """
+
+        selectCriteria1 = TB[self.touchVedgeCol] < 1 #not clip in v axis
+
+        selectCriteria2 = np.logical_or( TB[self.touchLedgeCol] > 0,    TB[self.touchBedgeCol] > 0,  )
+
+        selectCriteria  = np.logical_and( selectCriteria1  ,    selectCriteria2  )
+
+        selectTB= TB[  selectCriteria ]
+
+
+
+        return selectTB
+
+
+
+    def bothVAndLBClip(self,TB):
+        """
+
+        :return:
+        """
+
+        selectCriteria1 = TB[self.touchVedgeCol] > 0 #not in v axis
+
+        selectCriteria2 = np.logical_or( TB[self.touchLedgeCol] >0,    TB[self.touchBedgeCol] > 0,  )
+
+        selectCriteria  = np.logical_and( selectCriteria1  ,    selectCriteria2  )
+
+        selectTB= TB[  selectCriteria ]
+
+
+
+        return selectTB
+
+
+    def noClipClouds(self,TB):
+
+        selectTB= TB[ TB[self.touchVedgeCol]  < 1 ]
+
+        selectTB= selectTB[ selectTB[self.touchLedgeCol] < 1  ]
+        selectTB= selectTB[ selectTB[self.touchBedgeCol] < 1  ]
+
+        return selectTB
+
+
+
+
+    def drawFillingRelation(self,calCode,  fillingTB, drawCode="area"):
+        """
+
+        :param fillingTB:
+        :return:
+        """
+        self.calCode=calCode
+        ffTB= Table.read( fillingTB )
+        ffTB=ffTB[ffTB[self.ffMWISPCol]>0]
+
+
+
+        ffTB=self.addMWISPFFerror(ffTB)
+        ffTB=self.addCfaFFerror(ffTB)
+
+
+        #
+        #ffTB=ffTB[ffTB[self.ffMWISPCol]>0]
+
+        #ffTB=self.getCloudWithGoodFF(ffTB)
+
+        #split into several samples
+
+
+        #
+
+
+
+
+        pureVclipTB=self.pureVclip(ffTB)
+
+        pureLBclipTB = self.pureLBclip( ffTB)
+
+        noClipTB= self.noClipClouds(ffTB)
+        bothClipTB = self.bothVAndLBClip(ffTB)
+
+        edgeClodus= self.getEdgeClouds(ffTB)
+
+        print "Number of edge clouds", len(edgeClodus)
+
+
+        print  len(ffTB)- len(noClipTB ) -  len(pureLBclipTB )-  len(pureVclipTB ) - len(bothClipTB) ,"??????"
+
+
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+
+
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        axFF = fig.add_subplot(1,1, 1)
+
+
+
+
+        #axFF.scatter(   ffTB["area_exact"]/3600., ffTB[self.ffMWISPCol]  , color="blue",  s=3)
+        # ffMWISPCol   ffCfACol
+
+        elinewidth = 0.6
+        markerSize=2.1
+        if drawCode==self.drawCodeArea: #angular aera
+
+            self.drawErrorBar(axFF,noClipTB, drawCode =drawCode,markerSize=markerSize,color='gray',markerType=".",elinewidth=elinewidth,label="Complete in PPV space" ,showYError=False)
+            self.drawErrorBar(axFF,pureVclipTB,drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
+            self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
+
+
+            axFF.set_xlim([0, 100 ])
+            axFF.set_xlabel("Angular area (square arcmin)")
+
+        if drawCode==self.drawCodeSize: #angular size
+            self.drawErrorBar(axFF,noClipTB, drawCode =drawCode, markerSize=markerSize,color='gray',markerType=".",elinewidth=elinewidth,label="Complete in PPV space" ,showYError=False)
+            self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
+            self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
+
+
+
+            axFF.set_xlim([0, 20 ])
+            axFF.set_xlabel("Angular size (arcmin)")
+
+
+        if drawCode==self.drawCodeFlux: #angular size
+            self.drawErrorBar(axFF,noClipTB, drawCode =drawCode, markerSize=markerSize,color='gray',markerType=".",elinewidth=elinewidth,label="Complete in PPV space" ,showYError=False)
+            self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
+            self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
+
+
+
+            axFF.set_xlim([0, 300 ])
+            #axFF.set_xlabel("Angular size (arcmin)")
+            axFF.set_xlabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
+
+
+        axFF.legend(loc=4)
+
+
+        axFF.set_ylim([-0.2, 1.2  ])
+
+
+        axFF.set_ylabel("Filling factor")
+
+
+
+        plt.savefig( "{}FFindividual_{}.png".format(calCode, drawCode ), bbox_inches='tight', dpi=600)
+
+
+
+
+    def drawErrorBar(self,ax, TB,drawCode="area", showYError=False, color="gray", markerType='.', markerSize=2,elinewidth=0.6,label=""):
+
+
+        if drawCode== self.drawCodeArea:
+            
+
+            drawX= TB["area_exact"]
+
+        if drawCode == self.drawCodeSize:
+            drawX=np.sqrt(   TB["area_exact"]/np.pi )*2
+
+        if drawCode == self.drawCodeFlux:
+            drawX= TB["sum"]*0.2
+
+
+
+        drawY=  TB[self.ffMWISPCol]
+
+        yerr=  TB[self.ffMWISPErrorCol]
+
+        if not showYError:
+            yerr =  None
+
+
+        ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= color ,  \
+                    marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
 
 
     def zzz(self):
