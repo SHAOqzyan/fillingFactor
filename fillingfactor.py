@@ -51,7 +51,6 @@ def aaaa():
 
 
 
-
 class checkFillingFactor(object):
 
     rootPath="./"
@@ -67,6 +66,8 @@ class checkFillingFactor(object):
     #########out
     figurePath=  rootPath +"figurePath/"
 
+    intFigurePath = rootPath+"cloudIntMap/"
+
     cloudCubePath= saveFITSPath+ "cloudCubes/"
 
     codeOutCO12="OutCO12"
@@ -80,15 +81,15 @@ class checkFillingFactor(object):
 
     ############## Local
     codeLocalCO12="LocalCO12"
-    localCO12FITS =dataPath+ "localCO12.fits"
+    localCO12FITS =dataPath+ "LocalCO12.fits"
 
 
     codeLocalCO13="LocalCO13"
-    localCO13FITS =dataPath+ "localCO13.fits"
+    localCO13FITS =dataPath+ "LocalCO13.fits"
 
 
     codeLocalCO18="LocalCO18"
-    localCO18FITS =dataPath+ "localCO18.fits"
+    localCO18FITS =dataPath+ "LocalCO18.fits"
 
 
 
@@ -145,14 +146,16 @@ class checkFillingFactor(object):
     calCode=""
     noiseStr="noise"
 
-    rawBeamSize =   52. / 60
+    rawBeamSizeCO12 =   49. / 60
+    rawBeamSizeCO13 =   52. / 60
+    rawBeamSizeCO18 =   52. / 60
 
 
 
     normNoise = mpl.colors.Normalize(vmin= min(noiseFactors) , vmax= max(noiseFactors) )
     noiseColor = plt.cm.ScalarMappable(norm=normNoise, cmap=plt.cm.jet)
 
-    normSmooth = mpl.colors.Normalize(vmin= min(smoothFactors) * rawBeamSize , vmax= max(smoothFactors)*rawBeamSize )
+    normSmooth = mpl.colors.Normalize(vmin= min(smoothFactors) *  rawBeamSizeCO12 , vmax= max(smoothFactors)*rawBeamSizeCO12 )
     smoothColor = plt.cm.ScalarMappable(norm=normNoise, cmap=plt.cm.jet)
 
 
@@ -206,6 +209,161 @@ class checkFillingFactor(object):
         pass
 
 
+
+    def getNList(self,TBList):
+
+
+        Nlist=[]
+
+        for eachTB in TBList:
+
+            Nlist.append( len(eachTB) )
+
+
+
+        return Nlist
+
+
+
+
+    def getMinMeanMaxSize(self,TBList):
+
+
+        minSizeList=[]
+        meanSizeList=[]
+        maxSizeList=[]
+
+        for eachTB in TBList:
+
+            size=self.getCloudSize(eachTB)
+
+            minSizeList.append( np.min(size)   )
+            meanSizeList.append(  np.mean(size)     )
+            maxSizeList.append(  np.max(size)     )
+
+
+
+        return minSizeList, meanSizeList, maxSizeList
+
+
+
+
+
+
+    def drawCloudSizeChange(self,drawCode="max"):
+
+        testCode=self.codeLocalCO12
+        self.calCode = testCode
+        TB,TBFiles=self.getAbsNoiseCleanTBList( absK=self.MWISPrmsCO12)
+
+        #print TBFiles
+
+        minSizeList, meanSizeList, maxSizeList=self.getMinMeanMaxSize(TB)
+
+
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+
+        axBeam = fig.add_subplot(1,1, 1)
+
+        beamSize=self.smoothFactors*self.getBeamSize(self.calCode)
+
+        #self.drawNoiseEffectSingle(axSens,1.5)
+        if drawCode=="min":
+            axBeam.plot(beamSize,minSizeList,'o-',color='b')
+            axBeam.set_ylabel(r"Minimum cloud size (arcmin)")
+
+        if drawCode == "max":
+            axBeam.plot(beamSize, maxSizeList, 'o-', color='b')
+            axBeam.set_ylabel(r"Maximum cloud size (arcmin)")
+
+        if drawCode == "mean":
+            axBeam.plot(beamSize, meanSizeList, 'o-', color='b')
+            axBeam.set_ylabel(r"Mean cloud size (arcmin)")
+
+        axBeam.set_xlabel(r"Beam Size (arcmin)")
+
+        #self.drawColorBarNoiseFactor(axBeam)
+
+        fig.tight_layout()
+        plt.savefig("{}cloudNchange.pdf".format(drawCode) , bbox_inches='tight')
+        plt.savefig("{}cloudNchange.png".format(drawCode), bbox_inches='tight', dpi=600)
+
+
+
+
+
+
+
+    def drawCloudNumberChange(self):
+
+        testCode=self.codeLocalCO12
+        self.calCode = testCode
+        TB,TBFiles=self.getAbsNoiseCleanTBList( absK=self.MWISPrmsCO12)
+
+        #print TBFiles
+
+        Nlist=self.getNList(TB)
+
+
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+
+        axBeam = fig.add_subplot(1,1, 1)
+
+        beamSize=self.smoothFactors*self.getBeamSize(self.calCode)
+
+        #self.drawNoiseEffectSingle(axSens,1.5)
+
+        #axBeam.plot(beamSize,Nlist,'o-',color='b')
+
+        mwispF,cfaF,parameters=self.getFillingFactorAndDraw(  beamSize, Nlist, 1, drawFigure=False)
+        print mwispF,cfaF
+        params,paramsErros=parameters
+        axBeam.scatter(  beamSize  , Nlist , s=15,  color='red'   )
+
+        fittingX = np.arange(0, np.max(beamSize), 0.01)
+        # axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
+        axBeam.plot(fittingX, ffFunction(fittingX, *params), color='blue', lw=1.5)
+
+
+        axBeam.set_ylabel(r"Number of molecular clouds")
+        axBeam.set_xlabel(r"Beam Size (arcmin)")
+
+        #self.drawColorBarNoiseFactor(axBeam)
+        axBeam.axvline(x=0, ls="--", color='black')
+
+        fig.tight_layout()
+        plt.savefig("cloudNchange.pdf", bbox_inches='tight')
+        plt.savefig("cloudNchange.png", bbox_inches='tight', dpi=600)
+
+
+
+
+
+    def getBeamSize(self,calCode="3333"):
+        if "12" in self.calCode:
+            return self.rawBeamSizeCO12
+
+        return self.rawBeamSizeCO13
 
     def getArmSubFTS(self):
 
@@ -286,6 +444,7 @@ class checkFillingFactor(object):
         savePath =  self.checkCloudCubeSavePath() #"./cloudSubCubes/"
 
 
+
         cloudTB = Table.read(cloudTBFile)
         dataCluster, headCluster = myFITS.readFITS(labelsFITS)
         dataCO, headCO = myFITS.readFITS( rawCOFITS)
@@ -297,8 +456,8 @@ class checkFillingFactor(object):
         clusterValue1D = dataCluster[clusterIndex1D]
         Z0, Y0, X0 = clusterIndex1D
 
-        fitsZero = np.zeros_like(dataCluster)
-        # print cloudTB.colnames
+        fitsZero = np.zeros_like(dataCluster,dtype=np.float)
+
 
         #add a function that check if the cloud touches L edge,B edges, or zEdges
 
@@ -319,7 +478,7 @@ class checkFillingFactor(object):
             i=i+1
 
             cloudID = eachC["_idx"]
-            saveName = "cloud{}cube.fits".format(cloudID)
+            saveName = "{}cloud{}cube.fits".format(calCode,cloudID)
 
             cloudIndex = self.getIndicesRaw(Z0, Y0, X0, clusterValue1D, cloudID)
             fitsZero[cloudIndex] = dataCO[cloudIndex]
@@ -352,7 +511,9 @@ class checkFillingFactor(object):
 
             cropData = fitsZero[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
 
-            fits.writeto(savePath + saveName, cropData, header=cropWCS.to_header(), overwrite=True)
+            saveFullName=os.path.join(savePath,saveName)
+
+            fits.writeto(saveFullName , cropData, header=cropWCS.to_header(), overwrite=True)
 
             fitsZero[cloudIndex] = 0
 
@@ -367,6 +528,9 @@ class checkFillingFactor(object):
         :return:
         """
 
+
+
+
     def smoothFITSbySMFactor(self,rawCOFITS, rawBeamSize = 52./60  ):
 
         """
@@ -375,11 +539,11 @@ class checkFillingFactor(object):
         :param rawBeamSize:
         :return:
         """
-
+        #calCode=rawCOFITS[0:-5]
+        #self.calCode=calCode
         for eachSMFactor in self.smoothFactors:
             print "Smooting by factor of ",eachSMFactor
             self.smoothCubeSingle(rawCOFITS,  savePath=self.tmpPath,disFactor=eachSMFactor)
-
 
 
     def getFITSnamesByPrefix(self,path, prefix ):
@@ -510,7 +674,28 @@ class checkFillingFactor(object):
 
 
 
+    def produceAllRMSFITS(self):
+        """
+        produce RMS fits for all fits files
+        :return:
+        """
+        for eachCode in self.allCodeList:
+            fitsFile=self.getRawCOFITS(eachCode)
+            saveName="{}_RMS.fits".format(eachCode)
+            doFITS.getRMSFITS(fitsFile, saveName )
 
+            if 0:#remove nan value
+                rmsData,rmsHead=doFITS.readFITS(saveName)
+
+                centerData=rmsData[:,200:2600]
+
+                meanRMS=np.nanmean(centerData)
+
+                rmsData[np.isnan(rmsData)]=meanRMS
+                if "12" in eachCode: #less than 0.1 K is due to insufficent negative data
+                    rmsData[rmsData<0.1]=meanRMS
+
+                fits.writeto(saveName,rmsData,overwrite=True)
 
     def cleanFITSsigma2(self,FITSfile,cutoff=2,minPts=4,contype=1,removeFITS=False):
         """
@@ -606,7 +791,7 @@ class checkFillingFactor(object):
         :return:
         """
 
-        rawBeamSize = self.rawBeamSize # 52. / 60,
+        rawBeamSize = self.getBeamSize() # 52. / 60,
         fitsNameBase= os.path.basename(FITSfile)
 
         namePre,nameSuf=os.path.splitext(fitsNameBase)
@@ -967,12 +1152,12 @@ class checkFillingFactor(object):
 
 
 
-    def getAbsNoiseCleanTBLIst(self,absK=0.5, dbscanCode="dbscanS2P4Con1"):
+    def getAbsNoiseCleanTBList(self,absK=0.5, dbscanCode="dbscanS2P4Con1"):
 
         tbList= []
         tbFileList= []
         for eachSF in self.smoothFactors:
-            fileName="{}*SmFactor_{}*{}absK{}_Clean.fit".format(self.calCode, eachSF ,absK, dbscanCode )
+            fileName="{}*SmFactor_{}*{:.2f}absK{}_Clean.fit".format(self.calCode, eachSF ,absK, dbscanCode )
 
             TBName= self.getFileByStr(self.tmpPath,fileName)
 
@@ -1189,7 +1374,7 @@ class checkFillingFactor(object):
         # print params[i], errors[i],"Error in percentage", errors[i]/params[i]
         cfaBeam=8.5
         cfaFilling =        ffFunction(cfaBeam, params[0], params[1], params[2]) / ffFunction(0, params[0], params[1], params[2])
-        wmsipFilling = ffFunction(self.rawBeamSize, params[0], params[1], params[2]) / ffFunction(0, params[0], params[1],   params[2])
+        wmsipFilling = ffFunction(self.getBeamSize( ), params[0], params[1], params[2]) / ffFunction(0, params[0], params[1],   params[2])
         if not drawFigure:
             return wmsipFilling, cfaFilling, fittingParaAndError
 
@@ -1956,6 +2141,7 @@ class checkFillingFactor(object):
     def getRawBeamTBByCalcode(self,calCode,smFactor=1):
 
         searchStr= "{}*SmFactor_{}*absKdbscanS2P4Con1_Clean.fit".format(calCode, float(smFactor) )
+
         testSearch  = glob.glob( self.tmpPath+searchStr )
 
 
@@ -2128,7 +2314,7 @@ class checkFillingFactor(object):
         return ffTB
 
 
-    def getFillingFactorByCloudID(self, CODataRaw, labelSets,cleanDataList,calCode,ID, saveRow=None , drawFigure=False, useSigmaCut=False ):
+    def getFillingFactorByCloudID(self, CODataRaw, labelSets,cleanDataList,calCode,ID, saveRow=None , drawFigure=False, useSigmaCut=False,printFluxList=False ):
         """
         :param ID:
         :return:
@@ -2146,7 +2332,9 @@ class checkFillingFactor(object):
         #to test memory
         #return
 
-
+        if printFluxList:
+            print "The flux list is "
+            print fluxList
 
         wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(self.smoothFactors*self.rawBeamSize,fluxList,calID=ID,drawFigure=drawFigure)
         #print wmsipFilling
@@ -2168,6 +2356,7 @@ class checkFillingFactor(object):
             saveRow[self.bErrorCol]=paraError[1]
             saveRow[self.cErrorCol]=paraError[2]
 
+        return wmsipFilling, cfaFilling,  fittingParaAndError
 
     def getIndices(self,labelSets, choseID ):
         Z0, Y0, X0, values1D =labelSets
@@ -2178,6 +2367,116 @@ class checkFillingFactor(object):
         cZ0 = Z0[cloudIndices]
 
         return tuple([cZ0, cY0, cX0])
+
+    def getCloudCube(self,ID):
+
+        searCubePath=self.checkCloudCubeSavePath()
+
+        searchStr=os.path.join(searCubePath,self.calCode+"*{}*.fits".format(ID) )
+
+
+
+        searchResults = glob.glob( searchStr )
+
+        return searchResults[0]
+
+
+
+
+
+    def drawInMap(self,calCode,ID):
+        """
+
+        get the sub cube and draw the integration map
+
+        :param calCode:
+        :param ID:
+        :return:
+        """
+
+        self.calCode = calCode
+
+        cloudCube=self.getCloudCube(ID)
+
+
+        dataCO,head=doFITS.readFITS(cloudCube)
+
+        intMap=np.sum(dataCO,axis=0)
+
+        ##########################
+        #draw integration map
+
+        fig = plt.figure(1, figsize=(15,8))
+        rc('font', **{'family': 'sans-serif', 'serif': ['Helvetica'], "size": 15 })
+        # rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+
+        rc('text', usetex=True)
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+        WCSCrop=WCS(head)
+        axCO = pywcsgrid2.subplot(111, header=WCSCrop)
+
+
+        cmapCO = plt.cm.bone
+        cmapCO.set_bad('black')
+        axCO.imshow(np.sqrt(intMap), origin='lower', cmap=cmapCO, vmin=0, vmax=3, interpolation='none')
+
+        axCO.set_ticklabel_type("absdeg", "absdeg")
+        axCO.axis[:].major_ticks.set_color("w")
+        axCO.set_xlabel(r"Galactic Longitude ($^{\circ}$)")
+        axCO.set_ylabel(r"Galactic Latitude ($^{\circ}$)")
+        saveName=self.intFigurePath+"{}_{}CloudInt".format(calCode,ID)
+        plt.savefig("compareSCIMESPara.pdf" , bbox_inches="tight")
+        plt.savefig(saveName+".png" , bbox_inches="tight", dpi=600)
+
+
+
+
+
+    def calFFByID(self,calCode,ID,drawFigure=True, useSigmaCut=True  ):
+
+        """
+        calculate filling factor, for only one  specific cloud
+        ususlly this is used to check filling factor for a specific cloud
+        :param calCode:
+        :param drawFigure:
+        :param useSigmaCut:
+        :return:
+        """
+
+        self.calCode= calCode
+
+        print calCode
+        TBName = self.getRawBeamTBByCalcode(calCode)
+        cleanTB = Table.read(TBName)
+
+        ffTB=self.addFFColnames( cleanTB )
+
+
+        if useSigmaCut:
+            cleanDataList=self.getNoiseDataList()
+
+        else:
+            cleanDataList=self.getCleanDataList(calCode)
+        rawCOFITS=self.getRawCOFITS(calCode)
+        CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+
+        cleanFITSRawBeam = self.getCleanFITSName(calCode, 1)
+        cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
+
+
+        clusterIndex1D = np.where(cleanDataSM1 > 0)
+        clusterValue1D = cleanDataSM1[clusterIndex1D]
+
+        Z0, Y0, X0 = clusterIndex1D
+        labelSets=[Z0, Y0, X0, clusterValue1D ]
+
+        print self.getFillingFactorByCloudID(CODataRaw, labelSets, cleanDataList, calCode, ID, saveRow=None,  drawFigure=drawFigure, useSigmaCut=useSigmaCut, printFluxList=True)
 
     def getFFForEachCloud(self,calCode,drawFigure=False, useSigmaCut=False, calAllCloud=False ):
 
@@ -2547,14 +2846,15 @@ class checkFillingFactor(object):
             axFF.set_xlabel("Angular area (square arcmin)")
 
         if drawCode==self.drawCodeSize: #angular size
+
+
             self.drawErrorBar(axFF,noClipTB, drawCode =drawCode, markerSize=markerSize,color='gray',markerType=".",elinewidth=elinewidth,label="Complete in PPV space" ,showYError=False)
             self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
             self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
 
-
-
             axFF.set_xlim([0, 20 ])
             axFF.set_xlabel("Angular size (arcmin)")
+
 
 
         if drawCode==self.drawCodeFlux: #angular size
@@ -2583,6 +2883,50 @@ class checkFillingFactor(object):
 
 
 
+    def selectBySizeAndFactorRange(self,TBFileName,sizeRange=None,factorRange=None):
+        """
+        Used to select sub samples
+        :param sizeRange:
+        :param factorRange:
+        :return:
+        """
+        TB=Table.read( TBFileName )
+
+        sizes= self.getCloudSize( TB )
+
+        if sizeRange!=None:
+            TB=self.selectTBByColRange(TB,sizes,sizeRange)
+
+        if factorRange !=None:
+
+
+            TB=self.selectTBByColRange(TB,TB[self.ffMWISPCol],factorRange)
+
+        return TB
+
+
+    def selectTBByColRange(self,TB,col,colRange):
+        """
+        used to select table by columan range
+        :param TB:
+        :param col:
+        :param colRange:
+        :return:
+        """
+
+        selectCriteria1 = col >= np.min(colRange)
+        selectCriteria2 = col <= np.max(colRange)
+
+        selectCriteria= np.logical_and(selectCriteria1,selectCriteria2)
+
+        return TB[selectCriteria]
+
+
+
+
+    def getCloudSize(self,TB):
+
+        return np.sqrt(   TB["area_exact"]/np.pi )*2
 
     def drawErrorBar(self,ax, TB,drawCode="area", showYError=False, color="gray", markerType='.', markerSize=2,elinewidth=0.6,label=""):
 

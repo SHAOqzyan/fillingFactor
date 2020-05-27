@@ -63,6 +63,116 @@ class fillingMain(object):
 
 doMain=fillingMain()
 
+if 1:  # out CO 12
+
+    # doFF.calCode= doFF.codeOutCO12
+    # doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
+    # sys.exit()
+
+    ##### Local
+
+    doFF.calCode = doFF.codeLocalCO12
+    doFF.smoothFITSbySMFactor(doFF.localCO12FITS)
+
+    doFF.calCode = doFF.codeLocalCO13
+    doFF.smoothFITSbySMFactor(doFF.localCO13FITS)
+
+    doFF.calCode = doFF.codeLocalCO18
+    doFF.smoothFITSbySMFactor(doFF.localCO18FITS)
+
+    ################
+    doFF.calCode = doFF.codeOutCO12
+    doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
+
+
+    doFF.calCode = doFF.codeOutCO13
+    doFF.smoothFITSbySMFactor(doFF.outCO13FITS)
+
+    doFF.calCode = doFF.codeOutCO18
+    doFF.smoothFITSbySMFactor(doFF.outCO18FITS)
+
+    ##############Sgr
+    doFF.calCode = doFF.codeSgrCO12
+    doFF.smoothFITSbySMFactor(doFF.sgrCO12FITS)
+
+    doFF.calCode = doFF.codeSgrCO13
+    doFF.smoothFITSbySMFactor(doFF.sgrCO13FITS)
+
+    doFF.calCode = doFF.codeSgrCO18
+    doFF.smoothFITSbySMFactor(doFF.sgrCO18FITS)
+
+    sys.exit()
+
+    ##### Scu
+    doFF.calCode = doFF.codeScuCO12
+    doFF.smoothFITSbySMFactor(doFF.scuCO12FITS)
+
+    doFF.calCode = doFF.codeScuCO13
+    doFF.smoothFITSbySMFactor(doFF.scuCO13FITS)
+
+    doFF.calCode = doFF.codeScuCO18
+    doFF.smoothFITSbySMFactor(doFF.scuCO18FITS)
+
+
+
+
+
+
+
+if 0:
+     #doFF.drawCloudSizeChange(drawCode="min")
+    #doFF.drawCloudSizeChange(drawCode="max")
+    #doFF.drawCloudSizeChange(drawCode="mean")
+
+    doFF.drawCloudNumberChange()
+
+if 0:
+    doFF.produceAllRMSFITS()
+
+
+if 0: #check particular clouds, smaller filling factors
+
+    checkTB="LocalCO12FillingFactorTBAll.fit"
+
+    testCode=doFF.codeLocalCO12
+
+    getTB= doFF.selectBySizeAndFactorRange(checkTB,sizeRange=[0, 4 ],factorRange=[0.75,1])
+    getTB.sort(doFF.ffMWISPCol)
+
+    print getTB["area_exact"]
+    print getTB["sum"]
+    print getTB["pixN"]
+    print getTB["peak"]
+
+
+
+    testIDList=[2607,10959,6656,117419,29631]
+    for eachID in testIDList:
+
+        doFF.calFFByID(testCode,eachID,drawFigure=True,useSigmaCut=True)
+        doFF.drawInMap(testCode,eachID)
+
+
+    sys.exit()
+
+
+if 0: #check particular clouds, smaller filling factors
+
+    checkTB="LocalCO12FillingFactorTBAll.fit"
+
+    testCode=doFF.codeLocalCO12
+    testID= 27090
+
+    #getTB= doFF.selectBySizeAndFactorRange(checkTB,sizeRange=[5,7.5],factorRange=[0,0.3])
+    #getTB.sort("area_exact")
+
+    #print getTB
+
+    doFF.calFFByID(testCode,testID,drawFigure=True,useSigmaCut=True)
+    doFF.drawInMap(testCode,testID)
+
+
+    sys.exit()
 
 
 if 0: ###
@@ -76,7 +186,7 @@ if 0: ###
 
 #get systematic parameters and run the script
 
-if  1: #calculate filling factors for each molecular clouds
+if  0: #calculate filling factors for each molecular clouds
     #to get enough memory
 
     calCode= sys.argv[1]
@@ -96,9 +206,9 @@ if 0:
 if 0: #calculate filling factors for each molecular clouds
 
     drawTB="edgeInfo_LocalCO12FillingFactorTBAll.fit"
-    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeFlux)
+    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeFlux)
 
-    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeArea)
+    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeArea)
     doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeSize)
 
 
@@ -203,57 +313,7 @@ if 0:
     doFF.getArmSubFTS() #produce
 
 
-if 0: #out CO 12
 
-    #doFF.calCode= doFF.codeOutCO12
-    #doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
-    #sys.exit()
-
-    doFF.calCode= doFF.codeOutCO13
-    doFF.smoothFITSbySMFactor(doFF.outCO13FITS)
-
-
-    doFF.calCode= doFF.codeOutCO18
-    doFF.smoothFITSbySMFactor(doFF.outCO18FITS)
-
-
-    ##############Sgr
-    doFF.calCode= doFF.codeSgrCO12
-    doFF.smoothFITSbySMFactor(doFF.sgrCO12FITS)
-
-
-    doFF.calCode= doFF.codeSgrCO13
-    doFF.smoothFITSbySMFactor(doFF.sgrCO13FITS)
-
-    doFF.calCode= doFF.codeSgrCO18
-    doFF.smoothFITSbySMFactor(doFF.sgrCO18FITS)
-
-    sys.exit()
-
-
-if 0:
-
-    ##### Scu
-    doFF.calCode= doFF.codeScuCO12
-    doFF.smoothFITSbySMFactor(doFF.scuCO12FITS)
-
-    doFF.calCode= doFF.codeScuCO13
-    doFF.smoothFITSbySMFactor(doFF.scuCO13FITS)
-
-    doFF.calCode = doFF.codeScuCO18
-    doFF.smoothFITSbySMFactor(doFF.scuCO18FITS)
-
-    ##### Local
-    doFF.calCode = doFF.codeLocalCO18
-    doFF.smoothFITSbySMFactor(doFF.localCO18FITS)
-
-    doFF.calCode= doFF.codeLocalCO12
-    doFF.smoothFITSbySMFactor(doFF.localCO12FITS)
-
-    doFF.calCode= doFF.codeLocalCO13
-    doFF.smoothFITSbySMFactor(doFF.localCO13FITS)
-
-    sys.exit()
 
 
 
