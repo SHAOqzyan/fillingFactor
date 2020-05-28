@@ -61,9 +61,38 @@ class fillingMain(object):
         """
         pass
 
+
+
 doMain=fillingMain()
 
-if 1:  # out CO 12
+
+
+
+if 0:#find clouds
+    doFF.calCode=doFF.codeLocalCO12
+    noiseFiles=doFF.getSmoothListFixNoise(noiseFactor=0.0)
+
+
+    doFF.cleanFITSsigma2(noiseFiles[0])
+
+if 0:
+    doFF.calCode=doFF.codeLocalCO12
+    fileList=doFF.getSmoothListFixNoise(noiseFactor=1.0)
+
+    print fileList
+
+if 0: #test CO12
+    doFF.calCode=doFF.codeLocalCO12
+    smFiles = doFF.getSmFITSFileList()
+
+
+    for eachCO12FITS in smFiles:
+        print "Processing ",eachCO12FITS
+        doFF.addNoiseByRMSFITS( eachCO12FITS,noiseFactor=0.0 )
+
+    sys.exit()
+
+if 0:  # out CO 12
 
     # doFF.calCode= doFF.codeOutCO12
     # doFF.smoothFITSbySMFactor(doFF.outCO12FITS)

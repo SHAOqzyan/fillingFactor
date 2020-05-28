@@ -55,12 +55,12 @@ class checkFillingFactor(object):
 
     rootPath="./"
 
-    #saveFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/"
-    saveFITSPath="./"
+    saveFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/"
+    #saveFITSPath="./"
 
     dataPath= saveFITSPath+"data/"
     rawFITS=  dataPath + "G2650Local30.fits"
-
+    rmsFITSPath= rootPath+"rmsFITSpath/"
     #tmpPath= rootPath +"tmpFiles/"
     tmpPath= saveFITSPath +  "tmpFiles/"
     #########out
@@ -71,13 +71,13 @@ class checkFillingFactor(object):
     cloudCubePath= saveFITSPath+ "cloudCubes/"
 
     codeOutCO12="OutCO12"
-    outCO12FITS =dataPath+ "outCO12.fits"
+    outCO12FITS =dataPath+ "OutCO12.fits"
 
     codeOutCO13="OutCO13"
-    outCO13FITS =dataPath+ "outCO13.fits"
+    outCO13FITS =dataPath+ "OutCO13.fits"
 
     codeOutCO18="OutCO18"
-    outCO18FITS =dataPath+ "outCO18.fits"
+    outCO18FITS =dataPath+ "OutCO18.fits"
 
     ############## Local
     codeLocalCO12="LocalCO12"
@@ -116,27 +116,28 @@ class checkFillingFactor(object):
     scuCO18FITS = dataPath+ "scuCO18.fits"
 
 
-    outVrange=[-79,-6] #km/s
-    localVrange=[-6,30] #km/s
-    sgrVrange=[30,70] #km/s
-    scuVrange=[70,120] #km/s
+    outVrange= [-79,-6] #km/s
+    localVrange= [-6,30] #km/s
+    sgrVrange= [30,70] #km/s
+    scuVrange= [70,120] #km/s
 
 
 
     #tmpPath=  "/home/qzyan/WORK/dataDisk/fillingFactorData/"
 
     #rawRMS = 0.5
-    MWISPrmsCO12=0.49 #K
+    MWISPrmsCO12 = 0.423  ##0.49  ##K
+    MWISPrmsCO13 = 0.228  ## K
+    MWISPrmsCO18 = 0.229 # #K
 
-    MWISPrmsCO13=0.26  #K
-    MWISPrmsCO18=0.28 #K
+
 
 
     #smoothFactors =  np.arange(1.0,15.5,0.5  ) #compared to beam size, this is also the distance factor, that push cloud away by this factor
     smoothFactors =  np.arange(1.0, 10.5, 0.5  ) #compared to beam size, this is also the distance factor, that push cloud away by this factor
 
 
-    noiseFactors =     np.arange(1.0,10.5,0.5  )  # do not care about the noise Factores now
+    noiseFactors =  np.arange(0.0, 2.1, 0.1  ) #  in Kelvin
 
 
     #just for test
@@ -144,7 +145,7 @@ class checkFillingFactor(object):
     #noiseFactors = np.arange(1.0, 2, 0.5)  # compared to  raw data rms
 
     calCode=""
-    noiseStr="noise"
+    noiseStr="Noise"
 
     rawBeamSizeCO12 =   49. / 60
     rawBeamSizeCO13 =   52. / 60
@@ -205,6 +206,15 @@ class checkFillingFactor(object):
     drawCodeSize="size"
 
 
+    rmsCO12FITS="CO12RMS.fits"
+
+    rmsCO13FITS="CO13RMS.fits"
+
+    rmsCO18FITS="CO18RMS.fits"
+
+    smoothTag="_SmFactor_"
+
+    noiseTag="_NoiseAdd_"
     def __init__(self):
         pass
 
@@ -222,6 +232,280 @@ class checkFillingFactor(object):
 
 
         return Nlist
+
+
+
+    def produceNoiseFITS(self, channelN, rmsFITS=None,inputRmsData=None):
+        """
+        based on the rmsFITS, produce a spectral with channelN,  and add this cube to smooth fits to smooth fits
+        smooth fits, needto calculate rms fits, better use outArmFITS,
+        :param rmsFITS:
+        :param channelN:
+        :return:
+        """
+        if inputRmsData is None:
+            dataRMS,headRMS=doFITS.readFITS(rmsFITS)
+
+        else:
+            dataRMS = inputRmsData
+
+        np.random.seed()
+
+        Ny,Nx=dataRMS.shape
+        Nz=channelN
+
+        dataNoise=np.zeros( (Nz,Ny,Nx), dtype=np.float  )
+
+
+        for j in range(Ny):
+            for i in range(Nx):
+
+                if np.isnan( dataRMS[j,i]):
+                    continue
+
+                dataNoise[:,j,i]=np.random.normal(0,dataRMS[j,i],Nz)
+
+
+        #print dataNoise.shape
+
+        #fits.writeto("noiseCube.fits", dataNoise )
+
+        return dataNoise
+
+    def getRMSFITS(self):
+        """
+        get rms fits according the calcode
+        :return:
+        """
+
+        if self.calCode=="":
+            return self.rmsCO12FITS
+
+
+        if "12" in self.calCode:
+            return self.rmsCO12FITS
+
+        if "13" in self.calCode:
+            return self.rmsCO13FITS
+
+        if "18" in self.calCode:
+            return self.rmsCO18FITS
+
+
+
+    def getSmoothRMS(self,outArmSmFITS):
+        """
+
+        :return:
+        """
+
+        #get all Outer Arm FITS, extract rms noise
+
+        #smootFileList= self.getSmFITSFileList(calCode=self.codeLocalCO12)
+
+
+        #testFile=smootFileList[0]
+        saveName=self.addFixToFITSName( outArmSmFITS,"_rms" )
+
+        saveName=self.rmsFITSPath+os.path.basename(saveName)
+
+        doFITS.getRMSFITS(outArmSmFITS,saveName)
+
+        return saveName
+    def getRMSFITSByCodeAndsmf(self,calCode,smoothFactor):
+        """
+
+        :param calCode:
+        :param smoothFactor:
+        :return:
+        """
+
+        searchName="{}*SmFactor_{:.1f}*_rms.fits".format(calCode,smoothFactor)
+        searchStr=self.rmsFITSPath+searchName
+
+        searchResults=  glob.glob(searchStr)
+        if len(searchResults) == 0 or len(searchResults) >1  :
+            return None
+
+        else:
+            return searchResults[0]
+
+
+
+    def selectByCode(self,calCode,selectList):
+
+        searchStr = "12"
+
+        if "12" in calCode:
+            searchStr="12"
+
+        if "13" in calCode:
+            searchStr="13"
+
+        if "18" in calCode:
+            searchStr="18"
+
+
+
+        for eachElement in selectList:
+
+            if  searchStr in eachElement:
+                return eachElement
+
+
+        return None
+
+
+
+
+
+
+    def getOutArmCode(self,calCode):
+
+        searchList=[self.codeOutCO12, self.codeOutCO13,self.codeOutCO18]
+        return self.selectByCode(calCode,searchList)
+
+    def getSmoothFactor(self,fitsFile):
+        """
+
+        :param smoothFactor:
+        :return:
+        """
+
+        a,suffix=fitsFile.split("SmFactor_")
+
+        try:
+            firstFour = suffix[0:4]
+            return np.float(firstFour)
+
+        except:
+            firstThree = suffix[0:3]
+            return np.float( firstThree )
+
+
+
+    def checkRMSFITS(self,smFITS):
+        """
+        check the existance of the corresponding rms fits file, if not exist try to produce one
+        :param smFITS:
+        :return:
+        """
+
+        #step 1, search a file
+
+
+
+
+        smFactor=self.getSmoothFactor(smFITS)
+
+        outArmCode=self.getOutArmCode(self.calCode)
+
+        rmsFITS=self.getRMSFITSByCodeAndsmf(outArmCode, smFactor)
+
+        ########
+
+
+        if rmsFITS==None:
+            ###### produce the rms fits
+
+            outArmCode=self.getOutArmCode(self.calCode)
+
+            smFileOut=self.getSmFITSFileSingle(smFactor,calCode=outArmCode)
+
+
+
+            if smFileOut is None:
+                print "The corresponding Out arm smooth fits does not exist, could not produce rms fits, stop"
+                return None
+
+            else:
+                #produce the rms fits with the out arm file
+                #aaaaaaaa
+
+                print "Out arm fits found, producing a rms fits accordingly."
+                return  self.getSmoothRMS(smFileOut)
+        else:
+            print "The corresponding rms fits file produce with out arm fits found!"
+            return rmsFITS
+
+
+
+    def addNoiseByRMSFITS(self,smFITS, noiseFactor=0.0, targetRMSFITS=None):
+
+        
+        """
+        add noise spectral by spectral
+
+        the smooth rms should be calculate with outArmFITS because the out arm has the largest about data points
+
+        targetRMSFITS, should be the three data FITS files
+        but the rawRMSFITS ,should be created with out arm fits cubes
+
+        the noiseFactor is in Kelvin, which is the increase of noise to the smoothed FITS file
+
+        :param smFITS:
+        :param targetRmsFITS:
+        :return:
+        """
+
+        saveSuffix = "{}{:.1f}".format(self.noiseTag,noiseFactor)
+        saveName = self.addFixToFITSName(smFITS, saveSuffix, prefix=False)
+
+
+        dataSM,headSM=doFITS.readFITS(smFITS)
+        if "SmFactor_1.0" in smFITS and noiseFactor==0.0:
+            #do not add noise to the raw fits file
+            #raw data
+            fits.writeto(saveName, dataSM, header=headSM, overwrite=True)
+            doFITS.converto32bit(saveName, saveName)
+
+            return saveName
+
+        Nz,Ny,Nx=dataSM.shape
+
+        #find corresponding Out Arm rms fits file, because out arm has the least signal range
+
+        #outCode=self.getOutArmCode(self.calCode)
+        #smFactor=self.getSmoothFactor(smFITS)
+
+        if "SmFactor_1.0" in smFITS:
+
+            rawRMSFITS=self.getRMSFITS() #use raw cofits
+
+
+        else:
+            rawRMSFITS=self.checkRMSFITS( smFITS  )
+
+
+        if rawRMSFITS==None:
+            print "Please check your data, the corresponding rmsFITS produce with out arm fits, does not exist"
+            return
+
+        rawRMSdata, rawRMShead =  doFITS.readFITS( rawRMSFITS )
+
+
+        if targetRMSFITS==None:
+            targetRMSFITS=self.getRMSFITS()
+
+        targetRMSdata, targetRMShead = doFITS.readFITS( targetRMSFITS )
+
+        targetRMSdata=noiseFactor+targetRMSdata # this step set the noise increse factor
+
+        convolveRMS= np.sqrt( targetRMSdata**2-rawRMSdata**2 ) #any negative value data?
+
+        noiseData=self.produceNoiseFITS(Nz,inputRmsData=convolveRMS)
+
+
+        observedData=dataSM+noiseData
+
+
+        fits.writeto( saveName , observedData,header= headSM,overwrite=True )
+        doFITS.converto32bit(saveName,saveName)
+
+        return saveName
+
+
+
 
 
 
@@ -642,35 +926,6 @@ class checkFillingFactor(object):
         return np.asarray( tbList ) , np.asarray( noiseList )
 
 
-    def getTBFixNoiseFactor(self,noiseFactor=1.0, dbParameters="S2P4Con1" ):
-        """
-
-        :param noiseFactor:
-        :return:
-        """
-
-        tbList=[]
-        smList=[]
-        for eachSF in self.smoothFactors:
-            searchStr="{}*SmFactor*{}*noiseFactor*{}*{}*_Clean.fit".format(self.calCode,eachSF,noiseFactor,dbParameters)
-
-            searchStr=os.path.join(self.tmpPath,searchStr)
-
-            tbFile=glob.glob( searchStr )
-
-            if len(tbFile) ==1:
-
-
-                tbList.append(  Table.read( tbFile[0] ) )
-                smList.append( eachSF )
-
-
-            else:
-                print "Multiple data found please check your data"
-                print tbFile
-
-
-        return np.asarray( tbList ) , np.asarray( smList )
 
 
 
@@ -697,6 +952,17 @@ class checkFillingFactor(object):
 
                 fits.writeto(saveName,rmsData,overwrite=True)
 
+    def getMeanRMS(self):
+        if "12" in self.calCode:
+            return self.MWISPrmsCO12
+
+        if "13" in self.calCode:
+            return self.MWISPrmsCO13
+
+        if "18" in self.calCode:
+            return self.MWISPrmsCO18
+        return None
+
     def cleanFITSsigma2(self,FITSfile,cutoff=2,minPts=4,contype=1,removeFITS=False):
         """
         Used  DBSCAN to mask noise pixels, then calculate the total flux
@@ -710,7 +976,9 @@ class checkFillingFactor(object):
         #rawFITS="/home/qzyan/WORK/dataDisk/MWISP/G120/100_150_U.fits" #input raw coFITS
         #doAllDBSCAN.rmsCO12=0.5 # K, set the rms
 
-        FITSrms = doFITS.getRMSFITS(FITSfile , ""  , returnRMSValue=True )
+
+
+        FITSrms =  self.getMeanRMS() #doFITS.getRMSFITS(FITSfile , ""  , returnRMSValue=True )
 
         doAllDBSCAN.rmsCO12=  FITSrms
         print "The rms ", FITSrms
@@ -723,6 +991,7 @@ class checkFillingFactor(object):
         doAllDBSCAN.testAllPath=self.tmpPath
         #doAllDBSCAN.testAllPath=  FITSrms
         doAllDBSCAN.setfastDBSCANrms(FITSrms)
+
         dbscanLabelFITS, rawDBSCANTBFile  = doAllDBSCAN.pureDBSCAN(FITSfile, cutoff , MinPts=minPts, saveTag= saveTag , connectivity= contype , inputRMS=FITSrms, redo=True, keepFITSFile=True)
 
 
@@ -733,9 +1002,6 @@ class checkFillingFactor(object):
         if removeFITS:
             os.remove(cleanFITSlabel)
             os.remove(dbscanLabelFITS)
-
-
-
 
 
 
@@ -952,26 +1218,132 @@ class checkFillingFactor(object):
 
         return saveName
 
-    def getSmFITSFileList(self):
+    def getSmFITSFileList(self,calCode=None):
 
         fileList=[]
 
+        processCode=self.calCode
+
+        if calCode!=None:
+            processCode = calCode
 
         for i in self.smoothFactors:
 
-            searchStr =  "{}*SmFactor_{}.fits".format(self.calCode, i  )
+            searchStr =  "{}*SmFactor_{:.1f}.fits".format(processCode, i  )
             searchStr = os.path.join( self.tmpPath, searchStr)
+
+            #print searchStr
+
             fitsName=glob.glob(searchStr)
 
             if len(fitsName )==1:
                 fileList.append(fitsName[0] )
+
             else:
                 print fitsName
-                print "None of multiple fits found!"
+                print "{} fits found (none or multiple, reject this search)...".format(len(fitsName))
 
 
         return  fileList
 
+    def getSmFITSFileSingle(self, smFactor , calCode=None):
+
+        processCode=self.calCode
+
+        if calCode!=None:
+            processCode = calCode
+
+
+        searchStr =  "{}*{}{:.1f}.fits".format(processCode,self.smoothTag, smFactor  )
+        searchStr = os.path.join( self.tmpPath, searchStr)
+
+        #print searchStr
+
+        fitsName=glob.glob(searchStr)
+
+        if len(fitsName )==1:
+            #fileList.append(fitsName[0] )
+            return fitsName[0]
+        else:
+            print fitsName
+            print "{} fits found (none or multiple, reject this search)...".format(len(fitsName))
+
+            return None
+
+    def getProcessCod(self,calCode):
+        processCode=self.calCode
+        if calCode!=None:
+            processCode = calCode
+
+        return processCode
+
+    def getSmoothListFixNoise(self, noiseFactor=0.0, calCode=None):
+        """
+        fix noise factors, get a list of fits file accordin the smoooth factors
+
+        :param noiseFactor:
+        :param calCode:
+        :return:
+        """
+
+        fileList=[]
+
+        for eachSmFactor in self.smoothFactors:
+
+            file=self.getSmoothAndNoiseFITSSingle(smFactor=eachSmFactor,noiseFactor=noiseFactor,calCode=calCode)
+
+            fileList.append(file)
+
+        return fileList
+
+
+
+    def getSmoothListFixSmooth(self, smoothFactor=1.0, calCode=None):
+        """
+        fix noise factors, get a list of fits file accordin the smoooth factors
+
+        :param noiseFactor:
+        :param calCode:
+        :return:
+        """
+
+        fileList=[]
+
+        for eachNoiseFactor in self.noiseFactors:
+
+            file=self.getSmoothAndNoiseFITSSingle(smFactor=smoothFactor,noiseFactor=eachNoiseFactor,calCode=calCode)
+
+            fileList.append(file)
+
+        return fileList
+
+
+
+    def getSmoothAndNoiseFITSSingle( self, smFactor=1.0, noiseFactor=0.0, calCode=None  ):
+        """
+
+        :param smFactor:
+        :param noise:
+        :return:
+        """
+
+        processCode=self.getProcessCod(calCode)
+
+        searchStr =  "{}*{}{:.1f}*{}{:.1f}.fits".format(processCode,self.smoothTag, smFactor ,self.noiseTag,noiseFactor )
+        searchStr = os.path.join( self.tmpPath, searchStr)
+
+        #print searchStr
+
+        fitsName=glob.glob(searchStr)
+
+        if len(fitsName )==1:
+            #fileList.append(fitsName[0] )
+            return fitsName[0]
+        else:
+            print fitsName
+            print "{} fits found (none or multiple, reject this search)...".format(len(fitsName))
+
+            return None
 
 
 
@@ -1428,6 +1800,7 @@ class checkFillingFactor(object):
 
 
         return wmsipFilling, cfaFilling,  fittingParaAndError
+
 
 
     def drawFillingFactor(self, absK=0.5, useArea=False ):
