@@ -103,6 +103,8 @@ class checkFillingFactor(object):
     codeRawLocalCO18="rawLocalCO18"
     rawLocalCO18FITS =dataPath+ "rawLocalCO18.fits"
 
+    codeRawOutCO12="rawOutCO12"
+    rawOutCO12FITS =dataPath+ "rawOutCO12.fits"
 
 
     ########### Sgr

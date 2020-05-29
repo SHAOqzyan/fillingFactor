@@ -79,8 +79,8 @@ if 1:  # out CO 12
 
     ##### Local
 
-    doFF.calCode = doFF.codeRawLocalCO12
-    doFF.smoothFITSbySMFactor(doFF.rawLocalCO12FITS)
+    doFF.calCode = doFF.codeRawOutCO12
+    doFF.smoothFITSbySMFactor(doFF.rawOutCO12FITS)
 
     sys.exit()
 
