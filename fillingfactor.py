@@ -55,8 +55,8 @@ class checkFillingFactor(object):
 
     rootPath="./"
 
-    saveFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/"
-    #saveFITSPath="./"
+    #saveFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/"
+    saveFITSPath="./"
 
     dataPath= saveFITSPath+"data/"
     rawFITS=  dataPath + "G2650Local30.fits"
@@ -90,6 +90,18 @@ class checkFillingFactor(object):
 
     codeLocalCO18="LocalCO18"
     localCO18FITS =dataPath+ "LocalCO18.fits"
+
+    ############## rawLocal
+    codeRawLocalCO12="rawLocalCO12"
+    rawLocalCO12FITS =dataPath+ "rawLocalCO12.fits"
+
+
+    codeRawLocalCO13="rawLocalCO13"
+    rawLocalCO13FITS =dataPath+ "rawLocalCO13.fits"
+
+
+    codeRawLocalCO18="rawLocalCO18"
+    rawLocalCO18FITS =dataPath+ "rawLocalCO18.fits"
 
 
 
@@ -3385,22 +3397,43 @@ class checkFillingFactor(object):
         plt.savefig( "{}FFindividual_{}.png".format(calCode, drawCode ), bbox_inches='tight', dpi=600)
 
 
-
-    def checkData(self):
+    def checkRMS(self):
         """
-        draw several 12CO data, to compare the difference of spectral shape
+
         :return:
         """
+        rms02FITS= "/home/qzyan/WORK/dataDisk/G2650/mosaic_U_rms_local.fits"
+        rms016FITS= "/home/qzyan/WORK/dataDisk/G2650/mosaic_U_rms_localns.fits"
 
-        dataSm,headSm=doFITS.readFITS(self.localCO12FITS) #0.2 /km/s
+        #need to crop fits
 
-        dataRaw,headRaw=doFITS.readFITS(self.localCO13FITS) #0.16 /km/s #replace this
+        lRange=[34.5, 47.5]
+        bRange = [-4.9, 4.9 ]
+
+        rms02CropFITS= "rms02Crop.fits"
+        rms016CropFITS= "rms016Crop.fits"
+
+        doFITS.cropFITS2D(rms02FITS,outFITS=rms02CropFITS,Lrange=lRange,Brange=bRange, overWrite=True)
+        doFITS.cropFITS2D(rms016FITS,outFITS=rms016CropFITS,Lrange=lRange,Brange=bRange, overWrite=True)
 
 
 
-        #draw four spectra lines
+        rmsDataSm, rmsHeadSm=doFITS.readFITS( rms02CropFITS )
 
-        fig = plt.figure(figsize=(15, 8))
+        rmsDataRaw, rmsheadRaw= doFITS.readFITS( rms016CropFITS )
+
+        selectCriteria= np.logical_and(  rmsDataRaw > 0, rmsDataSm > 0 )
+
+
+        goodSmValues = rmsDataSm[selectCriteria]
+        goodRawValues= rmsDataRaw[selectCriteria]
+
+        ratios= goodSmValues/goodRawValues
+
+        print "Means ratio", np.mean( ratios )
+        fits.writeto("rmsRatios.fits",rmsDataSm/rmsDataRaw,header=rmsHeadSm,overwrite=True )
+
+        fig = plt.figure(figsize=(16, 9))
         rc('text', usetex=True)
         rc('font', **{'family': 'sans-serif', 'size': 16, 'serif': ['Helvetica']})
         mpl.rcParams['text.latex.preamble'] = [
@@ -3411,75 +3444,169 @@ class checkFillingFactor(object):
             r'\sisetup{detect-all}',  # force siunitx to use the fonts
         ]
 
-        axRaw1 = fig.add_subplot(4,2, 1)
-        axSm1 = fig.add_subplot(4,2, 2, sharex=axRaw1)
+        axScatter = fig.add_subplot(1,2, 1)
+        axScatter.scatter(goodRawValues,goodSmValues,s=2,c='b')
+        axScatter.set_xlabel( r"raw rms (0.16 $\rm km\ s^{-1}$)")
+        #ax4.set_xlabel( r"$V_{\rm LSR}$ ($\rm km\ s^{-1}$)")
+
+        axScatter.set_ylabel( r"smooth rms (0.2 $\rm km\ s^{-1}$)")
+
+        #plot a
+
+        theoryRatio=np.sqrt(0.16/0.2)
+
+        xArray=np.asarray( [0.2,0.8] )
+
+
+
+        axScatter.plot(xArray, xArray*theoryRatio,color='red')
+
+
+        axHist = fig.add_subplot(1,2, 2)
+
+        bins=np.arange(0.1,0.8,0.01)
+
+        axHist.hist( goodRawValues,bins=bins, alpha=0.5,label="0.16, mean:{:.3f} K".format(np.mean(goodRawValues) ) )
+        axHist.hist( goodSmValues,bins=bins, alpha=0.5,label="0.2, mean:{:.3f} K".format(np.mean(goodSmValues) ) )
+        axHist.legend( loc=1 )
+
+        axHist.set_xlim(0,1)
+
+        print np.mean(goodSmValues) /np.mean(goodRawValues)
+
+
+        plt.savefig("checkRMS.png" , bbox_inches='tight', dpi=600)
+
+
+    def checkData(self):
+        """
+        draw several 12CO data, to compare the difference of spectral shape
+        :return:
+        """
+
+
+        dataSm,headSm=doFITS.readFITS(self.localCO12FITS) #0.2 /km/s
+        dataRaw,headRaw=doFITS.readFITS(self.rawLocalCO12FITS) #0.16 /km/s #replace this
+
+        rmsSm, rmsHeadSm=doFITS.readFITS("/home/qzyan/WORK/dataDisk/G2650/mosaic_U_rms_local.fits")
+
+        rmsRaw, rmsheadRaw= doFITS.readFITS("/home/qzyan/WORK/dataDisk/G2650/mosaic_U_rms_localns.fits")
+
+        #draw four spectra lines
+
+        fig = plt.figure(figsize=(10, 12))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 16, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        ax1 = fig.add_subplot(4,1, 1)
+        #axSm1 = fig.add_subplot(4,2, 2, sharex=axRaw1)
 
         #draw first spectra
 
         l,b=[37.9407 , 0.2716]
-        self.drawSpectra(axRaw1,axSm1,dataRaw,headRaw,dataSm,headSm,l,b)
-
-        at = AnchoredText(r"0.16 km s$^{-1}$" , loc=2, frameon=False)
-        axRaw1.add_artist(at)
-
-        at = AnchoredText(r"0.20 km s$^{-1}$" , loc=2, frameon=False)
-        axSm1.add_artist(at)
+        self.drawSpectra(ax1,ax1,dataRaw,headRaw,dataSm,headSm,l,b)
 
 
-        axRaw2 = fig.add_subplot(4,2, 3, sharex=axRaw1)
-        axSm2 = fig.add_subplot(4,2, 4, sharex=axRaw1)
+
+        self.showNoise(ax1,rmsRaw,rmsheadRaw,rmsSm,rmsHeadSm,l,b)
+
+
+        ax2 = fig.add_subplot(4,1, 2, sharex=ax1)
+        #axSm2 = fig.add_subplot(4,2, 4, sharex=axRaw1)
 
         l,b=[27.9257170,-0.7087699]
-        self.drawSpectra(axRaw2,axSm2,dataRaw,headRaw,dataSm,headSm,l,b)
+        self.drawSpectra(ax2,ax2,dataRaw,headRaw,dataSm,headSm,l,b)
+        self.showNoise(ax2,rmsRaw,rmsheadRaw,rmsSm,rmsHeadSm,l,b)
 
-
-
-        axRaw3 = fig.add_subplot(4,2, 5, sharex=axRaw1)
-        axSm3 = fig.add_subplot(4,2, 6, sharex=axRaw1)
+        ax3 = fig.add_subplot(4,1, 3, sharex=ax1)
+        #ax3 = fig.add_subplot(4,1, 3, sharex=ax1 )
 
         l,b=[31.7994942,3.3178279]
-        self.drawSpectra(axRaw3,axSm3,dataRaw,headRaw,dataSm,headSm,l,b)
+        self.drawSpectra(ax3,ax3,dataRaw,headRaw,dataSm,headSm,l,b)
+
+        ax3.legend(loc=5)
+        self.showNoise(ax3,rmsRaw,rmsheadRaw,rmsSm,rmsHeadSm,l,b)
 
 
 
-        axRaw4 = fig.add_subplot(4,2, 7, sharex=axRaw1)
-        axSm4 = fig.add_subplot(4,2, 8, sharex=axRaw1)
+
+
+        ax4 = fig.add_subplot(4,1, 4, sharex=ax1)
+        #ax4 = fig.add_subplot(4,1, 4, sharex=ax1)
 
         l,b=[48.1125907,0.3694292]
-        self.drawSpectra(axRaw4,axSm4,dataRaw,headRaw,dataSm,headSm,l,b)
+        self.drawSpectra(ax4,ax4,dataRaw,headRaw,dataSm,headSm,l,b)
+        self.showNoise(ax4,rmsRaw,rmsheadRaw,rmsSm,rmsHeadSm,l,b)
 
-        axRaw4.set_xlabel(r"Beam Size (arcmin)")
-        axSm4.set_xlabel(r"Beam Size (arcmin)")
+        ax4.set_xlabel( r"$V_{\rm LSR}$ ($\rm km\ s^{-1}$)")
+        ax4.set_xlabel( r"$V_{\rm LSR}$ ($\rm km\ s^{-1}$)")
 
-        #######
-
-
-        #axSpect1 = fig.add_subplot(4,2, 2)
-        #axSpect1 = fig.add_subplot(4,2, 3)
-        #axSpect1 = fig.add_subplot(4,2, 4)
 
 
 
         plt.savefig("checkData.png" , bbox_inches='tight', dpi=600)
 
+    def showNoise(self,ax,rmsDataRaw,rmsHeadRaw,rmsDataSm,rmsheadSm,l,b):
+        """
+
+        :param ax:
+        :param rmsDataRaw:
+        :param rmsHeadRaw:
+        :param rmsDataSm:
+        :param rmsheadSm:
+        :param l:
+        :param b:
+        :return:
+        """
+
+        noiseRaw= doFITS.getPixValue(rmsDataRaw,rmsHeadRaw,[l,b])
+        noiseSm= doFITS.getPixValue(rmsDataSm,rmsheadSm,[l,b])
+
+        ratio=  noiseSm/noiseRaw
+
+
+
+        noiseStr="rms(0.16): {:.2f} K, rms(0.2): {:.2f} K, ratio:{:.3f}  (SQRT(0.16/0.2)=0.894)".format(noiseRaw,noiseSm,ratio)
+
+        at = AnchoredText(noiseStr , loc=2, frameon=False)
+        ax.add_artist(at)
+
 
 
     def drawSpectra(self,axRaw,axSm,dataRaw,headRaw,dataSm,headSm,l,b):
 
-        sp1,v1=doFITS.getSpectraByLB( dataSm, headSm, l,b   )
-        axSm.step(v1,sp1,color='blue',lw=1)
 
         sp1,v1=doFITS.getSpectraByLB( dataRaw, headRaw, l,b   )
-        axRaw.step(v1,sp1,color='green',lw=1)
-        
+        axSm.step(v1,sp1,color='green',lw=0.8 ,label=r"Raw (0.16 km s$^{-1}$)")
+
+        #calculateNoise
+
+        cutV=15
+        spCut=sp1[v1>cutV]
+
+
+        sp1,v1=doFITS.getSpectraByLB( dataSm, headSm, l,b   )
+        axRaw.step(v1,sp1,color='blue',lw=0.8, label=r"Smooth (0.2 km s$^{-1}$)")
+        spCut=sp1[v1>cutV]
 
         #
         lbStr=r"(l,b)=({:.2f}$^\circ$,{:.2f}$^\circ$)".format(l,b)
-        at = AnchoredText( lbStr , loc=1, frameon=False)
+        at = AnchoredText( lbStr , loc=4, frameon=False)
         axRaw.add_artist(at)
+        axRaw.set_ylabel("T$_{\rm mb}$ (K)")
+        #at = AnchoredText( lbStr , loc=1, frameon=False)
+        #axSm.add_artist(at)
+        #axSm.set_ylabel("T$_{\rm mb}$ (K)")
 
-        at = AnchoredText( lbStr , loc=1, frameon=False)
-        axSm.add_artist(at)
+
+
 
     def selectBySizeAndFactorRange(self,TBFileName,sizeRange=None,factorRange=None):
         """

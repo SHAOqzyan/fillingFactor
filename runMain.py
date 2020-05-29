@@ -66,9 +66,38 @@ class fillingMain(object):
 doMain=fillingMain()
 
 
+if 0:
+    doFF.checkRMS()
+    #doFF.checkData()
 
-if 1:
-    doFF.checkData()
+
+if 1:  # out CO 12
+
+    # doFF.calCode= doFF.codeOutCO12
+    # doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
+    # sys.exit()
+
+    ##### Local
+
+    doFF.calCode = doFF.codeRawLocalCO12
+    doFF.smoothFITSbySMFactor(doFF.rawLocalCO12FITS)
+
+    sys.exit()
+
+if 0: # addNoise
+    doFF.calCode=doFF.codeSgrCO12
+    smFiles = doFF.getSmFITSFileList()
+
+    for eachSMF in smFiles:
+        print "Processing ",eachSMF
+        doFF.addNoiseByRMSFITS( eachSMF,noiseFactor=0.0 )
+
+    sys.exit()
+
+
+
+
+
 
 if 0: #calculate filling factors for each molecular clouds
 
@@ -128,15 +157,6 @@ if 0:
 
     print fileList
 
-if 0: #test CO12
-    doFF.calCode=doFF.codeLocalCO18
-    smFiles = doFF.getSmFITSFileList()
-
-    for eachSMF in smFiles:
-        print "Processing ",eachSMF
-        doFF.addNoiseByRMSFITS( eachSMF,noiseFactor=0.0 )
-
-    sys.exit()
 
 if 0:  # out CO 12
 
