@@ -215,6 +215,9 @@ class checkFillingFactor(object):
     smoothTag="_SmFactor_"
 
     noiseTag="_NoiseAdd_"
+
+    idCol= "_idx"
+
     def __init__(self):
         pass
 
@@ -619,6 +622,7 @@ class checkFillingFactor(object):
 
         #axBeam.plot(beamSize,Nlist,'o-',color='b')
 
+
         mwispF,cfaF,parameters=self.getFillingFactorAndDraw(  beamSize, Nlist, 1, drawFigure=False)
         print mwispF,cfaF
         params,paramsErros=parameters
@@ -714,7 +718,7 @@ class checkFillingFactor(object):
 
         return tuple([cZ0, cY0, cX0])
 
-    def getCloudCubes(self, calCode,rawCOFITS, labelsFITS,cloudTBFile  ):
+    def getCloudCubes(self, calCode,rawCOFITS, labelsFITS,cloudTBFile ,writeFITS=False ):
 
         """
 
@@ -797,7 +801,8 @@ class checkFillingFactor(object):
 
             saveFullName=os.path.join(savePath,saveName)
 
-            fits.writeto(saveFullName , cropData, header=cropWCS.to_header(), overwrite=True)
+            if writeFITS:
+                fits.writeto(saveFullName , cropData, header=cropWCS.to_header(), overwrite=True)
 
             fitsZero[cloudIndex] = 0
 
@@ -1277,7 +1282,7 @@ class checkFillingFactor(object):
 
         return processCode
 
-    def getSmoothListFixNoise(self, noiseFactor=0.0, calCode=None):
+    def getSmoothListFixNoise(self, noiseFactor=0.0, calCode=None,getCleanTBFile=False,getCleanFITS=False):
         """
         fix noise factors, get a list of fits file accordin the smoooth factors
 
@@ -1290,7 +1295,7 @@ class checkFillingFactor(object):
 
         for eachSmFactor in self.smoothFactors:
 
-            file=self.getSmoothAndNoiseFITSSingle(smFactor=eachSmFactor,noiseFactor=noiseFactor,calCode=calCode)
+            file=self.getSmoothAndNoiseFITSSingle(smFactor=eachSmFactor,noiseFactor=noiseFactor,calCode=calCode , getCleanTBFile=getCleanTBFile, getCleanFITS=getCleanFITS )
 
             fileList.append(file)
 
@@ -1298,7 +1303,7 @@ class checkFillingFactor(object):
 
 
 
-    def getSmoothListFixSmooth(self, smoothFactor=1.0, calCode=None):
+    def getSmoothListFixSmooth(self, smoothFactor=1.0, calCode=None,getCleanTBFile=False,getCleanFITS=False):
         """
         fix noise factors, get a list of fits file accordin the smoooth factors
 
@@ -1311,7 +1316,7 @@ class checkFillingFactor(object):
 
         for eachNoiseFactor in self.noiseFactors:
 
-            file=self.getSmoothAndNoiseFITSSingle(smFactor=smoothFactor,noiseFactor=eachNoiseFactor,calCode=calCode)
+            file=self.getSmoothAndNoiseFITSSingle(smFactor=smoothFactor,noiseFactor=eachNoiseFactor,calCode=calCode,getCleanTBFile=getCleanTBFile, getCleanFITS=getCleanFITS )
 
             fileList.append(file)
 
@@ -1319,7 +1324,7 @@ class checkFillingFactor(object):
 
 
 
-    def getSmoothAndNoiseFITSSingle( self, smFactor=1.0, noiseFactor=0.0, calCode=None  ):
+    def getSmoothAndNoiseFITSSingle( self, smFactor=1.0, noiseFactor=0.0, calCode=None, getCleanTBFile=False,dbscanCode="dbscanS2P4Con1" ,getCleanFITS=False):
         """
 
         :param smFactor:
@@ -1328,8 +1333,18 @@ class checkFillingFactor(object):
         """
 
         processCode=self.getProcessCod(calCode)
+        searchStr = "{}*{}{:.1f}*{}{:.1f}.fits".format(processCode, self.smoothTag, smFactor, self.noiseTag,
+                                                       noiseFactor)
 
-        searchStr =  "{}*{}{:.1f}*{}{:.1f}.fits".format(processCode,self.smoothTag, smFactor ,self.noiseTag,noiseFactor )
+        if getCleanTBFile:
+            searchStr =  "{}*{}{:.1f}*{}{:.1f}{}_Clean.fit".format(processCode,self.smoothTag, smFactor ,self.noiseTag,noiseFactor,dbscanCode )
+
+        if getCleanFITS:
+
+            searchStr =  "{}*{}{:.1f}*{}{:.1f}{}_Clean.fits".format(processCode,self.smoothTag, smFactor ,self.noiseTag,noiseFactor,dbscanCode )
+
+        
+
         searchStr = os.path.join( self.tmpPath, searchStr)
 
         #print searchStr
@@ -1751,7 +1766,6 @@ class checkFillingFactor(object):
             return wmsipFilling, cfaFilling, fittingParaAndError
 
         #drawTheFigure
-
         fig = plt.figure(figsize=(10, 8))
         rc('text', usetex=True)
         rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
@@ -1795,10 +1809,10 @@ class checkFillingFactor(object):
         ###########################
         saveTag= "{}_factorFitting_ID{}".format(self.calCode,calID)
 
-        plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=600)
+        plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
 
-
-
+        plt.close(fig )
+        gc.collect()
         return wmsipFilling, cfaFilling,  fittingParaAndError
 
 
@@ -1938,9 +1952,6 @@ class checkFillingFactor(object):
 
 
         axFitting.set_xlabel(r"Beam Size (arcmin)")
-
-
-
 
 
 
@@ -2633,43 +2644,6 @@ class checkFillingFactor(object):
         return fluxList
 
 
-    def getFluxListByID(self,CODataRaw, cleanDataSM1, cleanDataList,  calCode,ID  ):
-        """
-
-        :param ID:
-        :return:
-        """
-
-        fluxList=[]
-
-        #rawCOFITS=self.getRawCOFITS(calCode)
-
-        #CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
-
-        #step 1, get the
-        #data,head=doFITS.readFITS(cleanFITSRawBeam)
-        cloudIndex= np.where( cleanDataSM1==ID )
-
-        rawCOValues=  CODataRaw[cloudIndex]
-
-
-        for  dataSm in cleanDataList :
-
-            #print eachSm
-            #cleanFITSSm =  self.getCleanFITSName(calCode, eachSm )
-
-            #dataSm, headSm = doFITS.readFITS( cleanFITSSm )
-
-            smLabels=  dataSm[cloudIndex]
-
-            #indexSelect = np.logical_and( cloudMaskRaw , dataSm>0 )
-
-            coValues=    rawCOValues[smLabels>0]
-            flux=np.sum(coValues)*0.2
-
-            fluxList.append(flux)
-
-        return fluxList
 
 
     def addFFColnames(self,cleanTB):
@@ -2851,12 +2825,169 @@ class checkFillingFactor(object):
 
         print self.getFillingFactorByCloudID(CODataRaw, labelSets, cleanDataList, calCode, ID, saveRow=None,  drawFigure=drawFigure, useSigmaCut=useSigmaCut, printFluxList=True)
 
-    def getFFForEachCloud(self,calCode,drawFigure=False, useSigmaCut=False, calAllCloud=False ):
+    def getFluxColName(self,smFactor):
 
-        TBName = self.getRawBeamTBByCalcode(calCode)
+        return "fluxSM{:.1f}".format( smFactor )
+
+
+    def getSmoothFluxCol(self,smFITS, TB,  labelSets, sigmaCut=2.6 ):
+        """
+        :return:
+        """
+
+        ####
+        print "Extracting flux from ", smFITS
+        dataSm,headSm= doFITS.readFITS(smFITS)
+
+        smFactor = self.getSmoothFactor(smFITS)
+        colName=self.getFluxColName(smFactor)
+
+        TB[colName]=TB["peak"]*0
+
+
+        widgets = ['Calculating filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+
+        i=0
+        noise=self.getMeanRMS()
+        for eachRow in TB:
+            i=i+1
+            #gc.collect()
+
+            ID = eachRow["_idx"]
+
+            cloudIndex = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
+            coValues=   dataSm[cloudIndex]
+            coValues= coValues[coValues>=sigmaCut* noise ]
+            fluxID=np.sum(coValues)*0.2
+
+            eachRow[colName] = fluxID
+
+            pbar.update(i)
+
+        pbar.finish()
+
+
+    def getFluxList(self,row):
+        """
+
+        :param row:
+        :return:
+        """
+
+        fluxList=[]
+
+        for eachSm in self.smoothFactors:
+            colName=self.getFluxColName(eachSm)
+            fluxList.append( row[colName])
+
+        return np.asarray(fluxList)
+
+
+
+    def calculateFillingFactor(self,TBFile,drawFigure=False):
+
+        """
+
+        :param TB:
+        :return:
+        """
+        TB=Table.read(TBFile)
+        saveName="fillingFactor_"+TBFile
+        processBeam = self.getBeamSize() #in arcmin
+
+        beamArray= self.smoothFactors* processBeam
+
+        #add progress bar
+        widgets = ['Calculating filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+        i=0
+        for eachRow in TB:
+            i=i+1
+            pbar.update(i)
+            fluxList = self.getFluxList(eachRow)
+            ID=eachRow[ self.idCol ]
+            wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(beamArray,fluxList,calID=ID,drawFigure=drawFigure)
+
+            para, paraError = fittingParaAndError
+            eachRow[self.ffMWISPCol]=wmsipFilling
+            eachRow[self.ffCfACol]=cfaFilling
+
+            eachRow[self.aCol]=para[0]
+            eachRow[self.bCol]=para[1]
+            eachRow[self.cCol]=para[2]
+
+
+            eachRow[self.aErrorCol]=paraError[0]
+            eachRow[self.bErrorCol]=paraError[1]
+            eachRow[self.cErrorCol]=paraError[2]
+        pbar.finish()
+        TB.write( saveName , overwrite=True )
+
+
+
+    def getFFForEachCloud(self,calCode=None, drawFigure=False, useSigmaCut=True, calAllCloud=True ):
+
+        """
+        Due to the memory problem, this part of code need to be revise
+
+        #step 1 produce flux table,
+        #step 2, calculate fff with the flux table
+        :param calCode:
+        :param drawFigure:
+        :param useSigmaCut:
+        :param calAllCloud:
+        :return:
+        """
+        if calCode!=None:
+            self.calCode= calCode
+        else:
+            calCode=self.calCode
+
+        TBName = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,getCleanTBFile=True)
+
+
         cleanTB = Table.read(TBName)
-
         ffTB=self.addFFColnames( cleanTB )
+
+        rawCOFITS=self.getRawCOFITS(calCode)
+        CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+
+        cleanFITSRawBeam = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,  getCleanFITS =True)
+        cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
+
+        clusterIndex1D = np.where(cleanDataSM1 > 0)
+        clusterValue1D = cleanDataSM1[clusterIndex1D]
+
+        Z0, Y0, X0 = clusterIndex1D
+        labelSets=[Z0, Y0, X0, clusterValue1D ]
+
+
+
+        #the next step is to extract flux
+
+        allSmoothFiles = self.getSmoothListFixNoise(noiseFactor=0.)
+
+        for eachSmFile in allSmoothFiles:
+
+            self.getSmoothFluxCol(eachSmFile,ffTB,labelSets )
+
+
+        ffTB.write("fluxTB_"+os.path.basename(TBName) ,overwrite=True )
+
+        #step, fitting filling factor
+
+
+        return
+        ####
+
+
 
         #remove small size clouds
         if not calAllCloud:
@@ -2868,15 +2999,9 @@ class checkFillingFactor(object):
 
 
 
-        self.calCode= calCode
-
         #CODataRaw, cleanDataSM1, cleanDataList,
 
-        rawCOFITS=self.getRawCOFITS(calCode)
-        CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
 
-        cleanFITSRawBeam = self.getCleanFITSName(calCode, 1)
-        cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
 
         if useSigmaCut:
             cleanDataList=self.getNoiseDataList()
@@ -2965,7 +3090,7 @@ class checkFillingFactor(object):
         #TB=TB[TB[self.ffMWISPCol]>0]
         #print len(TB)
 
-        mwispFF,mwispFFError= self.getFillingErrorAndError(self.rawBeamSize, TB   )
+        mwispFF,mwispFFError= self.getFillingErrorAndError(self.getBeamSize(), TB   )
 
 
         #relativeError= mwispFFError/mwispFF
@@ -3221,14 +3346,19 @@ class checkFillingFactor(object):
         if drawCode==self.drawCodeSize: #angular size
 
 
-            self.drawErrorBar(axFF,noClipTB, drawCode =drawCode, markerSize=markerSize,color='gray',markerType=".",elinewidth=elinewidth,label="Complete in PPV space" ,showYError=False)
-            self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
-            self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
+            sc=self.drawErrorBar(axFF,noClipTB, drawCode =drawCode, markerSize=markerSize,color='gray',markerType=".",elinewidth=elinewidth,label="Complete in PPV space" ,showYError=False)
+            #self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
+            #self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
 
             axFF.set_xlim([0, 20 ])
             axFF.set_xlabel("Angular size (arcmin)")
 
-
+            if 1:
+                from mpl_toolkits.axes_grid1 import make_axes_locatable
+                divider = make_axes_locatable(axFF)
+                cax1 = divider.append_axes("right", size="3%", pad=0.05)
+                cb = fig.colorbar(sc, cax=cax1)
+                cax1.set_ylabel(r"$V_{\rm LSR}$ ($\rm km\ s^{-1}$)")
 
         if drawCode==self.drawCodeFlux: #angular size
             self.drawErrorBar(axFF,noClipTB, drawCode =drawCode, markerSize=markerSize,color='gray',markerType=".",elinewidth=elinewidth,label="Complete in PPV space" ,showYError=False)
@@ -3255,6 +3385,101 @@ class checkFillingFactor(object):
         plt.savefig( "{}FFindividual_{}.png".format(calCode, drawCode ), bbox_inches='tight', dpi=600)
 
 
+
+    def checkData(self):
+        """
+        draw several 12CO data, to compare the difference of spectral shape
+        :return:
+        """
+
+        dataSm,headSm=doFITS.readFITS(self.localCO12FITS) #0.2 /km/s
+
+        dataRaw,headRaw=doFITS.readFITS(self.localCO13FITS) #0.16 /km/s #replace this
+
+
+
+        #draw four spectra lines
+
+        fig = plt.figure(figsize=(15, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 16, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        axRaw1 = fig.add_subplot(4,2, 1)
+        axSm1 = fig.add_subplot(4,2, 2, sharex=axRaw1)
+
+        #draw first spectra
+
+        l,b=[37.9407 , 0.2716]
+        self.drawSpectra(axRaw1,axSm1,dataRaw,headRaw,dataSm,headSm,l,b)
+
+        at = AnchoredText(r"0.16 km s$^{-1}$" , loc=2, frameon=False)
+        axRaw1.add_artist(at)
+
+        at = AnchoredText(r"0.20 km s$^{-1}$" , loc=2, frameon=False)
+        axSm1.add_artist(at)
+
+
+        axRaw2 = fig.add_subplot(4,2, 3, sharex=axRaw1)
+        axSm2 = fig.add_subplot(4,2, 4, sharex=axRaw1)
+
+        l,b=[27.9257170,-0.7087699]
+        self.drawSpectra(axRaw2,axSm2,dataRaw,headRaw,dataSm,headSm,l,b)
+
+
+
+        axRaw3 = fig.add_subplot(4,2, 5, sharex=axRaw1)
+        axSm3 = fig.add_subplot(4,2, 6, sharex=axRaw1)
+
+        l,b=[31.7994942,3.3178279]
+        self.drawSpectra(axRaw3,axSm3,dataRaw,headRaw,dataSm,headSm,l,b)
+
+
+
+        axRaw4 = fig.add_subplot(4,2, 7, sharex=axRaw1)
+        axSm4 = fig.add_subplot(4,2, 8, sharex=axRaw1)
+
+        l,b=[48.1125907,0.3694292]
+        self.drawSpectra(axRaw4,axSm4,dataRaw,headRaw,dataSm,headSm,l,b)
+
+        axRaw4.set_xlabel(r"Beam Size (arcmin)")
+        axSm4.set_xlabel(r"Beam Size (arcmin)")
+
+        #######
+
+
+        #axSpect1 = fig.add_subplot(4,2, 2)
+        #axSpect1 = fig.add_subplot(4,2, 3)
+        #axSpect1 = fig.add_subplot(4,2, 4)
+
+
+
+        plt.savefig("checkData.png" , bbox_inches='tight', dpi=600)
+
+
+
+    def drawSpectra(self,axRaw,axSm,dataRaw,headRaw,dataSm,headSm,l,b):
+
+        sp1,v1=doFITS.getSpectraByLB( dataSm, headSm, l,b   )
+        axSm.step(v1,sp1,color='blue',lw=1)
+
+        sp1,v1=doFITS.getSpectraByLB( dataRaw, headRaw, l,b   )
+        axRaw.step(v1,sp1,color='green',lw=1)
+        
+
+        #
+        lbStr=r"(l,b)=({:.2f}$^\circ$,{:.2f}$^\circ$)".format(l,b)
+        at = AnchoredText( lbStr , loc=1, frameon=False)
+        axRaw.add_artist(at)
+
+        at = AnchoredText( lbStr , loc=1, frameon=False)
+        axSm.add_artist(at)
 
     def selectBySizeAndFactorRange(self,TBFileName,sizeRange=None,factorRange=None):
         """
@@ -3323,10 +3548,29 @@ class checkFillingFactor(object):
 
         if not showYError:
             yerr =  None
+        import matplotlib.cm as cm
+        import matplotlib as mpl
+
+        Vs=TB["v_cen"]
+
+        cmap = plt.cm.jet
+        # norm = matplotlib.colors.BoundaryNorm(np.arange(0,30,0.1), cmap.N)
+        normV = mpl.colors.Normalize(vmin=-6, vmax=30)
+        m = plt.cm.ScalarMappable(norm=normV, cmap=cmap)
+        v_color = np.array([(m.to_rgba(v)) for v in Vs])
+
+        if color=="gray":
+            #c =Vs, cmap=cmap,norm=normV,
+            #ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= v_color ,     marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
+            #ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= Vs ,  cmap=cmap,norm=normV,   marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
+            sc = ax.scatter(drawX, drawY, c=Vs, cmap=cmap, norm=normV, s=3, facecolors='none', lw=0.5, marker="o")
+            return sc
 
 
-        ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= color ,  \
-                    marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
+
+        else:
+
+            ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= color ,    marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
 
 
     def zzz(self):

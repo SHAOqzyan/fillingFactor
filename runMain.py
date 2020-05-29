@@ -67,14 +67,61 @@ doMain=fillingMain()
 
 
 
+if 1:
+    doFF.checkData()
 
-if 0:#find clouds
+if 0: #calculate filling factors for each molecular clouds
+
+    drawTB="edgeInfo_fillingFactor_fluxTB_LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
     doFF.calCode=doFF.codeLocalCO12
-    noiseFiles=doFF.getSmoothListFixNoise(noiseFactor=0.0)
 
 
-    doFF.cleanFITSsigma2(noiseFiles[0])
 
+
+    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeFlux)
+
+    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeArea)
+    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeSize)
+
+
+    #doFF.drawFillingRelation( doFF.codeLocalCO12, "LocalCO12FillingFactorTB.fit")
+
+    sys.exit()
+
+
+
+if 0: ### #used to test which clouds are at the edge of data cube
+
+    cleanFITSName=doFF.tmpPath+"LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fits"
+
+    tbName =  "fillingFactor_fluxTB_LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    doFF.getCloudCubes(doFF.codeLocalCO12,doFF.localCO12FITS, cleanFITSName ,  tbName)
+
+    sys.exit()
+
+
+
+
+
+
+if 0:
+    doFF.calCode=doFF.codeLocalCO12
+    calTBFile="fluxTB_LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    doFF.calculateFillingFactor( calTBFile ,drawFigure=True)
+
+    sys.exit()
+
+if 0:
+    doFF.calCode=doFF.codeLocalCO12
+
+    doFF.getFFForEachCloud(  )
+
+if 0:#find clouds #
+    doFF.calCode=doFF.codeLocalCO18
+    noiseFiles=doFF.getSmoothListFixNoise(noiseFactor=0.0 )
+    for eachF in noiseFiles:
+        doFF.cleanFITSsigma2( eachF )
+    sys.exit()
 if 0:
     doFF.calCode=doFF.codeLocalCO12
     fileList=doFF.getSmoothListFixNoise(noiseFactor=1.0)
@@ -82,13 +129,12 @@ if 0:
     print fileList
 
 if 0: #test CO12
-    doFF.calCode=doFF.codeLocalCO12
+    doFF.calCode=doFF.codeLocalCO18
     smFiles = doFF.getSmFITSFileList()
 
-
-    for eachCO12FITS in smFiles:
-        print "Processing ",eachCO12FITS
-        doFF.addNoiseByRMSFITS( eachCO12FITS,noiseFactor=0.0 )
+    for eachSMF in smFiles:
+        print "Processing ",eachSMF
+        doFF.addNoiseByRMSFITS( eachSMF,noiseFactor=0.0 )
 
     sys.exit()
 
@@ -204,14 +250,6 @@ if 0: #check particular clouds, smaller filling factors
     sys.exit()
 
 
-if 0: ###
-
-    cleanFITSName=doFF.tmpPath+"LocalCO12localCO12_SmFactor_1.0_noise_0.49absKdbscanS2P4Con1_Clean.fits"
-
-    tbName =  "LocalCO12FillingFactorTBAll.fit"
-    doFF.getCloudCubes(doFF.codeLocalCO12,doFF.localCO12FITS, cleanFITSName ,  tbName)
-
-    sys.exit()
 
 #get systematic parameters and run the script
 
@@ -232,20 +270,7 @@ if 0:
     tbName =  "LocalCO12FillingFactorTBAll.fit"
     doFF.addMWISPFFerror( tbName )
 
-if 0: #calculate filling factors for each molecular clouds
 
-    drawTB="edgeInfo_LocalCO12FillingFactorTBAll.fit"
-    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeFlux)
-
-    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeArea)
-    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeSize)
-
-
-    #doFF.drawFillingRelation( doFF.codeLocalCO12, "LocalCO12FillingFactorTB.fit")
-
-
-
-    sys.exit()
 
 
 
