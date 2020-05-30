@@ -69,7 +69,7 @@ class checkFillingFactor(object):
     intFigurePath = rootPath+"cloudIntMap/"
 
     cloudCubePath= saveFITSPath+ "cloudCubes/"
-
+    ######## Out
     codeOutCO12="OutCO12"
     outCO12FITS =dataPath+ "OutCO12.fits"
 
@@ -78,6 +78,19 @@ class checkFillingFactor(object):
 
     codeOutCO18="OutCO18"
     outCO18FITS =dataPath+ "OutCO18.fits"
+
+    #raw
+    codeRawOutCO12="rawOutCO12"
+    rawOutCO12FITS =dataPath+ "rawOutCO12.fits"
+
+    codeRawOutCO13="rawOutCO13"
+    rawOutCO13FITS =dataPath+ "rawOutCO13.fits"
+
+    codeRawOutCO18="rawOutCO18"
+    rawOutCO18FITS =dataPath+ "rawOutCO18.fits"
+
+
+
 
     ############## Local
     codeLocalCO12="LocalCO12"
@@ -103,8 +116,6 @@ class checkFillingFactor(object):
     codeRawLocalCO18="rawLocalCO18"
     rawLocalCO18FITS =dataPath+ "rawLocalCO18.fits"
 
-    codeRawOutCO12="rawOutCO12"
-    rawOutCO12FITS =dataPath+ "rawOutCO12.fits"
 
 
     ########### Sgr
@@ -118,6 +129,20 @@ class checkFillingFactor(object):
     codeSgrCO18 = "sgrCO18"
     sgrCO18FITS = dataPath+ "sgrCO18.fits"
 
+    #raw
+    codeRawSgrCO12= "rawSgrCO12"
+    rawSgrCO12FITS =dataPath+ "rawSgrCO12.fits"
+
+    codeRawSgrCO13 = "rawSgrCO13"
+    rawSgrCO13FITS = dataPath+ "rawSgrCO13.fits"
+
+    codeRawSgrCO18 = "rawSgrCO18"
+    rawSgrCO18FITS = dataPath+ "rawSgrCO18.fits"
+
+
+
+
+
     ###### Scu
 
     codeScuCO12= "scuCO12"
@@ -129,7 +154,21 @@ class checkFillingFactor(object):
     codeScuCO18 = "scuCO18"
     scuCO18FITS = dataPath+ "scuCO18.fits"
 
+    #raw
+    codeRawScuCO12= "rawScuCO12"
+    rawScuCO12FITS = dataPath+ "rawScuCO12.fits"
 
+    codeRawScuCO13 = "rawScuCO13"
+    rawScuCO13FITS = dataPath+ "rawScuCO13.fits"
+
+    codeRawScuCO18 = "rawScuCO18"
+    rawScuCO18FITS = dataPath+ "rawScuCO18.fits"
+
+
+
+    #raw
+
+    #not exactly
     outVrange= [-79,-6] #km/s
     localVrange= [-6,30] #km/s
     sgrVrange= [30,70] #km/s
@@ -144,6 +183,9 @@ class checkFillingFactor(object):
     MWISPrmsCO13 = 0.228  ## K
     MWISPrmsCO18 = 0.229 # #K
 
+    MWISPrmsRawCO12 = 0.485  ##0.49  ##K
+    MWISPrmsRawCO13 = 0.262  ## K
+    MWISPrmsRawCO18 = 0.263 # #K
 
 
 
@@ -221,10 +263,14 @@ class checkFillingFactor(object):
 
 
     rmsCO12FITS="CO12RMS.fits"
-
     rmsCO13FITS="CO13RMS.fits"
-
     rmsCO18FITS="CO18RMS.fits"
+
+
+    rmsRawCO12FITS="rawCO12RMS.fits"
+    rmsRawCO13FITS="rawCO13RMS.fits"
+    rmsRawCO18FITS="rawCO18RMS.fits"
+
 
     smoothTag="_SmFactor_"
 
@@ -296,7 +342,18 @@ class checkFillingFactor(object):
         """
 
         if self.calCode=="":
-            return self.rmsCO12FITS
+            return self.rmsRawCO12FITS
+
+
+        if "12" in self.calCode and ("Raw" in self.calCode or "raw" in self.calCode):
+            return self.rmsRawCO12FITS
+
+        if "13" in self.calCode  and ("Raw" in self.calCode or "raw" in self.calCode):
+            return self.rmsRawCO13FITS
+
+        if "18" in self.calCode  and ("Raw" in self.calCode or "raw" in self.calCode):
+            return self.rmsRawCO18FITS
+
 
 
         if "12" in self.calCode:
@@ -347,9 +404,19 @@ class checkFillingFactor(object):
         else:
             return searchResults[0]
 
+    def isRaw(self,anyStr):
+        """
+        Check if "Raw" or "raw" in anyStr
+        :param anyStr:
+        :return:
+        """
+        return "Raw" in anyStr or "raw" in anyStr
+
 
 
     def selectByCode(self,calCode,selectList):
+
+
 
         searchStr = "12"
 
@@ -362,11 +429,11 @@ class checkFillingFactor(object):
         if "18" in calCode:
             searchStr="18"
 
-
+        isRawCode=self.isRaw(calCode)
 
         for eachElement in selectList:
 
-            if  searchStr in eachElement:
+            if  searchStr in eachElement and isRawCode==self.isRaw(eachElement):
                 return eachElement
 
 
@@ -379,7 +446,7 @@ class checkFillingFactor(object):
 
     def getOutArmCode(self,calCode):
 
-        searchList=[self.codeOutCO12, self.codeOutCO13,self.codeOutCO18]
+        searchList=[self.codeOutCO12, self.codeOutCO13,self.codeOutCO18, self.codeRawOutCO12, self.codeRawOutCO13,self.codeRawOutCO18]
         return self.selectByCode(calCode,searchList)
 
     def getSmoothFactor(self,fitsFile):
@@ -417,6 +484,7 @@ class checkFillingFactor(object):
 
         outArmCode=self.getOutArmCode(self.calCode)
 
+
         rmsFITS=self.getRMSFITSByCodeAndsmf(outArmCode, smFactor)
 
         ########
@@ -428,7 +496,6 @@ class checkFillingFactor(object):
             outArmCode=self.getOutArmCode(self.calCode)
 
             smFileOut=self.getSmFITSFileSingle(smFactor,calCode=outArmCode)
-
 
 
             if smFileOut is None:
@@ -509,6 +576,12 @@ class checkFillingFactor(object):
         targetRMSdata=noiseFactor+targetRMSdata # this step set the noise increse factor
 
         convolveRMS= np.sqrt( targetRMSdata**2-rawRMSdata**2 ) #any negative value data?
+
+
+        print "the raw and the targed rms fits are"
+
+        print rawRMSFITS,targetRMSFITS
+        ##
 
         noiseData=self.produceNoiseFITS(Nz,inputRmsData=convolveRMS)
 
@@ -972,14 +1045,27 @@ class checkFillingFactor(object):
                 fits.writeto(saveName,rmsData,overwrite=True)
 
     def getMeanRMS(self):
-        if "12" in self.calCode:
+
+        isRaw = self.isRaw( self.calCode )
+
+        if "12" in self.calCode and not isRaw:
             return self.MWISPrmsCO12
 
-        if "13" in self.calCode:
+        if "13" in self.calCode  and not isRaw:
             return self.MWISPrmsCO13
 
-        if "18" in self.calCode:
+        if "18" in self.calCode  and not isRaw:
             return self.MWISPrmsCO18
+
+        if "12" in self.calCode and  isRaw:
+            return self.MWISPrmsRawCO12
+
+        if "13" in self.calCode and  isRaw:
+            return self.MWISPrmsRawCO13
+
+        if "18" in self.calCode and  isRaw:
+            return self.MWISPrmsRawCO18
+
         return None
 
     def cleanFITSsigma2(self,FITSfile,cutoff=2,minPts=4,contype=1,removeFITS=False):

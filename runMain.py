@@ -66,6 +66,17 @@ class fillingMain(object):
 doMain=fillingMain()
 
 
+
+
+if 0:#find clouds #
+    doFF.calCode=doFF.codeRawLocalCO12
+    noiseFiles=doFF.getSmoothListFixNoise(noiseFactor=0.0 )
+    for eachF in noiseFiles:
+        doFF.cleanFITSsigma2( eachF )
+    sys.exit()
+
+
+
 if 0:
     doFF.checkRMS()
     #doFF.checkData()
@@ -78,14 +89,31 @@ if 1:  # out CO 12
     # sys.exit()
 
     ##### Local
+    doFF.calCode= doFF.codeRawLocalCO12
+    doFF.smoothFITSbySMFactor(doFF.rawLocalCO12FITS)
 
-    doFF.calCode = doFF.codeRawOutCO12
+    doFF.calCode= doFF.codeRawLocalCO13
+    doFF.smoothFITSbySMFactor(doFF.rawLocalCO13FITS)
+
+    doFF.calCode= doFF.codeRawLocalCO18
+    doFF.smoothFITSbySMFactor(doFF.rawLocalCO18FITS)
+
+    #out
+    doFF.calCode= doFF.codeRawOutCO12
     doFF.smoothFITSbySMFactor(doFF.rawOutCO12FITS)
+
+    doFF.calCode = doFF.codeRawOutCO13
+    doFF.smoothFITSbySMFactor(doFF.rawOutCO13FITS)
+
+    doFF.calCode = doFF.codeRawOutCO18
+    doFF.smoothFITSbySMFactor(doFF.rawOutCO18FITS)
+
 
     sys.exit()
 
+
 if 0: # addNoise
-    doFF.calCode=doFF.codeSgrCO12
+    doFF.calCode=doFF.codeRawOutCO12
     smFiles = doFF.getSmFITSFileList()
 
     for eachSMF in smFiles:
