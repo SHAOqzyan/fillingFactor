@@ -89,8 +89,8 @@ if 1:  # out CO 12
     # sys.exit()
 
     ##### Local
-    doFF.calCode= doFF.codeRawLocalCO12
-    doFF.smoothFITSbySMFactor(doFF.rawLocalCO12FITS)
+    #doFF.calCode= doFF.codeRawLocalCO12
+    #doFF.smoothFITSbySMFactor(doFF.rawLocalCO12FITS)
 
     doFF.calCode= doFF.codeRawLocalCO13
     doFF.smoothFITSbySMFactor(doFF.rawLocalCO13FITS)
@@ -99,8 +99,8 @@ if 1:  # out CO 12
     doFF.smoothFITSbySMFactor(doFF.rawLocalCO18FITS)
 
     #out
-    doFF.calCode= doFF.codeRawOutCO12
-    doFF.smoothFITSbySMFactor(doFF.rawOutCO12FITS)
+    #doFF.calCode= doFF.codeRawOutCO12
+    #doFF.smoothFITSbySMFactor(doFF.rawOutCO12FITS)
 
     doFF.calCode = doFF.codeRawOutCO13
     doFF.smoothFITSbySMFactor(doFF.rawOutCO13FITS)
