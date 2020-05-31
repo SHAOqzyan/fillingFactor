@@ -65,24 +65,135 @@ class fillingMain(object):
 
 doMain=fillingMain()
 
+#####################
+
+
+if 1:  # out CO 12
+
+    # doFF.calCode= doFF.codeOutCO12
+    # doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
+    # sys.exit()
+
+    ##### Local
+    #doFF.calCode= doFF.codeRawLocalCO12
+    #doFF.smoothFITSbySMFactor(doFF.rawLocalCO12FITS)
+
+    #doFF.calCode= doFF.codeRawLocalCO13
+    #doFF.smoothFITSbySMFactor(doFF.rawLocalCO13FITS)
+
+    #doFF.calCode= doFF.codeRawLocalCO18
+    #doFF.smoothFITSbySMFactor(doFF.rawLocalCO18FITS)
+
+    #out
+    #doFF.calCode= doFF.codeRawOutCO12
+    #doFF.smoothFITSbySMFactor(doFF.rawOutCO12FITS)
+
+    #doFF.calCode = doFF.codeRawOutCO13
+    #doFF.smoothFITSbySMFactor(doFF.rawOutCO13FITS)
+
+    #doFF.calCode = doFF.codeRawOutCO18
+    #doFF.smoothFITSbySMFactor(doFF.rawOutCO18FITS)
+
+
+    #raw Sgr
+    doFF.calCode= doFF.codeRawSgrCO12
+    doFF.smoothFITSbySMFactor(doFF.rawSgrCO12FITS)
+
+    doFF.calCode= doFF.codeRawSgrCO13
+    doFF.smoothFITSbySMFactor(doFF.rawSgrCO13FITS)
+
+    doFF.calCode= doFF.codeRawSgrCO18
+    doFF.smoothFITSbySMFactor(doFF.rawSgrCO18FITS)
+
+    #raw Scu
+    doFF.calCode= doFF.codeRawScuCO12
+    doFF.smoothFITSbySMFactor(doFF.rawScuCO12FITS)
+
+    doFF.calCode= doFF.codeRawScuCO13
+    doFF.smoothFITSbySMFactor(doFF.rawScuCO13FITS)
+
+    doFF.calCode= doFF.codeRawScuCO18
+    doFF.smoothFITSbySMFactor(doFF.rawScuCO18FITS)
+
+    sys.exit()
+
+
+
+#########
+
+if 0: # addNoise
+    doFF.calCode=doFF.codeRawOutCO13
+    smFiles = doFF.getSmFITSFileList()
+
+    for eachSMF in smFiles:
+        print "Processing ",eachSMF
+        doFF.addNoiseByRMSFITS( eachSMF,noiseFactor=0.0 )
+
+    sys.exit()
+
+
+
+if 0:  # calculate filling factors for each molecular clouds
+
+    drawTB = "edgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    doFF.calCode = doFF.codeRawLocalCO12
+
+    #doFF.drawFillingRelation(doFF.codeLocalCO12, drawTB, drawCode=doFF.drawCodeFlux)
+
+    #doFF.drawFillingRelation(doFF.codeLocalCO12, drawTB, drawCode=doFF.drawCodeArea)
+    doFF.drawFillingRelation(doFF.codeLocalCO12, drawTB, drawCode=doFF.drawCodeSize)
+
+    sys.exit()
+
+if 0: ### #used to test which clouds are at the edge of data cube
+    doFF.calCode=doFF.codeRawLocalCO12
+    cleanFITSName= doFF.getSmoothAndNoiseFITSSingle(getCleanFITS=True)  #doFF.tmpPath+  #"LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fits"
+    print cleanFITSName
+    tbName =  "fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    doFF.getCloudCubes(doFF.codeRawLocalCO12,doFF.rawLocalCO12FITS, cleanFITSName ,  tbName,writeFITS=False)
+
+
+
+    #calTBFile="fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    #doFF.calculateFillingFactor( calTBFile ,drawFigure=False)
+
+    sys.exit()
+
+
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+    doFF.testEqualCutOff()
+
+
+    sys.exit()
+
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+
+    doFF.getFluxListForEachCloud()
+
+    sys.exit()
+
+
+
 
 
 
 if 0:#find clouds #
-    doFF.calCode=doFF.codeRawLocalCO12
+    doFF.calCode=doFF.codeRawLocalCO13
     noiseFiles=doFF.getSmoothListFixNoise(noiseFactor=0.0 )
     for eachF in noiseFiles:
         doFF.cleanFITSsigma2( eachF )
     sys.exit()
-
-
 
 if 0:
     doFF.checkRMS()
     #doFF.checkData()
 
 
-if 1:  # out CO 12
+if 0:  # out CO 12
 
     # doFF.calCode= doFF.codeOutCO12
     # doFF.smoothFITSbySMFactor(doFF.outCO12FITS)
@@ -112,66 +223,14 @@ if 1:  # out CO 12
     sys.exit()
 
 
-if 0: # addNoise
-    doFF.calCode=doFF.codeRawOutCO12
-    smFiles = doFF.getSmFITSFileList()
-
-    for eachSMF in smFiles:
-        print "Processing ",eachSMF
-        doFF.addNoiseByRMSFITS( eachSMF,noiseFactor=0.0 )
-
-    sys.exit()
 
 
 
 
 
 
-if 0: #calculate filling factors for each molecular clouds
-
-    drawTB="edgeInfo_fillingFactor_fluxTB_LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
-    doFF.calCode=doFF.codeLocalCO12
 
 
-
-
-    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeFlux)
-
-    #doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeArea)
-    doFF.drawFillingRelation( doFF.codeLocalCO12,drawTB , drawCode=doFF.drawCodeSize)
-
-
-    #doFF.drawFillingRelation( doFF.codeLocalCO12, "LocalCO12FillingFactorTB.fit")
-
-    sys.exit()
-
-
-
-if 0: ### #used to test which clouds are at the edge of data cube
-
-    cleanFITSName=doFF.tmpPath+"LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fits"
-
-    tbName =  "fillingFactor_fluxTB_LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
-    doFF.getCloudCubes(doFF.codeLocalCO12,doFF.localCO12FITS, cleanFITSName ,  tbName)
-
-    sys.exit()
-
-
-
-
-
-
-if 0:
-    doFF.calCode=doFF.codeLocalCO12
-    calTBFile="fluxTB_LocalCO12LocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
-    doFF.calculateFillingFactor( calTBFile ,drawFigure=True)
-
-    sys.exit()
-
-if 0:
-    doFF.calCode=doFF.codeLocalCO12
-
-    doFF.getFFForEachCloud(  )
 
 if 0:#find clouds #
     doFF.calCode=doFF.codeLocalCO18
@@ -316,7 +375,7 @@ if  0: #calculate filling factors for each molecular clouds
 
 if 0:
     tbName =  "LocalCO12FillingFactorTBAll.fit"
-    doFF.addMWISPFFerror( tbName )
+    doFF.getFluxListForEachCloud( tbName )
 
 
 
@@ -532,10 +591,10 @@ if 0:#test sensitivity
     doFF.compareSensitivity(testFile)
 
 if 0:
-    doFF.calCode="Q1Local"
+    #doFF.calCode="Q1Local"
 
-    testFile=   "/home/qzyan/WORK/myDownloads/fillingFactor/tmpFiles/Q1LocalG2650Local30_SmFactor_2.0_noise_0.5absK.fits"
-    testTBFile= "/home/qzyan/WORK/myDownloads/fillingFactor/tmpFiles/Q1LocalG2650Local30_SmFactor_2.0_noise_0.5absKdbscanS2P4Con1_Clean.fit"
+    #testFile=   "/home/qzyan/WORK/myDownloads/fillingFactor/tmpFiles/Q1LocalG2650Local30_SmFactor_2.0_noise_0.5absK.fits"
+    #testTBFile= "/home/qzyan/WORK/myDownloads/fillingFactor/tmpFiles/Q1LocalG2650Local30_SmFactor_2.0_noise_0.5absKdbscanS2P4Con1_Clean.fit"
 
     doFF.getEqualCutOff( testFile,  testTBFile  )
 

@@ -1744,6 +1744,40 @@ class checkFillingFactor(object):
 
 
 
+    def testEqualCutOff(self):
+        """
+        Find the equivalent cut off, that would yield a equal flux with the cloud flux
+        :return:
+        """
+
+        #for certain test code , find equivalent cut off sigma value, and use  the average value as the cut off,
+        # is this cut off vlaue diffierent, for different region and lines?
+
+        ##find all sm files
+
+        ##find all TB files
+
+        #smFiles=self.getSmFITSFileList()
+        smFiles = self.getSmoothListFixNoise( )
+
+        ceanTBFiless = self.getSmoothListFixNoise(getCleanTBFile=True)
+
+        eqSigmaList = []
+
+        for i in range(len(smFiles)):
+            fitsName = smFiles[i]
+            tbFileName = ceanTBFiless[i]
+
+            print fitsName
+            print tbFileName
+
+            eqDownToSigma = self.getEqualCutOff(fitsName, tbFileName) / self.getMeanRMS()
+            print eqDownToSigma
+            eqSigmaList.append(eqDownToSigma)
+
+        print eqSigmaList
+        print  "the equal sigma list is ", np.mean(eqSigmaList)
+
     def getEqualCutOff(self,fitsFile,TBFile):
 
         """
@@ -1752,8 +1786,7 @@ class checkFillingFactor(object):
         :param TBFile:
         :return:
         """
-        print fitsFile
-        print TBFile
+
 
         tbFile=Table.read(TBFile)
 
@@ -1763,8 +1796,8 @@ class checkFillingFactor(object):
 
 
 
-        downToKUp = 3. #upper, the lower is 1 K
-        downToKLow = 1. #upper, the lower is 1 K
+        downToKUp = 3. #upper, the lower is 3 K
+        downToKLow = 1.0 #upper, the lower is 1 K
 
 
         data, head = myFITS.readFITS(fitsFile)
@@ -1774,7 +1807,6 @@ class checkFillingFactor(object):
 
         while 1:
             #calcualate cutoff rms
-
             downToKTry = (downToKUp + downToKLow) / 2.
             #print "Trying downToK, ", downToKTry
             sumV = np.nansum(data[data >= downToKTry]) * 0.2
@@ -1791,6 +1823,7 @@ class checkFillingFactor(object):
 
                 else: # sumV is too small, decrease the try value by dowong
                     downToKUp= downToKTry
+            print downToKTry
 
         return downToKTry
 
@@ -2929,7 +2962,6 @@ class checkFillingFactor(object):
 
         return "fluxSM{:.1f}".format( smFactor )
 
-
     def getSmoothFluxCol(self,smFITS, TB,  labelSets, sigmaCut=2.6 ):
         """
         :return:
@@ -2945,7 +2977,7 @@ class checkFillingFactor(object):
         TB[colName]=TB["peak"]*0
 
 
-        widgets = ['Calculating filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+        widgets = ['Extracting flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
                    FileTransferSpeed()]  # see docs for other options
         pbar = ProgressBar(widgets=widgets, maxval=len(TB))
         pbar.start()
@@ -3032,7 +3064,7 @@ class checkFillingFactor(object):
 
 
 
-    def getFFForEachCloud(self,calCode=None, drawFigure=False, useSigmaCut=True, calAllCloud=True ):
+    def getFluxListForEachCloud(self,calCode=None, drawFigure=False, useSigmaCut=True, calAllCloud=True ):
 
         """
         Due to the memory problem, this part of code need to be revise
@@ -3056,8 +3088,8 @@ class checkFillingFactor(object):
         cleanTB = Table.read(TBName)
         ffTB=self.addFFColnames( cleanTB )
 
-        rawCOFITS=self.getRawCOFITS(calCode)
-        CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+        #rawCOFITS=self.getRawCOFITS(calCode)
+        #CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
 
         cleanFITSRawBeam = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,  getCleanFITS =True)
         cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
@@ -3079,7 +3111,7 @@ class checkFillingFactor(object):
             self.getSmoothFluxCol(eachSmFile,ffTB,labelSets )
 
 
-        ffTB.write("fluxTB_"+os.path.basename(TBName) ,overwrite=True )
+        ffTB.write("fluxTB_" + os.path.basename(TBName) ,overwrite=True )
 
         #step, fitting filling factor
 
@@ -3393,7 +3425,14 @@ class checkFillingFactor(object):
         #
 
 
+        #only keep local clouds
 
+        print ffTB["y_cen"]
+
+        ffTB=ffTB[abs(ffTB["y_cen"])>=2]
+
+
+        print len(ffTB)
 
         pureVclipTB=self.pureVclip(ffTB)
 
@@ -3450,7 +3489,7 @@ class checkFillingFactor(object):
             #self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
             #self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
 
-            axFF.set_xlim([0, 20 ])
+            axFF.set_xlim([0, 50 ])
             axFF.set_xlabel("Angular size (arcmin)")
 
             if 1:
