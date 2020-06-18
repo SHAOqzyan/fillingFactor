@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib as mpl
 mpl.use('agg')
-
+import scipy.odr.odrpack as odrpack
 import radio_beam
 from spectral_cube import SpectralCube
 from astropy import units as u
@@ -30,11 +30,21 @@ doAllDBSCAN = allDBSCAN()
 doFITS=myFITS() #used to deal fits with myPYTHON
 
 
-
 ########
 def ffFunction(x,a, b, c):
     #return a*(x-x0)**2+c
     return a*np.exp(-b*x)  +c
+
+
+def ffFunctionOdr(B,x ):
+    a,b,c=B
+
+    #return a*(x-x0)**2+c
+    return a*np.exp(-b*x)  +c
+
+
+
+
 ##########################################
 
 def dya(x,a,b,c):
@@ -46,8 +56,35 @@ def dyb(x,a,b,c):
 def dyc(x,a,b,c):
     return 1
 ####################################
-def aaaa():
-    pass
+
+def ffAndSizeFunc(B, x ):
+    #return  b- b*np.exp(-a*x )
+    #return  1- b*np.exp(-a*x)
+
+    #return  B[1]- B[1]*np.exp(-B[0]*x)
+    #return 1- 1*np.exp(-B[0]*x)
+    a,b=B
+    return  a-b/x
+
+    #return   np.exp(-a/np.sqrt(x) )
+
+
+def testffAndSizeFunc(x,  a  ):
+    #return  b- b*np.exp(-a*x )
+    #return  1- b*np.exp(-a*x)
+
+    #return  b- b*np.exp(-a*x )
+    #return  a-b/(x-0.564)
+    #return  a-b/(x+c)
+    zeroPoint= 0 # 0.564  #0.977
+
+    #c=b/a  -zeroPoint
+
+
+    #c=b
+    return x/(x +a)
+
+    #return   np.exp(-a/np.sqrt(x) )
 
 
 
@@ -66,15 +103,23 @@ class checkFillingFactor(object):
     rmsFITSPath= rootPath+"rmsFITSpath/"
     #tmpPath= rootPath +"tmpFiles/"
     tmpPath= saveFITSPath +  "tmpFiles/"
-    #########out
+
     figurePath=  rootPath +"figurePath/"
     statPath=rootPath+"statPath/"
     intFigurePath = rootPath+"cloudIntMap/"
+
+    paperFigurePath=rootPath+"paperFigurePath/"
 
     ffFigurePath=rootPath+"ffFigures/"
 
 
     cloudCubePath= saveFITSPath+ "cloudCubes/"
+
+    #badChannel spectral path
+
+    badChannelSpecPath=rootPath+"badChannelSpec/"
+    #maskTmpPath=saveFITSPath+"maskedFITS/"
+
     ######## Out
     codeOutCO12="OutCO12"
     outCO12FITS =dataPath+ "OutCO12.fits"
@@ -274,6 +319,9 @@ class checkFillingFactor(object):
     touchBedgeCol= "touchBedge"
     touchVedgeCol= "touchVedge"
 
+    peakChannelCol="peakChannel"
+    conseCol="conseCol"
+
     drawCodeArea="area"
     drawCodeFlux="flux"
     drawCodeSize="size"
@@ -294,6 +342,17 @@ class checkFillingFactor(object):
     noiseTag="_NoiseAdd_"
 
     idCol= "_idx"
+
+
+    VCol="v_cen"
+    LCol="x_cen"
+    BCol="y_cen"
+
+    ##
+    eqLwCol="eqLwCol" #km /s
+
+    vrmsAvgSpectraCol="vrmsAvgSpectra" #km/s, vrms calculated with average spectrum
+
 
     def __init__(self):
         pass
@@ -483,6 +542,22 @@ class checkFillingFactor(object):
             firstThree = suffix[0:3]
             return np.float( firstThree )
 
+    def getNoiseFactor(self,fitsFile):
+        """
+
+        :param smoothFactor:
+        :return:
+        """
+
+        a,suffix=fitsFile.split("NoiseAdd_")
+
+        try:
+            firstFour = suffix[0:3]
+            return np.float(firstFour)
+
+        except:
+            firstThree = suffix[0:4]
+            return np.float( firstThree )
 
 
     def checkRMSFITS(self,smFITS):
@@ -528,6 +603,32 @@ class checkFillingFactor(object):
         else:
             print "The corresponding rms fits file produce with out arm fits found!"
             return rmsFITS
+
+
+
+    def addAllNoise(self ):
+        """
+        find the smooth factor1, fits, add noise by absolut
+        :return:
+        """
+
+        #first get all smooth fits
+
+
+        allSmFiles=self.getSmFITSFileList()
+        smFirstFile=allSmFiles[0]
+
+        if "_SmFactor_1.0" not in smFirstFile:
+            print "Wrong program, please check your data!"
+            return
+
+
+        for eachNFactor in self.noiseFactors:
+
+            if eachNFactor==0.0:
+                continue
+            self.addNoiseByRMSFITS(smFirstFile,noiseFactor=eachNFactor)
+
 
 
 
@@ -602,8 +703,9 @@ class checkFillingFactor(object):
 
         noiseData=self.produceNoiseFITS(Nz,inputRmsData=convolveRMS)
 
+        print "Adding noise by {} K".format( noiseFactor )
 
-        observedData=dataSM+noiseData
+        observedData = dataSM + noiseData
 
 
         fits.writeto( saveName , observedData,header= headSM,overwrite=True )
@@ -823,6 +925,242 @@ class checkFillingFactor(object):
         return tuple([cZ0, cY0, cX0])
 
 
+
+
+
+    def fittingAngularSizeFF(self,fillingTB,showSizeRange=[0,40],saveTag="" ):
+        """
+
+        :return:
+        """
+        if saveTag=="":
+            saveTag=self.calCode
+        # get the distance splitting line between different
+
+        drawCode = self.drawCodeSize
+        # draw the
+        #fillingTB = "edgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+        if type(fillingTB)==Table:
+            ffTB=fillingTB
+        else:
+
+            ffTB = Table.read(fillingTB)
+        ffTB = ffTB[ffTB[self.ffMWISPCol] >= 0]
+        ffTB = ffTB[ffTB[self.ffMWISPCol] <= 1]
+        ffTB = self.addMWISPFFerror(ffTB)
+        ffTB = self.addCfaFFerror(ffTB)
+
+
+        #remove bad clouds
+
+        ffTB=ffTB[ ffTB[self.ffMWISPErrorCol]>0]
+
+        if 0: #do not use error control
+            errorControl=ffTB[self.ffMWISPErrorCol]/ffTB[self.ffMWISPCol ]
+            ffTB=ffTB[errorControl<0.3 ]
+
+
+        print len(ffTB), "Number of total molecular clouds"
+
+        pureVclipTB = self.pureVclip(ffTB)
+
+        pureLBclipTB = self.pureLBclip(ffTB)
+
+        noClipTB = self.noClipClouds(ffTB)
+        bothClipTB = self.bothVAndLBClip(ffTB)
+
+        edgeClodus = self.getEdgeClouds(ffTB)
+
+        print "Number of edge clouds", len(edgeClodus)
+
+        print  len(ffTB) - len(noClipTB) - len(pureLBclipTB) - len(pureVclipTB) - len(bothClipTB), "??????"
+
+        fig = plt.figure(figsize=(15, 6))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        
+        minVel = np.min(ffTB["v_cen"])
+        maxVel = np.max(ffTB["v_cen"])
+
+        # axFF.scatter(   ffTB["area_exact"]/3600., ffTB[self.ffMWISPCol]  , color="blue",  s=3)
+        # ffMWISPCol   ffCfACol
+
+        elinewidth = 0.6
+        markerSize = 2.1
+
+        # select those molecular clouds, with filling factors less than 0.3
+        #noClipTB = noClipTB[noClipTB[self.ffMWISPCol] < 0.3]
+
+        #use all clouds
+        ################################################# fitting data
+        useTB= ffTB
+        
+        drawX = self.getCloudSize(useTB)
+        drawY = useTB[self.ffMWISPCol]
+        yError= useTB[self.ffMWISPErrorCol]
+        Vs = useTB["v_cen"]
+
+        #radius= drawX/2
+        #perimeterPixN=2*np.pi*radius/0.5
+
+        errorArea =   np.sqrt( useTB["area_exact"]/0.25 )*0.25
+
+        errorSize= errorArea/np.sqrt(useTB["area_exact"])/np.sqrt(np.pi)
+
+        print np.min(  useTB["area_exact"]),"miniumum area"
+        #####################################################
+        cmap = plt.cm.jet
+        # norm = matplotlib.colors.BoundaryNorm(np.arange(0,30,0.1), cmap.N)
+        #normV = mpl.colors.Normalize(vmin=np.min(Vs), vmax=np.max(Vs))
+        normV = mpl.colors.Normalize(vmin=np.min(Vs), vmax=np.max(Vs) )
+
+        m = plt.cm.ScalarMappable(norm=normV, cmap=cmap)
+        v_color = np.array([(m.to_rgba(v)) for v in Vs])
+
+
+        #draw fffactor with velocity colors
+        #######################################################################################################
+        axFFvel =  fig.add_subplot(1, 2, 1 )
+
+        #sc = self.drawErrorBar(axFFvel, noClipTB, drawCode=drawCode, markerSize=markerSize, color='gray', markerType=".",   elinewidth=elinewidth, label="Complete in PPV space", showYError=False)
+        # self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
+        # self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
+        sc = axFFvel.scatter(drawX, drawY, c=Vs, cmap=cmap, norm=normV, s=3, facecolors='none', lw=0.5, marker="o", label="")
+
+        axFFvel.set_xlim( showSizeRange )
+
+        if 1:
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            divider = make_axes_locatable(axFFvel)
+            cax1 = divider.append_axes("right", size="3%", pad=0.05)
+            cb = fig.colorbar(sc, cax=cax1)
+            cax1.set_ylabel(r"$V_{\rm LSR}$ ($\rm km\ s^{-1}$)")
+        ###########################################################################################################
+        axFF = fig.add_subplot(1, 2, 2,sharex=axFFvel,sharey=axFFvel)
+
+            # c =Vs, cmap=cmap,norm=normV,
+            # ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= v_color ,     marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
+            # ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= Vs ,  cmap=cmap,norm=normV,   marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
+            #sc = ax.scatter(drawX, drawY, c='gray', cmap=cmap, norm=normV, s=3, facecolors='none', lw=0.5, marker="o",  label="")
+        #axFF.scatter(drawX, drawY, c="gray", cmap=cmap,   s=3, facecolors='none', lw=0.5, marker="o",label="")
+        #axFF.errorbar(drawX,   drawY , xerr=errorSize, yerr= yError ,    markersize=1 , fmt='o',  color='gray' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="" )
+        axFF.errorbar(drawX,   drawY ,  yerr= yError ,    markersize=1 , fmt='o',  color='gray' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="" )
+
+        angularSize1 = 10.5
+        #axFF.axvline(x=angularSize1, ls="--", color='black')
+
+        # find the mean Veloicty, of angularSize1
+
+        sub1 = self.clipByAngularSize(noClipTB, angularSize1, 13)
+        print np.mean(sub1["v_cen"]), np.std(sub1["v_cen"], ddof=1)
+
+        angularSize2 = 9.0
+        #axFF.axvline(x=angularSize2, ls="--", color='black')
+        sub2 = self.clipByAngularSize(noClipTB, angularSize2, angularSize1)
+        print np.mean(sub2["v_cen"]), np.std(sub2["v_cen"], ddof=1)
+
+        # search  velocity layers, based on noClipTB
+
+        #axFF.legend(loc=4)
+
+        ####################
+        #show the function of overall filling factor and angular size relationship
+
+
+
+        at = AnchoredText(saveTag, loc=1, frameon=False)
+        axFF.add_artist(at)
+
+        axFF.set_ylim([-0.1, 1.1])
+
+        axFFvel.set_ylabel("Filling factor")
+        axFF.set_xlabel("Angular size (arcmin)")
+        axFFvel.set_xlabel("Angular size (arcmin)")
+
+
+        #fitting the parameters
+        ###################################################
+        #print errorSize
+
+        para,paraError=self.fittingFFAndSize(testffAndSizeFunc, drawX,drawY,  yError)
+        #para,paraError=self.fittingFFAndSize(ffFunction , drawX,drawY,  yError)
+
+        #para,paraError=self.ffOdr( drawX,drawY,yError, xError=None )
+        #para,paraError=self.ffOdr( drawX,drawY,yError, xError=errorSize )
+
+        #para,paraError=self.fittingFFSizeRelationOdr(  drawX, drawY, None, yError)
+        #para,paraError=self.fittingFFSizeRelationOdr(  drawX, drawY, errorSize, yError)
+
+
+        #using MCMC, looks like very little difference with
+        #from MCMCfunctionFitting import fittingFFMCMC
+        #doFFmcmc=fittingFFMCMC()
+        #para,paraError=doFFmcmc.getParameters(  drawX,drawY,  yError)
+
+
+
+
+
+        print "The fitting result is "
+
+        print para
+        print paraError
+        if len(para)==2:
+            a,b=para
+
+            x=np.arange(-0.1,showSizeRange[1],0.01)
+            formulaTex=r"$y={:.3f}-\frac{{{:.3f}}}{{x+{:.3f}}}$".format(a,b,b/a)
+            axFF.plot(x, testffAndSizeFunc(x,a,b),  "b-",lw=1,label= formulaTex )
+
+            #add formula in the figure
+            axFF.legend(loc=4)
+
+            zeroPoint = 0 #0.564  # 0.977
+
+            #c = b / a - zeroPoint
+
+
+            axFF.axvline(x=zeroPoint,ls="--",color='black',lw=0.8)
+
+        if  len(para)==3:
+            a,b,c=para
+            x=np.arange(-0.1,showSizeRange[1],0.01)
+            formulaTex=r"$y={:.3f}-\frac{{{:.3f}}}{{x+{:.3f}}}$".format(a,b,c)
+            axFF.plot(x, testffAndSizeFunc(x,a,b,c),  "b-",lw=1,label= formulaTex )
+
+            #add formula in the figure
+            axFF.legend(loc=4)
+            print "ZeropPoint???????????????????????/",b/a-c
+
+        if  len(para)==1:
+            a =para[0]
+            x=np.arange(-0.1,showSizeRange[1],0.01)
+            formulaTex=r"$y= \frac{{x}}{{x+{:.3f}}}$".format(a )
+            axFF.plot(x, testffAndSizeFunc(x,a  ),  "b-",lw=1,label= formulaTex )
+
+            #add formula in the figure
+            axFF.legend(loc=4)
+
+
+
+            axFF.axvline(x=0,ls="--",color='black',lw=0.8)
+
+        axFF.axhline(y=0,ls="--",color='green',lw=0.8)
+        plt.subplots_adjust(wspace=0.3)
+        axFF.set_xlim(showSizeRange )
+        plt.savefig(self.paperFigurePath+"{}FittingAngularSizeRelation.png".format(saveTag), bbox_inches='tight', dpi=300)
+
+
+
     def testDistanceLayers(self, ):
         """
 
@@ -841,27 +1179,11 @@ class checkFillingFactor(object):
         ffTB= Table.read( fillingTB )
         ffTB=ffTB[ffTB[self.ffMWISPCol]>0]
 
-
-
         ffTB=self.addMWISPFFerror(ffTB)
         ffTB=self.addCfaFFerror(ffTB)
 
 
-        #
-        #ffTB=ffTB[ffTB[self.ffMWISPCol]>0]
 
-        #ffTB=self.getCloudWithGoodFF(ffTB)
-
-        #split into several samples
-
-
-        #
-
-
-        #only keep local clouds
-
-
-        #ffTB=ffTB[abs(ffTB["y_cen"])>=2]
 
 
         print len(ffTB),"Number of total molecular clouds"
@@ -987,7 +1309,7 @@ class checkFillingFactor(object):
 
 
 
-    def getCloudCubes(self,  labelsFITS,cloudTBFile , calCode=None, writeFITS=False ):
+    def getCloudCubes(self,  labelsFITS,cloudTBFile , calCode=None, writeFITS=False, saveTag="" ):
 
         """
 
@@ -1003,11 +1325,20 @@ class checkFillingFactor(object):
             self.calCode=calCode
         savePath =  self.checkCloudCubeSavePath() #"./cloudSubCubes/"
 
+        print "Processing fits Label ", labelsFITS
+        print "Processing TB file", cloudTBFile
+
         rawCOFITS=self.getRawCOFITS()
+        rmsFTS=self.getRMSFITS()
 
         cloudTB = Table.read(cloudTBFile)
         dataCluster, headCluster = myFITS.readFITS(labelsFITS)
         dataCO, headCO = myFITS.readFITS( rawCOFITS)
+        rmsData,rmsHead=myFITS.readFITS( rmsFTS )
+
+
+        #consecutiveMask=self.getConsecutiveMask(dataCO,rmsData,cutoff=3, conNumber=3)
+
 
 
         minV = np.nanmin(dataCluster[0])
@@ -1022,28 +1353,125 @@ class checkFillingFactor(object):
         #add a function that check if the cloud touches L edge,B edges, or zEdges
 
         Nz, Ny, Nx = dataCO.shape
+        zeroProjection = np.zeros((Ny, Nx))  # one zero channel, used to get the projection area and
+        zeroProjectionSpectra = np.zeros((Ny, Nx))  # one zero channel, used to get the projection area and
 
-        ######
-        cloudTB[self.touchLedgeCol]=cloudTB["peak"]*0
-        cloudTB[self.touchBedgeCol]=cloudTB["peak"]*0
-        cloudTB[self.touchVedgeCol]=cloudTB["peak"]*0
+        ###### if this cloud touches the edge
+        cloudTB[self.touchLedgeCol]  = cloudTB["peak"]*0
+        cloudTB[self.touchLedgeCol].unit=""
+
+        
+        cloudTB[self.touchBedgeCol]  =cloudTB["peak"]*0
+        cloudTB[self.touchBedgeCol].unit=""
+
+        
+        cloudTB[self.touchVedgeCol]  =  cloudTB["peak"]*0
+        cloudTB[self.touchVedgeCol].unit=""
+
+        cloudTB[self.peakChannelCol] = cloudTB["peak"]*0
+        cloudTB[self.peakChannelCol].unit=""
+
+        cloudTB[self.conseCol] = cloudTB["peak"]*0 #number of spectra that have
+        cloudTB[self.conseCol].unit=""
+        cloudTB["peakB"].unit=""
+        cloudTB["peakL"].unit=""
+        cloudTB["peakV"].unit=""
+        cloudTB["peak"].unit="K"
+
+        cloudTB[self.conseCol] = cloudTB["peak"]*0 #number of spectra that have
+        cloudTB[self.conseCol].unit=""
+
+        cloudTB.sort("allChannel")
+        #check, the spectral of the peak position, to get the number channel, that the spectra toward the peak position must have the
+        # three consecutive channels
+
+        #plot figures
+        fig = plt.figure(figsize=(10, 6  ))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 16, 'serif': ['Helvetica']})
+
+
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+
+        axSpec = fig.add_subplot(1,1, 1)
+
+        drawFigure=False
 
         widgets = ['Extracting cloud cubes: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
                    FileTransferSpeed()]  # see docs for other options
         pbar = ProgressBar(widgets=widgets, maxval=len(cloudTB))
         pbar.start()
         i=0
-        for eachC in cloudTB:
 
+        #do not use over all spectra, use the peak spectra
+
+        for eachC in cloudTB:
+            plt.cla()
             i=i+1
 
             cloudID = eachC["_idx"]
             saveName = "{}cloud{}cube.fits".format(self.calCode,cloudID)
 
             cloudIndex = self.getIndicesRaw(Z0, Y0, X0, clusterValue1D, cloudID)
-            fitsZero[cloudIndex] = dataCO[cloudIndex]
-
             cloudZ0, cloudY0, cloudX0 = cloudIndex
+            projectIndex = tuple([cloudY0, cloudX0])
+            zeroProjection[projectIndex] = 1
+
+            #getAverageSpectra, and
+
+            #fitsZero[testIndices] = dataCO[testIndices]
+
+
+
+
+
+            #fitsZero[cloudIndex] =consecutiveMask[cloudIndex]  #too slow, need a better way
+            #consecutiveCheck= consecutiveMask[cloudIndex]
+
+            #goodSpectraIndex = self.getIndicesRaw(Z0, Y0, X0, consecutiveCheck, 1)
+            #spectraZ0, spectraY0, spectraX0 = goodSpectraIndex
+            #spectraPosition = tuple([spectraY0, spectraX0])
+
+            #zeroProjectionSpectra[spectraPosition]=1
+
+
+            #spectraCloud=np.nanmax(fitsZero,axis=0)
+
+            #eachC[self.conseCol]= np.sum( zeroProjectionSpectra  ) #np.nanmax( consecutiveCheck) #how many spectra has
+            #zeroProjectionSpectra[spectraPosition]=0
+
+
+
+            #spectraN= eachC["area_exact"]/0.25 #np.sum(zeroProjection)
+
+            #spectraIndex=np.where(zeroProjection==1)
+
+            #spIndexY,spIndexX=spectraIndex
+
+            #spSum=dataCO[:,0,0]*0
+
+            #for j in range(len(spIndexX)):
+
+                #spB=spIndexY[j]
+                #spL= spIndexX[j]
+                #spSum=spSum+dataCO[:,spB,spL]
+
+
+            #calculate averageSpectra
+
+            #spectraSum=dataCO*zeroProjection
+            #print "Equal?",spectraN,np.sum(zeroProjection)
+            #averageSpectra =  spSum /spectraN
+
+
+            zeroProjection[projectIndex] = 0 #untag zeroProjection
 
             minZ = np.min(cloudZ0)
             maxZ = np.max(cloudZ0)
@@ -1055,32 +1483,424 @@ class checkFillingFactor(object):
             maxX = np.max(cloudX0)
 
             ####
-            if minZ==0 or maxZ==Nz:
+            if minZ==0 or maxZ==Nz-1:
                 eachC[self.touchVedgeCol]=1
 
 
-            if minY==0 or maxY==Ny:
+            if minY==0 or maxY==Ny-1:
                 eachC[self.touchBedgeCol]=1
 
-            if minX==0 or maxX==Nx:
+            if minX==0 or maxX==Nx-1:
                 eachC[self.touchLedgeCol]=1
+
+            #record the peakSpectra
+            peakB= int( eachC["peakB"] ) #index
+
+            peakL= int(  eachC["peakL"] )
+
+            peakV=int(eachC["peakV"])
+
+            #cloudPeakSpectra,vel=doFITS.getSpectraByIndex(fitsZero,headCluster,peakL,peakB)
+
+
+            #use average spectral to detect bad channels, the method is to get an average spectra, find the good channel number
+            #should be 3*3
+            if 0:#average spectra of raw CO without soMask
+                #averageSize=3
+
+                #lowBcut=max([0,peakB-averageSize/2])
+                #upBcut=min([Ny,peakB+averageSize])
+                #lowLcut=max([0,peakL-averageSize/2])
+                upLcut=min([Nx,peakL+averageSize])
+
+
+                cropData=dataCO[:,lowBcut:upBcut,lowLcut:upLcut]
+
+                averageSpectra=np.nanmean(cropData,axis=(1,2))
+                #calculate rms
+                cutSigma= 3
+                negativeData=averageSpectra[averageSpectra<0]
+            #save figures
+            if drawFigure:
+                axSpec.step(range(Nz),averageSpectra,'b-',lw=0.5,where='mid')
+
+
+
+            if len(negativeData)<10:
+                eachC[self.peakChannelCol] = Nz-10 # np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
+            else:
+                rmsSpectra=np.std(negativeData,ddof=1)/np.sqrt(1-2./np.pi )
+                cloudPeakSpectra=averageSpectra>= cutSigma*rmsSpectra
+                cloudPeakSpectra=cloudPeakSpectra*1
+
+                allStd=np.nanstd(averageSpectra,ddof=1)
+                if drawFigure:
+                    axSpec.axvline(x=peakV, ls="--", color='black',lw=0.5,label="Spectral sigma:{:.2f}, overall std{:.2f}".format(rmsSpectra,allStd) )
+
+                if cloudPeakSpectra[peakV] < 1:
+                    eachC[self.peakChannelCol] = 0  #  #peak less then 3 sigma, reject
+                    if drawFigure:
+
+                        axSpec.axhline(y=cutSigma * rmsSpectra, ls="--", color='red', lw=0.8,  label="Channel number above {} sigma: {}".format(cutSigma, 0))
+
+
+                else:
+                    totalN=1
+
+                    moveIndex=1 #move foreward
+                    while 1:
+                        if peakV+moveIndex>=Nz:
+                            break
+                        if  cloudPeakSpectra[peakV+moveIndex ]<1:
+                            break
+
+                        totalN=totalN+1
+                        moveIndex=moveIndex+1
+
+                    moveIndex=1 #move  backword
+                    while 1:
+                        if peakV-moveIndex<0 :# or cloudPeakSpectra[peakV-moveIndex ]<1 :
+                            break
+
+                        if  cloudPeakSpectra[peakV-moveIndex ]<1 :
+                            break
+
+                        totalN=totalN+1
+                        moveIndex=moveIndex+1
+                    if drawFigure:
+                        axSpec.axhline(y=cutSigma* rmsSpectra, ls="--", color='red', lw=0.8,  label="Channel number above {} sigma: {}".format(cutSigma, totalN))
+
+                    #find the consecutive number channels around the cloud peak
+                    #totalPeakN1=   np.sum(  cloudPeakSpectra[peakV-2:peakV+1] )
+                    #totalPeakN2= np.sum( cloudPeakSpectra[peakV-1:peakV+2] )
+                    #totalPeakN3= np.sum(  cloudPeakSpectra[peakV:peakV+3] )
+
+                    #this should be three
+                    eachC[self.peakChannelCol] =  totalN  #np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
+            if drawFigure:
+
+                axSpec.legend()
+                plt.savefig(self.badChannelSpecPath+"{}Cloud_{}_Spec.png".format(self.calCode, cloudID), bbox_inches='tight', dpi=100)
+
 
 
 
             cropWCS = wcsCloud[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
 
-            cropData = fitsZero[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
 
             saveFullName=os.path.join(savePath,saveName)
 
             if writeFITS:
+                fitsZero[cloudIndex] =  dataCO[cloudIndex]
+
+                cropData = fitsZero[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
+
                 fits.writeto(saveFullName , cropData, header=cropWCS.to_header(), overwrite=True)
 
             fitsZero[cloudIndex] = 0
 
             pbar.update(i)
         pbar.finish()
-        cloudTB.write("edgeInfo_"+cloudTBFile,overwrite=True)
+
+        cloudTB["sum"].unit="K"
+
+        if saveTag=="":
+
+            cloudTB.write("edgeInfo_"+os.path.basename(cloudTBFile),overwrite=True)
+            cloudTBRemoveFakeCloud=self.removeFakeClouds(cloudTB)
+
+            cloudTBRemoveFakeCloud.write("pureEdgeInfo_"+os.path.basename(cloudTBFile),overwrite=True)
+
+            
+
+        else:
+            cloudTB.write(saveTag+os.path.basename(cloudTBFile),overwrite=True)
+
+
+    def getSelectCriteria(self,TB,colName,lRange):
+        """
+
+        :param TB:
+        :param colName:
+        :param range:
+        :return:
+        """
+
+        minL = min(lRange)
+        maxL = max(lRange)
+
+        selectLPart1 = TB[colName] >= minL
+        selectLPart2 = TB[colName] <= maxL
+
+        selectL = np.logical_and(selectLPart1, selectLPart2)
+        return selectL
+
+    def removeByLBVrange(self,TB,lRange=None,bRange=None,vRange=None):
+        """
+
+        :param TB:
+        :param lRange:
+        :param bRange:
+        :param vRange:
+        :return:
+        """
+
+
+
+        badCloudSelect=TB[self.VCol] ==TB[self.VCol]
+
+        if lRange!=None:
+
+            selectL= self.getSelectCriteria(TB,self.LCol,lRange)
+            badCloudSelect=np.logical_and(badCloudSelect,selectL)
+
+        if bRange!=None:
+
+            selectB= self.getSelectCriteria( TB, self.BCol, bRange)
+            badCloudSelect=np.logical_and( badCloudSelect, selectB )
+
+
+        if vRange!=None:
+
+            selectV= self.getSelectCriteria( TB, self.VCol, vRange)
+            badCloudSelect=np.logical_and( badCloudSelect, selectV )
+
+
+
+
+        return TB[~badCloudSelect] #only return good clouds
+
+
+
+
+
+    def removeFakeClouds(self,TB):
+        """
+        need to know the calcode, otherwise, do not know which line
+        :param TB:
+        :return:
+        """
+
+        newTB=TB.copy()
+
+        if self.calCode in self.rawLocalCodeList: #Local clouds are all good
+            return newTB
+
+
+        if self.calCode==self.codeRawOutCO12: #Outer Arm, CO12
+            vRange1=[-42,-41]
+
+            lRange,bRange=doFITS.box(45.1168245, -2.9644784, 31924.800,14860.800, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(37.0309402, -2.4327191, 11729.167,13500.000, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(42.7673245, 3.4924883, 17070.000,11250.000, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(39.6126649, 1.5151520, 2838.260,1314.475, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(37.4773628, 0.6109141, 1995.434,760.497, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(37.3996547, 1.6397105, 5310.000,3720.000, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(34.7809529, 3.7184850, 26948.171,10151.389, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange =doFITS.box(26.6407364, 0.4167354, 2879.051,1837.384, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(27.4384634, 1.4937673, 1678.241,737.847, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(26.0317835, 1.7200975, 1589.821,288.803, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+
+            print "????????????????????????"
+
+            vRange2=[-25,-23.5]
+
+            lRange,bRange=doFITS.box(47.2802382, 3.2289989, 17050.000,14225.000, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(44.8463726, -3.4107014, 19592.233,17189.190, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(31.9797976, -2.7071768, 14228.500,18015.167, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange, bRange =doFITS.box(32.4924728, 1.4271889, 2220.374,5927.694, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(30.6750868, 1.1630478, 2501.688,4300.090, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange,bRange=doFITS.box(30.9622206, 0.2806380, 1896.286,651.433, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            return newTB
+
+
+        if self.calCode==self.codeRawOutCO13: #Outer Arm, CO13
+
+            newTB=self.removeByLBVrange(newTB, vRange=[-75,-70] )
+            newTB=self.removeByLBVrange(newTB, bRange=[3, 5] )
+
+            return newTB
+
+
+
+        if self.calCode==self.codeRawOutCO18: #Outer Arm, CO18
+
+            newTB=self.removeByLBVrange(newTB, vRange=[-27,-21] )
+            newTB=self.removeByLBVrange(newTB, vRange=[-71,-67] )
+
+
+
+            return newTB
+
+
+
+
+        if self.calCode==self.codeRawScuCO12: #ScuTum arm CO12
+
+            newTB=self.removeByLBVrange(newTB, vRange=[115,117], lRange=[34.5, 50] )
+            newTB=self.removeByLBVrange(newTB, vRange=[130, 135 ], lRange=[26.25,50] )
+
+            return newTB
+
+        if self.calCode==self.codeRawScuCO13: #ScuTum arm CO13
+
+
+
+            vRange1=[95,98]
+
+
+            lRange, bRange = doFITS.box(43.8741486,0.0333496,44149.238,37929.792,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(37.2196234,-2.6091924,6882.940,19481.889,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(31.1818432,-3.2707571,39225.600,14385.600,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(33.4215766,3.3910429,33177.600,13115.520,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(36.7022678,1.2874327,4575.803,4873.495,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(27.4948766,1.5292040,2950.000,2725.000,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+
+
+            vRange2=[74,76]
+            lRange, bRange = doFITS.box(38.5967579,4.7255613,2930.357,3215.021,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+
+
+            return newTB
+        if self.calCode==self.codeRawScuCO18: #ScuTum arm CO13
+
+            vRange1=[112, 114]
+
+
+
+
+
+
+            lRange, bRange = doFITS.box(30.6786667,-3.1768667,24192.000,14385.600,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(45.0777176,-0.0616218,37138.789,37858.429,0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+
+            vRange2=[92, 98]
+
+            lRange, bRange = doFITS.box(43.9179707, -0.1222090, 43291.447,37935.241, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(35.1288007, 2.0227583, 19124.980,10812.488, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(37.2892114, -2.6090439, 9151.631,18906.537, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(37.5133908, 0.1635380, 712.240,2088.269, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(33.1570346, -3.2696701, 26000.052,14000.028, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(36.8156083, 0.2946295, 831.888,759.550, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+
+
+            vRange3=[93.5, 95]
+
+            lRange, bRange = doFITS.box(28.1729102, 0.4796709, 1624.870,2450.886, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange3,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(27.8044150, 0.4677465, 978.973,1656.463, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange3,lRange=lRange,bRange=bRange)
+
+
+
+            return  newTB
+
+        if self.calCode==self.codeRawSgrCO12: #Sagitarrius arm CO12
+            return  newTB
+
+        if self.calCode==self.codeRawSgrCO13: #Sagitarrius arm CO13
+            newTB=self.removeByLBVrange(newTB, vRange=[56,58],lRange=[45,50],bRange= [2,5] )
+
+            return newTB
+
+        if self.calCode == self.codeRawSgrCO18:  #Sagitarrius arm CO13
+
+            vRange1=[60,62]
+
+            lRange, bRange = doFITS.box(44.6240614, 1.9979111, 23675.968,11345.378, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(39.6437782, 0.8537092, 3094.234,6806.678, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(38.0645402, 0.5305706, 1319.444,2968.750, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+            lRange, bRange = doFITS.box(38.8616970, 0.0018808, 1151.212,1976.828, 0)
+            newTB=self.removeByLBVrange(newTB, vRange=vRange1,lRange=lRange,bRange=bRange)
+
+
+            vRange2=[61,63]
+
+            lRange, bRange = doFITS.box(40.9764480, 4.9925406, 3298.611,1215.278, 0)
+
+            newTB=self.removeByLBVrange(newTB, vRange=vRange2,lRange=lRange,bRange=bRange)
+
+
+
+
+            return newTB
+        
+        
+        
+        
+        
+
+        return newTB
+
 
     def getTotalFlux(self,fitsFile):
         """
@@ -1260,6 +2080,8 @@ class checkFillingFactor(object):
         :return:
         """
         print "Cleaning FITS ",FITSfile
+
+        rmsFITS=self.getRMSFITS()
         saveTag=os.path.basename(FITSfile)
         saveTag = saveTag[0 : -5]
 
@@ -1282,7 +2104,7 @@ class checkFillingFactor(object):
         #doAllDBSCAN.testAllPath=  FITSrms
         doAllDBSCAN.setfastDBSCANrms(FITSrms)
 
-        dbscanLabelFITS, rawDBSCANTBFile  = doAllDBSCAN.pureDBSCAN(FITSfile, cutoff , MinPts=minPts, saveTag= saveTag , connectivity= contype , inputRMS=FITSrms, redo=True, keepFITSFile=True)
+        dbscanLabelFITS, rawDBSCANTBFile  = doAllDBSCAN.pureDBSCAN(FITSfile, cutoff , MinPts=minPts, saveTag= saveTag , connectivity= contype , inputRMS=FITSrms, rmsFITS=rmsFITS, redo=True, keepFITSFile=True)
 
         #
 
@@ -1296,7 +2118,68 @@ class checkFillingFactor(object):
             os.remove(cleanFITSlabel)
             os.remove(dbscanLabelFITS)
 
+    def get3DRMSData(self,rmsData,Nz):
 
+        """
+        duplicate the rmsData
+        :param rmsData:
+        :param Nz:
+        :return:
+        """
+
+        rmsDataMimic3d=np.asarray([rmsData])
+        rmsData3D=np.repeat(rmsDataMimic3d,Nz,axis=0 )
+        return rmsData3D
+
+    def getMaskedRawCOFITS(self,maskSigma=2):
+
+        rawCOFITS=self.getRawCOFITS()
+        pathRaw, nameRaw =os.path.split(rawCOFITS)
+        maskFITSName =  "downTo_{}sigma" + nameRaw
+
+        maskedFITSFull=os.path.join(pathRaw,maskFITSName)
+
+        if os.path.isfile(maskedFITSFull):
+            return  maskedFITSFull
+
+        else:
+            return None
+
+
+    def produceMaskSigma2(self,FITSFile,cutoffSigma=2):
+        """
+        this code, get raw fits, and rms fits, to mask the data to 2 sgima,level, which would be used to search molecular clouds
+        fits would be removed after cleaning
+        :param cutoffSigma:
+        :return:
+        """
+
+        #rawCOFITS=self.getRawCOFITS()
+
+        rmsFITS=self.getRMSFITS()
+
+        print "Processing CO and FITS"
+        print FITSFile
+        print rmsFITS
+
+        rawCOData,rawCOHead=doFITS.readFITS( FITSFile )
+
+        rmsData,rmsHead = doFITS.readFITS(rmsFITS)
+        Nz,Ny,Nx=rawCOData.shape
+
+        rmsData3D= self.get3DRMSData(rmsData,Nz)
+
+        
+        #masked the ata
+        rawCOData[rawCOData<cutoffSigma*rmsData3D]=np.nan
+
+        #save the files
+
+        saveName=self.tmpPath+"downTo_{}sigma".format(cutoffSigma)+os.path.basename(rawCOFITS)
+
+        fits.writeto(saveName,rawCOData,header=rawCOHead,overwrite=True)
+
+        return saveName
 
     def calRMSSingle(self,fitsName,onlyValue=False):
         """
@@ -1455,6 +2338,10 @@ class checkFillingFactor(object):
         :param noiseFactor:
         :return:
         """
+
+        #this code add noise by a mean std obsoleted,
+        #
+        aaaaa
 
         saveSuffix= "_noiseFactor_{}".format( float(noiseFactor) )
 
@@ -1634,9 +2521,9 @@ class checkFillingFactor(object):
             searchStr = "{}*{}{:.1f}*{}{:.1f}{}.fits".format(processCode, self.smoothTag, smFactor, self.noiseTag,  noiseFactor, dbscanCode)
 
 
+
         searchStr = os.path.join( self.tmpPath, searchStr)
 
-        #print searchStr
 
         fitsName=glob.glob(searchStr)
 
@@ -2050,9 +2937,96 @@ class checkFillingFactor(object):
         return dataList
 
 
+    def fittingFFAndSize(self,useFunction,sizeArray,ffArray,ffError, sizeError=None,useODR=False):
+        """
+        test the number of parameters of userFUnction, to determine which function should be used
+        :param x:
+        :param y:
+        :return:
+        """
 
 
-    def getFillingFactorAndDraw(self,beamList,fluxList,calID,drawFigure=False):
+        if not useODR:
+
+
+            parametersN=useFunction.func_code.co_argcount
+            print parametersN,"?????????????"
+            if parametersN== 4:
+                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,   absolute_sigma=True, p0=[1, 1, 1])
+
+            if parametersN == 3:
+                #params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[  0.5, 1])
+                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[  10, 1])
+
+
+            if parametersN == 2:
+                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[ 4])
+
+
+
+        #fitting a function that describe the
+            errors = np.sqrt(np.diag(paramas_covariance))
+            return params,errors
+
+
+        if useODR:
+
+            print np.min( ffError ),"Miniumum Error?"
+
+        return 0,   0
+
+
+
+    def fittingFFSizeRelationOdr(self,sizeArray,ffArray,sizeError, ffError):
+        """
+        #for over all fiting
+
+        :param sizeArray:
+        :param ffArray:
+        :param ffError:
+        :return:
+        """
+
+        #pass
+        print "Fitting filling factor and size relationship"
+        ffModel = odrpack.Model(ffAndSizeFunc  )
+
+        mydata = odrpack.RealData(sizeArray,ffArray,  sx= sizeError, sy=ffError)
+
+        myodr = odrpack.ODR(mydata, ffModel, beta0=[ 0.5, 1.])
+        myOutPut = myodr.run()
+        myOutPut.pprint()
+
+        return   myOutPut.beta,  myOutPut.sd_beta
+
+
+
+    def ffOdr(self,x,y,yError,xError=None):
+        """
+        fitting
+        :param x:
+        :param y:
+        :param yError:
+        :return:
+        """
+
+        ffModel = odrpack.Model(ffFunctionOdr  )
+        if xError is None:
+            mydata = odrpack.RealData(x,y,   sy=yError)
+        else:
+            mydata = odrpack.RealData(x,y,  sx=xError, sy=yError)
+
+        averageY=np.mean(y)
+        myodr = odrpack.ODR(mydata, ffModel, beta0=[  averageY , 0.5, averageY ] )
+        myOutPut = myodr.run()
+        #myOutPut.pprint()
+
+        return   myOutPut.beta,  myOutPut.sd_beta
+
+
+
+
+    def getFillingFactorAndDraw(self,beamList,fluxList,fluxError,calID,drawFigure=False):
         """
 
         :param beamList:
@@ -2064,18 +3038,22 @@ class checkFillingFactor(object):
 
         y = np.asarray( fluxList )
 
-
         #print x
         #print y
         try:
-            params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, p0=[np.mean(y), 0.5, np.mean(y)])
+            params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, sigma=fluxError,absolute_sigma=True,  p0=[np.mean(y), 0.5, np.mean(y)])
+            errors = np.sqrt(np.diag(paramas_covariance))
+
+            #params,errors=self.ffOdr(x,y,fluxError) #dot no use Odr for filing factor fitting, fore there is no error in axis
+
+
         except:
 
             return 0, 0, [[0,0,0],[0,0,0]]
 
 
 
-        errors = np.sqrt(np.diag(paramas_covariance))
+        #errors = np.sqrt(np.diag(paramas_covariance))
 
         fittingParaAndError = [params, errors]
 
@@ -2104,14 +3082,19 @@ class checkFillingFactor(object):
         axFitting = fig.add_subplot(1,1, 1)
         #axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
         #axFitting.scatter(x, x*y, s=15, color='red', label="The noise RMS is 0.5 K")
-        axFitting.scatter(  x  ,  y , s=15,  color='red'   )
+        #axFitting.scatter(  x  ,  y , s=15,  color='red'   ) #
+        axFitting.errorbar(x,   y , yerr= fluxError ,    markersize=2 , fmt='o', c= 'red' ,     capsize=0.5,  elinewidth=1 , lw=1 )
 
         fittingX = np.arange(0, np.max(x), 0.01)
         # axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
-        axFitting.plot(fittingX, ffFunction(fittingX, *params), color='blue', lw=1.5)
+        axFitting.plot(fittingX, ffFunction(fittingX, *params), color='blue', lw=1.0)
 
         fillingWMISP = "The filling factor ({}) of MWISP is: {:.3f}".format(self.calCode, wmsipFilling)
         fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, cfaFilling)
+
+        #three paramters
+
+        paramterValues="a: {:.2f}(+/-{:.2f}), b: {:.2f}(+/-{:.2f}), c: {:.2f}(+/-{:.2f})".format(params[0],errors[0],params[1],errors[1],params[2],errors[2])
 
         # at = AnchoredText(r"The noise rms is {} K (1$\sigma$)".format(self.MWISPrmsCO12), loc=1, frameon=False)
         # axFitting.add_artist(at)
@@ -2119,7 +3102,7 @@ class checkFillingFactor(object):
         # if cfaBeam> np.max(x):
         # cfaFilling= 0
 
-        at = AnchoredText(fillingWMISP + "\n" + fillingCfA, loc=1, frameon=False)
+        at = AnchoredText(fillingWMISP + "\n" + fillingCfA+"\n"+paramterValues, loc=1, frameon=False)
         axFitting.add_artist(at)
         ###
 
@@ -2135,21 +3118,84 @@ class checkFillingFactor(object):
 
         plt.close(fig )
         gc.collect()
+
+
+
         return wmsipFilling, cfaFilling,  fittingParaAndError
 
+    def getFluxAndErrorList(self,TBList):
+        """
+        TBList, shold be an tb file name list
+        :param TBList:
+        :return:
+        """
+
+        fluxList=[]
+        errorList = []
 
 
-    def drawFillingFactor(self, absK=0.5, useArea=False ):
+        velReslution=self.getVelResolution()
+        meanRMS=self.getMeanRMS() #*velReslution
+
+        for eachTB in TBList:
+
+
+            processTB=Table.read(eachTB)
+
+            fluxList.append( np.sum(processTB["sum"])*velReslution )
+
+            fluxError = np.sqrt(np.sum(processTB["pixN"]))*meanRMS*velReslution
+
+            errorList.append(fluxError)
+
+        return np.asarray(fluxList), np.asarray(errorList)
+
+
+
+
+    def callFillingFactorAllSM(self   ):
 
         """
-        Get clean TB files to draw total flux change
+        Get clean TB files to draw total flux change, getFillingFactors
         :param calCode:
         :param absK:
         :return:
         """
 
 
-        ##get clean file
+        mwispFillingList=[]
+        cfaFillingList=[]
+        fittingParaList=[]
+
+
+
+        for eachCode  in  self.allRawCodeList:
+
+            self.calCode=eachCode
+
+            beamSizeArray = self.getBeamSize() * self.smoothFactors
+
+            smTBFiles = self.getSmoothListFixNoise(getCleanTBFile=True)
+
+            fluxList, fluxError = self.getFluxAndErrorList(smTBFiles)
+
+            mwispFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamSizeArray, fluxList, 0, drawFigure=True)
+
+            mwispFillingList.append( mwispFilling )
+            cfaFillingList.append( cfaFilling )
+            fittingParaList.append( fittingParaAndError )
+
+        np.save("mwispFillingRaw", mwispFillingList )
+        np.save("cfaFillingRaw", cfaFillingList )
+        np.save("fittingParaRaw", fittingParaList )
+
+
+        return
+
+        aaaaaaaaaaaaa
+
+
+        ##
 
         TBCleanTB,TBFiles=self.getAbsNoiseCleanTBLIst(absK=absK)
         print TBFiles[0]
@@ -2297,9 +3343,9 @@ class checkFillingFactor(object):
 
         ###
 
-        mwispFillingList=np.load("mwispFilling.npy")
-        cfaFillingList=np.load("cfaFilling.npy")
-        paraFitting = np.load("fittingPara.npy")
+        mwispFillingList=np.load("mwispFillingRaw.npy")
+        cfaFillingList=np.load("cfaFillingRaw.npy")
+        paraFitting = np.load("fittingParaRaw.npy")
 
 
         for i in range(len(mwispFillingList)) :
@@ -2986,49 +4032,6 @@ class checkFillingFactor(object):
         return ffTB
 
 
-    def getFillingFactorByCloudID(self, CODataRaw, labelSets,cleanDataList,calCode,ID, saveRow=None , drawFigure=False, useSigmaCut=False,printFluxList=False ):
-        """
-        :param ID:
-        :return:
-        """
-        self.calCode=calCode
-        #test an ID of 8570
-
-        if useSigmaCut:
-            fluxList = self.getFluxListByIDSigmaCut( labelSets,cleanDataList, ID  )
-
-        else:
-            fluxList = self.getFluxListByID(CODataRaw, labelSets,cleanDataList,calCode,ID)
-
-
-        #to test memory
-        #return
-
-        if printFluxList:
-            print "The flux list is "
-            print fluxList
-
-        wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(self.smoothFactors*self.rawBeamSize,fluxList,calID=ID,drawFigure=drawFigure)
-        #print wmsipFilling
-        #save
-        if saveRow!=None:
-            #print "aaaaaaaaaaaaaaaaa"
-            #tbIndexOfCloud= np.where(  saveTB["_idx"] ==ID   )
-
-            para,paraError= fittingParaAndError
-            saveRow[self.ffMWISPCol]=wmsipFilling
-            saveRow[self.ffCfACol]=cfaFilling
-
-            saveRow[self.aCol]=para[0]
-            saveRow[self.bCol]=para[1]
-            saveRow[self.cCol]=para[2]
-
-
-            saveRow[self.aErrorCol]=paraError[0]
-            saveRow[self.bErrorCol]=paraError[1]
-            saveRow[self.cErrorCol]=paraError[2]
-
-        return wmsipFilling, cfaFilling,  fittingParaAndError
 
     def getIndices(self,labelSets, choseID ):
         Z0, Y0, X0, values1D =labelSets
@@ -3110,7 +4113,7 @@ class checkFillingFactor(object):
 
 
 
-    def calFFByID(self,calCode,ID,drawFigure=True, useSigmaCut=True  ):
+    def calFFByID(self,calCode,ID, cleanTB, drawFigure=True, useSigmaCut=True  ):
 
         """
         calculate filling factor, for only one  specific cloud
@@ -3124,35 +4127,101 @@ class checkFillingFactor(object):
         self.calCode= calCode
 
         print calCode
-        TBName =  self.getSmoothAndNoiseFITSSingle(getCleanTBFile=True)#self.getRawBeamTBByCalcode(calCode)
-        cleanTB = Table.read(TBName)
+        #TBName =  self.getSmoothAndNoiseFITSSingle(getCleanTBFile=True)#self.getRawBeamTBByCalcode(calCode)
+        #cleanTB = Table.read(TBName)
 
-        ffTB=self.addFFColnames( cleanTB )
+        #ffTB=self.addFFColnames( cleanTB )
 
+        rowID= self.getRowByID(cleanTB,ID)
 
-        if useSigmaCut:
-            cleanDataList=self.getNoiseDataList()
-
-        else:
-            cleanDataList=self.getCleanDataList(calCode)
-        rawCOFITS=self.getRawCOFITS(calCode)
-        CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
-
-        cleanFITSRawBeam = self.getCleanFITSName(calCode, 1)
-        cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
+        self.calFFByRow(rowID,drawFigure=True)
 
 
-        clusterIndex1D = np.where(cleanDataSM1 > 0)
-        clusterValue1D = cleanDataSM1[clusterIndex1D]
 
-        Z0, Y0, X0 = clusterIndex1D
-        labelSets=[Z0, Y0, X0, clusterValue1D ]
 
-        print self.getFillingFactorByCloudID(CODataRaw, labelSets, cleanDataList, calCode, ID, saveRow=None,  drawFigure=drawFigure, useSigmaCut=useSigmaCut, printFluxList=True)
+    def getRowByID(self,TB,ID):
+        """
+
+        :param TB:
+        :param id:
+        :return:
+        """
+        #fined the index of ID
+
+        idCol=TB["_idx"]
+
+        indexID = np.where(idCol==ID)
+        indexID=indexID[0][0]
+
+        return TB[indexID]
+
+
+
 
     def getFluxColName(self,smFactor):
+        """
+        The pix name is is to record the tao pix Number of the flux, which is used to estimate the error of the total flux
+        :param smFactor:
+        :return:
+        """
+        return "fluxSM{:.1f}".format( smFactor ), "pixSM{:.1f}".format( smFactor )
 
-        return "fluxSM{:.1f}".format( smFactor )
+    def getFluxColNameNoiseChange(self,smFactor):
+        """
+        The pix name is is to record the tao pix Number of the flux, which is used to estimate the error of the total flux
+        :param smFactor:
+        :return:
+        """
+        return "fluxNC{:.1f}".format( smFactor ), "pixNC{:.1f}".format( smFactor )
+
+
+
+    def getSmoothFluxColNoiseChange(self,smFITS, TB,  labelSets, sigmaCut=2.6 ):
+        """
+        :return:
+        """
+
+        ####
+        print "Extracting flux from ", smFITS
+        dataSm,headSm= doFITS.readFITS(smFITS)
+
+        noiseFactor =  self.getNoiseFactor(smFITS)
+
+        colName,colPixName=self.getFluxColNameNoiseChange(noiseFactor)
+
+        TB[colName]=TB["peak"]*0
+        TB[colPixName]=TB["peak"]*0
+
+        widgets = ['Extracting flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+
+        i=0
+        noise=self.getMeanRMS()+noiseFactor
+        for eachRow in TB:
+            i=i+1
+            #gc.collect()
+
+            ID = eachRow["_idx"]
+
+            cloudIndex = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
+            coValues=   dataSm[cloudIndex]
+            coValues= coValues[coValues>=sigmaCut* noise ]
+            fluxID=np.sum(coValues)*self.getVelResolution()
+
+            eachRow[colName] = fluxID
+            eachRow[colPixName] =  len(coValues)
+
+            pbar.update(i)
+
+        pbar.finish()
+
+
+
+
+
 
     def getSmoothFluxCol(self,smFITS, TB,  labelSets, sigmaCut=2.6 ):
         """
@@ -3164,10 +4233,10 @@ class checkFillingFactor(object):
         dataSm,headSm= doFITS.readFITS(smFITS)
 
         smFactor = self.getSmoothFactor(smFITS)
-        colName=self.getFluxColName(smFactor)
+        colName,colPixName=self.getFluxColName(smFactor)
 
         TB[colName]=TB["peak"]*0
-
+        TB[colPixName]=TB["peak"]*0
 
         widgets = ['Extracting flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
                    FileTransferSpeed()]  # see docs for other options
@@ -3189,6 +4258,7 @@ class checkFillingFactor(object):
             fluxID=np.sum(coValues)*self.getVelResolution()
 
             eachRow[colName] = fluxID
+            eachRow[colPixName] =  len(coValues)
 
             pbar.update(i)
 
@@ -3244,16 +4314,46 @@ class checkFillingFactor(object):
         """
 
         fluxList=[]
+        fluxErrorList=[]
 
+        meanRMS=self.getMeanRMS()
         for eachSm in self.smoothFactors:
-            colName=self.getFluxColName(eachSm)
-            fluxList.append( row[colName])
+            colName,colPixName=self.getFluxColName(eachSm)
+            fluxList.append( row[colName]) #the flux is already K km/s
+            totalVox=row[colPixName]
 
-        return np.asarray(fluxList)
+            totalVox=max([1,totalVox]) #  assign 1 pixel error to 0 flux
+
+            eRRor= np.sqrt(totalVox)*meanRMS*self.getVelResolution()
 
 
 
-    def calculateFillingFactor(self,TBFile,drawFigure=False):
+            fluxErrorList.append( eRRor)
+
+
+
+        return np.asarray(fluxList), fluxErrorList
+
+
+
+
+
+
+    def calFFByRow(self,eachRow,drawFigure=False):
+        """
+        calculate filling factors by row
+        :param tbRow:
+        :return:
+        """
+        processBeam = self.getBeamSize() #in arcmin
+
+        beamArray= self.smoothFactors* processBeam
+
+        fluxList = self.getFluxList(eachRow)
+        ID = eachRow[self.idCol]
+        wmsipFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamArray, fluxList, calID=ID,   drawFigure=drawFigure)
+        return wmsipFilling
+    def calculateFillingFactor(self,TBFile,drawFigure=False,inputID=None):
 
         """
 
@@ -3276,9 +4376,24 @@ class checkFillingFactor(object):
         for eachRow in TB:
             i=i+1
             pbar.update(i)
-            fluxList = self.getFluxList(eachRow)
+            fluxList,fluxError = self.getFluxList(eachRow)
+
+
+
             ID=eachRow[ self.idCol ]
-            wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(beamArray,fluxList,calID=ID,drawFigure=drawFigure)
+            if inputID!=None and ID==inputID: #for debug
+
+                print fluxList
+                wmsipFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamArray, fluxList,   fluxError, calID=ID,   drawFigure=True)
+                print "filling factor", wmsipFilling
+                print "Parameters", fittingParaAndError[0]
+                print "Para error", fittingParaAndError[1]
+
+                return
+
+            wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(beamArray,fluxList,fluxError,calID=ID,drawFigure=drawFigure)
+
+
 
             para, paraError = fittingParaAndError
             eachRow[self.ffMWISPCol]=wmsipFilling
@@ -3304,7 +4419,78 @@ class checkFillingFactor(object):
         :return:
         """
 
+        #scutum arm, at about 96 km/s, for CO13 an CO18, area bad channels
 
+        #rawOutCO12:
+        #bad v channel, -24.286
+
+        #ppv1 v[-25, -23],  box(47.4879697,2.9315877,15379.103 ,14716.975 ,0)
+        #ppv2 v[-25, -23], box(45.2827582,-1.6997356,8640.000 ,8460.000 ,0)
+
+
+        #rawOutCO13
+        #ppv1 v, less than -69 km/s, remove all
+
+        # rawOutCO18
+        # ppv1 v, less than -69 km/s, remove all
+
+
+
+
+    def getFluxListForEachCloudNoiseChange(self,calCode=None, drawFigure=False, useSigmaCut=True, calAllCloud=True ):
+
+        """
+        Due to the memory problem, this part of code need to be revise
+
+        #step 1 produce flux table,
+        #step 2, calculate fff with the flux table
+        :param calCode:
+        :param drawFigure:
+        :param useSigmaCut:
+        :param calAllCloud:
+        :return:
+        """
+        if calCode!=None:
+            self.calCode= calCode
+
+
+
+        TBName = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,getCleanTBFile=True)
+
+
+        cleanTB = Table.read(TBName)
+        ffTB=self.addFFColnames( cleanTB )
+
+        #rawCOFITS=self.getRawCOFITS(calCode)
+        #CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
+
+        cleanFITSRawBeam = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,  getCleanFITS =True)
+        cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
+
+        clusterIndex1D = np.where(cleanDataSM1 > 0)
+        clusterValue1D = cleanDataSM1[clusterIndex1D]
+
+        Z0, Y0, X0 = clusterIndex1D
+        labelSets=[Z0, Y0, X0, clusterValue1D ]
+
+
+
+        #the next step is to extract flux
+        #getSmoothFluxColNoiseChange
+        #allSmoothFiles = self.getSmoothListFixNoise(noiseFactor=0.)
+        allNoiseFiles= self.getSmoothListFixSmooth(smoothFactor=1.0)
+        for eachSmFile in allNoiseFiles:
+
+            self.getSmoothFluxColNoiseChange(eachSmFile,ffTB,labelSets )
+
+
+        ffTB.write("fluxTBNoiseChange_" + os.path.basename(TBName) ,overwrite=True )
+
+        #step, fitting filling factor
+
+
+        return
+        ####
 
     def getFluxListForEachCloud(self,calCode=None, drawFigure=False, useSigmaCut=True, calAllCloud=True ):
 
@@ -3327,7 +4513,9 @@ class checkFillingFactor(object):
         TBName = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,getCleanTBFile=True)
 
 
+
         cleanTB = Table.read(TBName)
+
         ffTB=self.addFFColnames( cleanTB )
 
         #rawCOFITS=self.getRawCOFITS(calCode)
@@ -3415,6 +4603,36 @@ class checkFillingFactor(object):
 
         else:
             ffTB.write( self.calCode+"FillingFactorTB.fit",overwrite=True )
+
+
+    def testFunctionForm(self):
+        """
+
+        :return:
+        """
+
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 17, 'serif': ['Helvetica']})
+
+
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+        axPlot = fig.add_subplot(1,1, 1)
+
+        X=np.arange(0.1,10,0.001)
+
+        Y = ffAndSizeFunc(X,0.5)
+
+        axPlot.plot(X,Y,'b-',lw=1)
+
+        plt.savefig(  "functionTest.png" , bbox_inches='tight', dpi=300)
 
 
     def cloudStat(self, drawTBFile=None):
@@ -3590,9 +4808,9 @@ class checkFillingFactor(object):
         b=ffTB[self.bCol]
         c=ffTB[self.cCol]
 
-        stdA = ffTB[self.aErrorCol ]
-        stdB = ffTB[self.bErrorCol ]
-        stdC = ffTB[self.cErrorCol ]
+        stdA = ffTB[ self.aErrorCol ]
+        stdB = ffTB[ self.bErrorCol ]
+        stdC = ffTB[ self.cErrorCol ]
 
         fx=ffFunction(x,a,b,c)
 
@@ -3927,11 +5145,7 @@ class checkFillingFactor(object):
 
 
         axFF.set_ylim([-0.2, 1.2  ])
-
-
         axFF.set_ylabel("Filling factor")
-
-
 
         plt.savefig( self.ffFigurePath+"{}FFindividual_{}.png".format(self.calCode, drawCode ), bbox_inches='tight', dpi=600)
 
@@ -4285,6 +5499,290 @@ class checkFillingFactor(object):
 
 
         fits.writeto("SmallCloudPV.fits",lvData, header=pvHead,overwrite=True)
+
+
+
+    def drawIntOveralIntMap(self,fitsFile, showLineStr ):
+        fig = plt.figure(figsize=(10, 6))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 13, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+
+
+        dataRaw, headRaw= doFITS.readFITS(fitsFile)
+        
+        wcsCO=WCS(headRaw)
+        axCO = pywcsgrid2.subplot(111, header=wcsCO)
+
+
+        
+        #dataLabel,headLabel=
+        Nz,Ny,Nx= dataRaw.shape
+
+        noiseSingleChannel=self.getMeanRMS()
+        velRes=self.getVelResolution()
+
+        intData=np.nansum(dataRaw,axis=0)*velRes
+
+        guessNoise=np.sqrt(Nz)*velRes*noiseSingleChannel
+
+
+        cmapCO = plt.cm.bone
+        cmapCO.set_bad('black')
+        
+        axCO.imshow(  intData , origin='lower', cmap=cmapCO, vmin=guessNoise, vmax=guessNoise*6, interpolation='none')
+        axCO.set_ticklabel_type("absdeg", "absdeg")
+        axCO.axis[:].major_ticks.set_color("w")
+
+        #get spectra
+
+        spec0,vel0=doFITS.getSpectraByIndex(dataRaw,headRaw,0,0)
+        v0=vel0[0]
+        v1=vel0[-1]
+
+        vInfo= "Integrate from {:.2f} to {:.2f} km/s".format(v0, v1)
+        at = AnchoredText( vInfo, loc=1, frameon=False ,prop={"color":"white"} )
+        axCO.add_artist(at)
+        at = AnchoredText( showLineStr , loc=2, frameon=False, prop={"color": "white"})
+        axCO.add_artist(at)
+        plt.savefig(self.calCode+"OverAllIntMap.png" , bbox_inches='tight', dpi=600)
+
+
+    def drawSingleChannelMap(self,fitsFile,channelN,showLineStr):
+        plt.clf()
+
+        fig = plt.figure(figsize=(10, 6))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 13, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+
+
+
+        dataRaw, headRaw = doFITS.readFITS(fitsFile)
+
+        wcsCO = WCS(headRaw)
+        axCO = pywcsgrid2.subplot(111, header=wcsCO)
+
+        # dataLabel,headLabel=
+        Nz, Ny, Nx = dataRaw.shape
+
+        noiseSingleChannel = self.getMeanRMS()
+        velRes = self.getVelResolution()
+
+        intData = dataRaw[channelN]* velRes  #np.nansum(dataRaw, axis=0) * velRes
+
+        guessNoise =  velRes * noiseSingleChannel
+
+        cmapCO = plt.cm.bone
+        cmapCO.set_bad('black')
+
+        axCO.imshow(intData, origin='lower', cmap=cmapCO, vmin=guessNoise, vmax=guessNoise * 6, interpolation='none')
+        axCO.set_ticklabel_type("absdeg", "absdeg")
+        axCO.axis[:].major_ticks.set_color("w")
+
+        # get spectra
+
+        spec0, vel0 = doFITS.getSpectraByIndex(dataRaw, headRaw, 0, 0)
+        v0 = vel0[channelN]
+
+
+        vInfo = "VLSR = {:.2f} km/s".format(v0 )
+        at = AnchoredText(vInfo, loc=1, frameon=False, prop={"color": "white"})
+        axCO.add_artist(at)
+
+        at = AnchoredText( showLineStr , loc=2, frameon=False, prop={"color": "white"})
+        axCO.add_artist(at)
+
+
+        plt.savefig(self.calCode + "channelMap{}.png".format(channelN),  bbox_inches='tight', dpi=600)
+
+    def testBadChannel(self,showChannel ,lRange,bRange):
+        #self.calCode=self.codeRawScuCO13
+
+        #lRange,bRange=doFITS.box(41.9992119,2.9129983,1724.880 ,1540.763 ,0)
+
+        rawFITS=self.getRawCOFITS()
+
+        dataRaw,headRaw= doFITS.readFITS(rawFITS)
+
+        spec,vel=doFITS.getAverageSpecByLBrange(rawFITS, lRange, bRange )
+        
+        #spec,vel=doFITS.getSpectraByLB(dataRaw,headRaw, 42.0832649, 2.8251944 )
+
+        lineC18OStr= r"$\mathrm{C}^{18}\mathrm{O}(J=1\rightarrow0)$"
+
+
+        showLine=lineC18OStr
+
+        plt.clf()
+
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 13, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+
+        wcsCO=WCS(headRaw)
+
+        #showChannel=165
+
+        axCO = pywcsgrid2.subplot(211, header=wcsCO)
+
+        cmapCO = plt.cm.bone
+        cmapCO.set_bad('black')
+        axCO.imshow( dataRaw[showChannel], origin='lower', cmap=cmapCO, vmin=0, vmax=3, interpolation='none')
+
+        axCO["gal"].plot([lRange[0], lRange[0]], bRange, 'r--', lw=0.5)
+        axCO["gal"].plot([lRange[1], lRange[1]], bRange, 'r--', lw=0.5)
+
+        axCO["gal"].plot(lRange, [bRange[0], bRange[0]], 'r--', lw=0.5)
+        axCO["gal"].plot(lRange, [bRange[1], bRange[1]], 'r--', lw=0.5)
+
+        ###################
+        ExtendDeg = 2 # 1.5
+
+        cutlSmall = min(lRange) - ExtendDeg
+        cutlLarge = max(lRange) + ExtendDeg
+
+        cutbSmall = min(bRange) - ExtendDeg
+        cutbLarge = max(bRange) + ExtendDeg
+
+        backWCS = WCS(headRaw, naxis=2)  # WCS(allHead)
+        x0, y0 = backWCS.all_world2pix(cutlLarge, cutbSmall, 0)
+        #
+        x1, y1 = backWCS.all_world2pix(cutlSmall, cutbLarge, 0)
+
+        xRange = [x0, x1];
+        yRange = [y0, y1]
+        axCO.set_xlim(min(xRange), max(xRange)),
+        axCO.set_ylim(min(yRange), max(yRange)),
+        #################
+        axSpectra = fig.add_subplot(2,1, 2)
+
+        axCO.set_ticklabel_type("absdeg", "absdeg")
+        axCO.axis[:].major_ticks.set_color("w")
+
+        axSpectra.step( range(len(spec)),spec,lw=0.5,color='b' ,where="mid")
+
+        axSpectra.set_xlabel("Channel number")
+        axSpectra.set_ylabel("Brightness temperature (K)")
+
+        spec0, vel0 = doFITS.getSpectraByIndex(dataRaw, headRaw, 0, 0)
+        v0 = vel0[showChannel]
+        vInfo = "{:.2f} km/s ".format(v0,showChannel )
+        at = AnchoredText(vInfo, loc=1, frameon=False, prop={"color": "white"})
+        axCO.add_artist(at)
+
+        vInfo = "Channel Number {}".format( showChannel )
+        at = AnchoredText(vInfo, loc=4, frameon=False, prop={"color": "white"})
+        axCO.add_artist(at)
+
+        axSpectra.axvline(x=showChannel, ls="--", color='black',lw=0.5,alpha=0.5)
+
+        
+        at = AnchoredText( showLine , loc=1, frameon=False, prop={"color": "black"})
+        axSpectra.add_artist(at)
+
+
+        at = AnchoredText( showLine , loc=2, frameon=False, prop={"color": "white"})
+        axCO.add_artist(at)
+
+
+        plt.savefig("testBadChannel.png" , bbox_inches='tight', dpi=600)
+
+
+        plt.clf()
+        self.drawIntOveralIntMap(rawFITS,showLine)
+        self.drawSingleChannelMap(rawFITS,showChannel,showLine)
+
+
+
+
+    def getConsecutiveMask(self,dataCO,rmsData,cutoff=3,conNumber=3):
+        """
+        return a mask that above cutoff*3, sigma
+
+        find the points that contains three consecutivechannels largeer than 3 sigma
+        :param dataCO:
+        :param rmsData:
+        :return:
+        """
+
+        Nz,Ny,Nx=dataCO.shape
+
+        zero2D=np.zeros((1,Ny,Nx))
+        sigmaData=dataCO/rmsData
+
+        cutoffmask= sigmaData  >=cutoff
+
+        extendedArray=np.vstack( (zero2D,cutoffmask,zero2D) )
+
+        sumArray = extendedArray[0:-2,:,:] +  extendedArray[1:-1,:,:]
+        sumArray = sumArray + extendedArray[2: ,:,:]
+
+
+        consecutiveData = sumArray>=conNumber #consecutively 3 channnel l
+
+
+
+        return consecutiveData*1
+
+
+    def removeBadSgrChannelCO12(self):
+        """
+
+        :return:
+        """
+        ##
+        rawCOFITS="/home/qzyan/WORK/diskMWISP/fillingFactorData/data/rawSgrCO12BackUp.fits"
+        labelFITS="/home/qzyan/WORK/diskMWISP/fillingFactorData/data/rawSgrCO12rawSgrCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_CleanBackUp.fits"
+
+        saveCorrectedFITS = "/home/qzyan/WORK/diskMWISP/fillingFactorData/data/rawSgrCO12Correct.fits"
+
+        rawCOData,rawCOHead= doFITS.readFITS( rawCOFITS)
+        labelData, rawCOHead= doFITS.readFITS( labelFITS)
+
+        self.calCode=self.codeRawSgrCO12
+
+        rmsFITS=self.getRMSFITS()
+        #27,28,29,three bad channels
+
+        dataNoise=self.produceNoiseFITS(3,rmsFITS=rmsFITS)
+        
+        print dataNoise.shape
+
+        channel26Label = labelData[26]
+        channel30Label = labelData[30]
+
+        #positions, need to mask
+        maskLabel =  np.logical_and(channel26Label==0, channel30Label==0  )
+
+        rawCOData[27][maskLabel]=dataNoise[0][maskLabel]
+        rawCOData[28][maskLabel]=dataNoise[1][maskLabel]
+        rawCOData[29][maskLabel]=dataNoise[2][maskLabel]
+
+
+        fits.writeto(saveCorrectedFITS,rawCOData,header=rawCOHead,overwrite=True )
 
 
 

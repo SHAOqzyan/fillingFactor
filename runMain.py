@@ -1,7 +1,10 @@
 from fillingfactor import checkFillingFactor
 import os
 import sys
+from astropy.table import Table,vstack
+from myPYTHON import *
 
+doFITS=myFITS() #used to deal fits with myPYTHON
 
 doFF=checkFillingFactor()
 
@@ -55,11 +58,17 @@ class fillingMain(object):
         doFF.drawFillingFactor(absK=targetNoise,useArea=False )
 
 
-    def getFillingFactorAndEdge(self,calCode):
+
+
+
+    def getFillingFactorAndEdge(self,calCode,drawFigure=False):
 
         #get fluxTB
         doFF.calCode=calCode
         smTBFile = doFF.getSmoothAndNoiseFITSSingle(getCleanTBFile=True)
+
+
+
 
         fluxTBFile="fluxTB_"+os.path.basename(smTBFile)
 
@@ -69,12 +78,14 @@ class fillingMain(object):
             return
 
 
-        #getFillingfactor
 
-        ffTBName=doFF.calculateFillingFactor(fluxTBFile, drawFigure=False)
+        #getFillingfactor
+        ffTBName=doFF.calculateFillingFactor(fluxTBFile, drawFigure=drawFigure)
 
         #get edgeInfo
         cleanFITSName = doFF.getSmoothAndNoiseFITSSingle(  getCleanFITS=True)
+
+
 
         doFF.getCloudCubes(cleanFITSName, ffTBName, writeFITS=False )
 
@@ -88,7 +99,7 @@ class fillingMain(object):
         doFF.calCode=calCode
         smTBFile = doFF.getSmoothAndNoiseFITSSingle(getCleanTBFile=True)
 
-        return "edgeInfo_fillingFactor_fluxTB_"+ os.path.basename( smTBFile )
+        return "pureEdgeInfo_fillingFactor_fluxTB_"+ os.path.basename( smTBFile )
 
 
     def cleanFITS(self,calCode,onlyFirst=False):
@@ -132,6 +143,110 @@ class fillingMain(object):
 
 
 
+    #def examineNoiseClouds(self,tbFile, ):
+
+    def testBackChannelFFT(self,drawChannel=31):
+        """
+
+        :return:
+        """
+
+        testFITSFile = "/home/qzyan/WORK/diskMWISP/fillingFactorData/data/rawSgrCO12.fits"
+
+        #drawChannel=31
+        rawCOData,rawCOHead= myFITS.readFITS(testFITSFile)
+        im=rawCOData[drawChannel]
+        im = im.astype(float)
+        im=np.nan_to_num(im)
+        wcsCO = WCS(rawCOHead)
+
+        #crop fits
+        #im=im[:450,2200:]
+
+        def plot_spectrum(im_fft):
+            from matplotlib.colors import LogNorm
+            # A logarithmic colormap
+            plt.imshow(np.abs(im_fft), norm=LogNorm(vmin=5))
+            plt.colorbar()
+
+        from scipy import fftpack
+        im_fft = fftpack.fft2(im)
+
+        # Show the results
+
+        #def plot_spectrum(im_fft):
+        from matplotlib.colors import LogNorm
+        # A logarithmic colormap
+
+            #plt.colorbar()
+            #print "run"
+
+
+        #print np.nanmax(im_fft)
+        #print np.nanmin(im_fft)
+        keep_fraction=0.2
+        im_fft2 = im_fft.copy()
+
+        # Set r and c to be the number of rows and columns of the array.
+        r, c = im_fft2.shape
+
+        # Set to zero all rows with indices between r*keep_fraction and
+        # r*(1-keep_fraction):
+        im_fft2[int(r * keep_fraction):int(r * (1 - keep_fraction))] = 0
+
+        # Similarly with the columns:
+        im_fft2[:, int(c * keep_fraction):int(c * (1 - keep_fraction))] = 0
+
+
+
+        plt.figure()
+        #plot_spectrum(im_fft2)
+        im_new = fftpack.ifft2(im_fft2).real
+
+        axRaw = pywcsgrid2.subplot(211, header=wcsCO)
+        axProcess = pywcsgrid2.subplot(212, header=wcsCO)
+
+        #im_new=im_new-im
+        axRaw.imshow(im, plt.cm.gray,origin='lower',vmin=0.5,vmax=8)
+        axProcess.imshow(im_new, plt.cm.gray,origin='lower',vmin=0.5,vmax=8)
+
+        plt.title('Reconstructed Image')
+        #plt.imshow(np.abs(im_fft), norm=LogNorm(vmin=10 ,vmax=6853))
+
+        #plt.title('Fourier transform')
+        plt.savefig(   "fftTest{}.png".format(drawChannel) , bbox_inches='tight', dpi=600)
+
+    def fittingFFWithAllTBs(self,codeList,saveTag=""):
+        """
+        fitting an overall filling factor, with all samples
+        :return:
+        """
+
+        #according to the code list
+
+        #for eachCoe in doFF.allRawCodeList:
+
+        combineTB=None
+
+        for eachCode in  codeList:
+        #for eachCode in doFF.allRawCodeList :
+
+            doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
+
+            tb=doMain.getFFTB(doFF.calCode)
+            testTB=Table.read(tb)
+
+            if combineTB==None:
+                combineTB=testTB
+
+            else:
+                combineTB=vstack([combineTB,testTB])
+
+        print combineTB
+
+        doFF.fittingAngularSizeFF( combineTB,showSizeRange=[-1,40],saveTag=saveTag )
+
+
     def zzz(self):
         """
 
@@ -145,27 +260,342 @@ class fillingMain(object):
 
 doMain=fillingMain()
 
-if 1: #check particular clouds, smaller filling factors
+if 1:
 
-    checkTB="edgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    doMain.getFillingFactorAndEdge(doFF.codeRawScuCO12,drawFigure=False)
 
-    testCode=doFF.codeRawLocalCO12
-
-    getTB= doFF.selectBySizeAndFactorRange(checkTB,sizeRange=[0, 4 ],factorRange=[0.6,1])
-    getTB.sort(doFF.ffMWISPCol)
-    print getTB
+    sys.exit()
 
 
-    #testIDList=[2607,10959,6656,117419,29631]
-    testIDList=[274907, 215799]
 
-    for eachID in testIDList:
 
-        doFF.calFFByID(testCode,eachID,drawFigure=True,useSigmaCut=True)
-        doFF.drawInMap(testCode,eachID)
+if 0:
+    doMain.fittingFFWithAllTBs(doFF.allRawCodeList,"AllClouds")
+    doMain.fittingFFWithAllTBs(doFF.rawOutCodeList,"AllOutClouds")
+    doMain.fittingFFWithAllTBs(doFF.rawLocalCodeList,"AllLocalClouds")
+    doMain.fittingFFWithAllTBs(doFF.rawSgrCodeList,"AllSgrClouds")
+    doMain.fittingFFWithAllTBs(doFF.rawScuCodeList,"AllScuClouds")
+
+    CO12All=[doFF.codeRawLocalCO12,doFF.codeRawSgrCO12,doFF.codeRawScuCO12,doFF.codeRawOutCO12]
+    CO13All=[doFF.codeRawLocalCO13,doFF.codeRawSgrCO13,doFF.codeRawScuCO13,doFF.codeRawOutCO13]
+    CO18All=[doFF.codeRawLocalCO18,doFF.codeRawSgrCO18,doFF.codeRawScuCO18,doFF.codeRawOutCO18]
+
+    doMain.fittingFFWithAllTBs( CO12All ,"AllCO12Clouds")
+    doMain.fittingFFWithAllTBs( CO13All ,"AllCO13Clouds")
+    doMain.fittingFFWithAllTBs( CO18All ,"AllCO18Clouds")
+
+    sys.exit()
+if 0:
+
+    #for eachCoe in doFF.allRawCodeList:
+    for eachCode in [ doFF.codeRawLocalCO12]:
+    #for eachCode in doFF.allRawCodeList :
+
+        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
+
+        tb=doMain.getFFTB(doFF.calCode)
+        testTB=Table.read(tb)
+
+        doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,40] )
+
+    sys.exit()
+
+
+
+#draw filling factor for a particular ID
+
+
+if 0:
+
+    #for eachCode in doFF.allRawCodeList :
+
+    doFF.calCode=doFF.codeRawLocalCO12
+    tbFile=doMain.getFFTB(doFF.codeRawLocalCO12)
+
+    doFF.calculateFillingFactor( tbFile, drawFigure=True )
+    #doFF.calculateFillingFactor( tbFile,   inputID=395765 )
 
 
     sys.exit()
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+    doFF.testEqualCutOff()
+
+
+    sys.exit()
+
+
+if 0:
+
+    for eachCode in doFF.allRawCodeList :
+        doMain.getFillingFactorAndEdge(eachCode,drawFigure=False)
+
+
+
+    sys.exit()
+
+
+if 0: # clean all fits, #Do this tonight
+
+    eachCode=doFF.codeRawSgrCO12
+    doMain.cleanFITS( eachCode, onlyFirst=False )
+    doMain.removeUselessFITS(eachCode)
+
+    sys.exit()
+
+
+if 0:  # find clouds #
+
+    #for eachCode in doFF.allRawCodeList:
+    doFF.getFluxListForEachCloud(calCode= doFF.codeRawSgrCO12 )
+
+    sys.exit()
+
+#########
+
+if 0: # addNoise
+    doFF.calCode=doFF.codeRawSgrCO12
+    smFiles = doFF.getSmFITSFileList()
+
+    for eachSMF in smFiles:
+        print "Processing ",eachSMF
+        doFF.addNoiseByRMSFITS( eachSMF,noiseFactor=0.0 )
+
+
+
+if 0: # test remove bad TB
+    doFF.calCode=doFF.codeRawOutCO18
+
+    #TBTest="fluxTB_rawScuCO12rawScuCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    #TBTest="fluxTB_rawSgrCO18rawSgrCO18_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    #TBTest="fluxTB_rawScuCO12rawScuCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    TBTest="fluxTB_rawOutCO18rawOutCO18_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+
+    tb=Table.read( TBTest )
+
+    cloudLeft=doFF.removeFakeClouds(tb) #removeByLBVrange(tb,vRange=[0,30],bRange=[-5,5],lRange=[30,40])
+    cloudLeft.write("cloudLeftTest.fit",overwrite=True)
+
+    sys.exit()
+
+
+
+if 0:
+    doFF.removeBadSgrChannelCO12()
+
+if 0:
+    for i in [26,27, 28,29,30,31 ]:
+        doMain.testBackChannelFFT(i)
+
+
+
+if 0:  # find clouds #
+
+
+    for eachCode in doFF.allRawCodeList:
+        doFF.getFluxListForEachCloud(calCode= eachCode )
+
+    sys.exit()
+
+if 0: # test remove bad TB
+    doFF.calCode=doFF.codeRawOutCO12
+
+    TBTest="fillingFactor_fluxTB_rawOutCO12rawOutCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+
+    tb=Table.read( TBTest )
+
+    cloudLeft=doFF.removeFakeClouds(tb) #removeByLBVrange(tb,vRange=[0,30],bRange=[-5,5],lRange=[30,40])
+    cloudLeft.write("cloudLeftTest.fit",overwrite=True)
+
+    sys.exit()
+
+
+
+if 0: # clean all fits, #Do this tonight
+
+    for eachCode in doFF.allRawCodeList:
+
+        doMain.cleanFITS( eachCode, onlyFirst=False )
+        doMain.removeUselessFITS(eachCode)
+
+    sys.exit()
+
+
+
+#calculating flux Scu
+if 0:
+    doFF.calCode = doFF.codeRawOutCO13
+    doFF.getFluxListForEachCloud()
+
+
+
+    sys.exit()
+
+
+
+
+
+if 0:#find clouds #
+    doFF.calCode=doFF.codeRawOutCO13
+    noiseFiles=doFF.getSmoothListFixNoise(noiseFactor=0.0 )
+
+    for eachF in noiseFiles:
+        doFF.cleanFITSsigma2( eachF )
+
+    sys.exit()
+
+if 0: #thest how to remove fake clouds
+    #doMain.getFillingFactorAndEdge( doFF.codeRawOutCO12 )
+    #doMain.getFillingFactorAndEdge( doFF.codeRawLocalCO12 )
+    #doMain.getFillingFactorAndEdge( doFF.codeRawSgrCO12)
+
+    #doMain.getFillingFactorAndEdge( doFF.codeRawLocalCO12)
+    #doMain.getFillingFactorAndEdge( doFF.codeRawOutCO18 )
+    doMain.getFillingFactorAndEdge( doFF.codeRawOutCO13 )
+
+    sys.exit()
+
+
+if 0:
+    doFF.calCode=doFF.codeRawScuCO18
+
+    lRange,bRange=doFITS.box(43.5674609,-3.7843809,1157.026 ,680.262 ,0)
+
+    showChannel = 144
+    doFF.testBadChannel( showChannel,lRange,bRange)
+    sys.exit()
+
+
+
+if 0:
+
+    #for eachCode in doFF.allRawCodeList:
+    doMain.getFillingFactorAndEdge(eachCode)
+
+    sys.exit()
+
+
+
+
+if 0:#find clouds #
+    doFF.calCode=doFF.codeRawOutCO18
+    noiseFiles=doFF.getSmoothAndNoiseFITSSingle(noiseFactor=0.0 )
+
+    print noiseFiles
+    doFF.cleanFITSsigma2( noiseFiles )
+
+    sys.exit()
+
+if 0:
+    for eachCode in doFF.allRawCodeList:
+        doFF.calCode= eachCode
+        doFF.produceMaskSigma2(cutoffSigma=2)
+    sys.exit()
+
+
+
+
+
+
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+    #doFF.callFillingFactorAllSM() #this is over all cloud fits
+    doFF.printFillingCat()
+    sys.exit()
+
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+    doFF.addAllNoise()
+    sys.exit()
+
+
+if 0:
+
+    doFF.calCode=doFF.codeRawLocalCO12
+    doFF.getFluxListForEachCloudNoiseChange()
+    sys.exit()
+
+
+
+
+
+
+
+if 0:  #drawLocalCO13
+
+
+    #codeList1=[doFF.codeRawLocalCO12, doFF.codeRawLocalCO13, doFF.codeRawLocalCO18 ]
+    codeList1=[doFF.codeRawOutCO12, doFF.codeRawOutCO13, doFF.codeRawOutCO18 ]
+
+    #codeList2=[doFF.codeRawScuCO12,doFF.codeRawScuCO13,doFF.codeRawScuCO18]
+    codeList2=[ ]
+
+    codeListAll=codeList1+codeList2
+
+    for eachCode in codeListAll:
+        doFF.calCode = eachCode
+        drawTB = doMain.getFFTB( doFF.calCode )
+
+        #doFF.drawFillingRelation(  drawTB, drawCode=doFF.drawCodeFlux)
+        #doFF.drawFillingRelation(  drawTB, drawCode=doFF.drawCodeArea)
+        doFF.drawFillingRelation( drawTB, drawCode=doFF.drawCodeSize)
+
+    sys.exit()
+
+
+
+
+
+
+if 0:
+
+    for eachCode in doFF.allRawCodeList:
+        doFF.calCode= eachCode
+        tb=doMain.getFFTB(doFF.calCode)
+        doFF.fittingAngularSizeFF( tb )
+    sys.exit()
+
+if 0: #check particular clouds, smaller filling factors
+    doFF.calCode=doFF.codeRawLocalCO12
+
+    checkTB="edgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+    cleanTB=Table.read(checkTB)
+
+
+    #getTB= doFF.selectBySizeAndFactorRange(checkTB,sizeRange=[0, 4 ],factorRange=[0.7, 1])
+
+    getTB= doFF.selectBySizeAndFactorRange(checkTB,sizeRange=[5, 10 ],factorRange=[0.0, 0.1])
+
+    getTB=doFF.addMWISPFFerror(getTB)
+
+    getTB.sort(doFF.ffMWISPErrorCol)
+    #print getTB[doFF.ffMWISPCol]
+
+    printTB= doFITS.selectTBByCols(getTB,["_idx","area_exact","sum","v_cen","peak","pixN",doFF.ffMWISPCol,doFF.ffMWISPErrorCol])
+    printTB.sort(doFF.ffMWISPErrorCol)
+
+    print printTB
+    print len(printTB)
+    #testIDList=[2607,10959,6656,117419,29631]
+    #testIDList=[274907, 215799]
+    #aaaaaaaa
+    for eachRow in getTB:
+
+        #doFF.calFFByID(testCode,eachID ,cleanTB )
+        eachID=eachRow["_idx"]
+        doFF.drawInMap(doFF.calCode,eachID)
+        doFF.calFFByRow(eachRow,drawFigure=True)
+
+    sys.exit()
+
+
+    #draw those figures
+
+
+
 
 
 
@@ -192,24 +622,6 @@ if 0:  #drawLocalCO13
 
 
 
-if 0:
-
-
-    for eachCode in doFF.allRawCodeList:
-
-
-        doMain.getFillingFactorAndEdge(eachCode)
-
-    sys.exit()
-
-
-if 0:  # find clouds #
-
-
-    for eachCode in doFF.allRawCodeList:
-        doFF.getFluxListForEachCloud(calCode= eachCode )
-
-    sys.exit()
 
 
 
@@ -220,13 +632,7 @@ if 0: #clean the first fits, to do the flux calculation
 
         doMain.cleanFITS( eachCode, onlyFirst=True )
 
-if 0: # clean all fits, #Do this tonight
 
-    for eachCode in doFF.allRawCodeList:
-        doMain.cleanFITS( eachCode, onlyFirst=False )
-        doMain.removeUselessFITS(eachCode)
-
-    sys.exit()
 
 if 0:
     doMain.removeUselessFITS(doFF.codeRawScuCO18)
@@ -621,13 +1027,6 @@ if 0: ### #used to test which clouds are at the edge of data cube
     sys.exit()
 
 
-
-if 0:
-    doFF.calCode=doFF.codeRawLocalCO12
-    doFF.testEqualCutOff()
-
-
-    sys.exit()
 
 
 if 0:
