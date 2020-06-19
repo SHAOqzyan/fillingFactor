@@ -114,9 +114,6 @@ class fillingMain(object):
                 if smFactor>1.0:
                     continue
 
-
-
-
             doFF.cleanFITSsigma2(eachF)
 
 
@@ -247,6 +244,7 @@ class fillingMain(object):
         doFF.fittingAngularSizeFF( combineTB,showSizeRange=[-1,40],saveTag=saveTag )
 
 
+
     def zzz(self):
         """
 
@@ -260,12 +258,72 @@ class fillingMain(object):
 
 doMain=fillingMain()
 
-if 1:
+if 1: #testing
+
+    #for eachCoe in doFF.allRawCodeList:
+    for eachCode in [ doFF.codeRawLocalCO12]:
+    #for eachCode in doFF.allRawCodeList :
+
+        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
+
+        tb=doMain.getFFTB(doFF.calCode)
+        testTB=Table.read(tb)
+
+        doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,40],useODR=False )
+
+    sys.exit()
+
+
+
+
+
+
+if 0: # clean all fits, #Do this tonight
+
+    for eachCode in doFF.allRawCodeList:
+
+        doMain.cleanFITS( eachCode, onlyFirst=True )
+        doMain.removeUselessFITS(eachCode)
+
+    sys.exit()
+
+
+
+
+
+if 0:#find clouds #
+    doFF.calCode=doFF.codeRawLocalCO18
+    noiseFiles=doFF.getSmoothAndNoiseFITSSingle( smFactor=1.0, noiseFactor=0.0 )
+
+    print noiseFiles
+    doFF.cleanFITSsigma2( noiseFiles  )
+
+    sys.exit()
+
+
+
+
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+    #doFF.callFillingFactorAllSM() #this is over all cloud fits
+    #doFF.printFillingCat()
+    #doFF.printFluxCat()
+
+    doFF.drawCloudNumberChange()
+
+
+
+    sys.exit()
+
+
+
+
+if 0:
 
     doMain.getFillingFactorAndEdge(doFF.codeRawScuCO12,drawFigure=False)
 
     sys.exit()
-
 
 
 
@@ -283,20 +341,6 @@ if 0:
     doMain.fittingFFWithAllTBs( CO12All ,"AllCO12Clouds")
     doMain.fittingFFWithAllTBs( CO13All ,"AllCO13Clouds")
     doMain.fittingFFWithAllTBs( CO18All ,"AllCO18Clouds")
-
-    sys.exit()
-if 0:
-
-    #for eachCoe in doFF.allRawCodeList:
-    for eachCode in [ doFF.codeRawLocalCO12]:
-    #for eachCode in doFF.allRawCodeList :
-
-        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
-
-        tb=doMain.getFFTB(doFF.calCode)
-        testTB=Table.read(tb)
-
-        doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,40] )
 
     sys.exit()
 
@@ -478,15 +522,6 @@ if 0:
 
 
 
-if 0:#find clouds #
-    doFF.calCode=doFF.codeRawOutCO18
-    noiseFiles=doFF.getSmoothAndNoiseFITSSingle(noiseFactor=0.0 )
-
-    print noiseFiles
-    doFF.cleanFITSsigma2( noiseFiles )
-
-    sys.exit()
-
 if 0:
     for eachCode in doFF.allRawCodeList:
         doFF.calCode= eachCode
@@ -498,12 +533,6 @@ if 0:
 
 
 
-
-if 0:
-    doFF.calCode=doFF.codeRawLocalCO12
-    #doFF.callFillingFactorAllSM() #this is over all cloud fits
-    doFF.printFillingCat()
-    sys.exit()
 
 
 if 0:
@@ -1266,7 +1295,7 @@ if 0:
 
 if 0:
     #doFF.printFillingCat()
-    doFF.printFluxCat()
+
     sys.exit()
 
 if 0: #calculate and save

@@ -7,6 +7,8 @@ import radio_beam
 from spectral_cube import SpectralCube
 from astropy import units as u
 
+from mwispDBSCAN import MWISPDBSCAN
+
 import matplotlib.pyplot as plt
 from myPYTHON import *
 from astropy.io import fits
@@ -20,12 +22,12 @@ from progressbar import *
 from astropy.table import Table,vstack
 import gc
 
-sys.path.insert(1, '/home/qzyan/WORK/myDownloads/MWISPcloud')
-sys.path.insert(1, '/home/yqzpmo/github/MWISPdbscan')
+#sys.path.insert(1, '/home/qzyan/WORK/myDownloads/MWISPcloud')
+#sys.path.insert(1, '/home/yqzpmo/github/MWISPdbscan')
 
-from onlyDBSCAN import allDBSCAN
+#from onlyDBSCAN import allDBSCAN
 
-doAllDBSCAN = allDBSCAN()
+#doAllDBSCAN = allDBSCAN()
 
 doFITS=myFITS() #used to deal fits with myPYTHON
 
@@ -83,6 +85,17 @@ def testffAndSizeFunc(x,  a  ):
 
     #c=b
     return x/(x +a)
+
+    #return   np.exp(-a/np.sqrt(x) )
+def testffAndSizeFuncODR(B,x  ):
+    #return  b- b*np.exp(-a*x )
+    #return  1- b*np.exp(-a*x)
+
+    #return  b- b*np.exp(-a*x )
+    #return  a-b/(x-0.564)
+    #return  a-b/(x+c)
+
+    return x/(x +B[0])
 
     #return   np.exp(-a/np.sqrt(x) )
 
@@ -352,6 +365,7 @@ class checkFillingFactor(object):
     eqLwCol="eqLwCol" #km /s
 
     vrmsAvgSpectraCol="vrmsAvgSpectra" #km/s, vrms calculated with average spectrum
+    vmeanAvgSpectraCol="vmeanAvgSpectra" #km/s, vrms calculated with average spectrum
 
 
     def __init__(self):
@@ -748,6 +762,7 @@ class checkFillingFactor(object):
         testCode=self.codeLocalCO12
         self.calCode = testCode
         TB,TBFiles=self.getAbsNoiseCleanTBList( absK=self.MWISPrmsCO12)
+        #ceanTBFiless = self.getSmoothListFixNoise(getCleanTBFile=True)
 
         #print TBFiles
 
@@ -794,14 +809,27 @@ class checkFillingFactor(object):
 
 
 
+    def readTBList(self,TBNameList):
+        """
 
+        :param TBNameList:
+        :return:
+        """
+        #
+
+        TBList=[]
+        for eachName in TBNameList:
+            TBList.append(Table.read(eachName) )
+        return  TBList
 
 
     def drawCloudNumberChange(self):
 
         testCode=self.codeLocalCO12
         self.calCode = testCode
-        TB,TBFiles=self.getAbsNoiseCleanTBList( absK=self.MWISPrmsCO12)
+        #TB,TBFiles=self.getAbsNoiseCleanTBList( absK=self.MWISPrmsCO12)
+        TBFiles = self.getSmoothListFixNoise(getCleanTBFile=True)
+        TB= self.readTBList(TBFiles)
 
         #print TBFiles
 
@@ -822,14 +850,14 @@ class checkFillingFactor(object):
 
         axBeam = fig.add_subplot(1,1, 1)
 
-        beamSize=self.smoothFactors*self.getBeamSize(self.calCode)
+        beamSize=self.smoothFactors*self.getBeamSize()
 
         #self.drawNoiseEffectSingle(axSens,1.5)
 
         #axBeam.plot(beamSize,Nlist,'o-',color='b')
 
 
-        mwispF,cfaF,parameters=self.getFillingFactorAndDraw(  beamSize, Nlist, 1, drawFigure=False)
+        mwispF,cfaF,parameters=self.getFillingFactorAndDraw(  beamSize, Nlist,None, 1, drawFigure=False)
         print mwispF,cfaF
         params,paramsErros=parameters
         axBeam.scatter(  beamSize  , Nlist , s=15,  color='red'   )
@@ -928,7 +956,7 @@ class checkFillingFactor(object):
 
 
 
-    def fittingAngularSizeFF(self,fillingTB,showSizeRange=[0,40],saveTag="" ):
+    def fittingAngularSizeFF(self,fillingTB,showSizeRange=[0,40],saveTag="" ,useODR=False):
         """
 
         :return:
@@ -1091,7 +1119,7 @@ class checkFillingFactor(object):
         ###################################################
         #print errorSize
 
-        para,paraError=self.fittingFFAndSize(testffAndSizeFunc, drawX,drawY,  yError)
+        para,paraError=self.fittingFFAndSize(testffAndSizeFunc, drawX,drawY, yError,sizeError=errorSize,  useODR=useODR)
         #para,paraError=self.fittingFFAndSize(ffFunction , drawX,drawY,  yError)
 
         #para,paraError=self.ffOdr( drawX,drawY,yError, xError=None )
@@ -1336,7 +1364,7 @@ class checkFillingFactor(object):
         dataCO, headCO = myFITS.readFITS( rawCOFITS)
         rmsData,rmsHead=myFITS.readFITS( rmsFTS )
 
-
+        _,Vaxis =  doFITS.getSpectraByIndex(dataCO, headCO, 0, 0)
         #consecutiveMask=self.getConsecutiveMask(dataCO,rmsData,cutoff=3, conNumber=3)
 
 
@@ -1378,8 +1406,14 @@ class checkFillingFactor(object):
         cloudTB["peakV"].unit=""
         cloudTB["peak"].unit="K"
 
-        cloudTB[self.conseCol] = cloudTB["peak"]*0 #number of spectra that have
-        cloudTB[self.conseCol].unit=""
+        cloudTB[self.eqLwCol] = cloudTB["peak"]*0 #number of spectra that have
+        cloudTB[self.eqLwCol].unit="km/s"
+
+        cloudTB[self.vrmsAvgSpectraCol] = cloudTB["peak"]*0 #number of spectra that have
+        cloudTB[self.vrmsAvgSpectraCol].unit="km/s"
+
+        cloudTB[self.vmeanAvgSpectraCol] = cloudTB["peak"]*0 #number of spectra that have
+        cloudTB[self.vmeanAvgSpectraCol].unit="km/s"
 
         cloudTB.sort("allChannel")
         #check, the spectral of the peak position, to get the number channel, that the spectra toward the peak position must have the
@@ -1427,10 +1461,47 @@ class checkFillingFactor(object):
             #getAverageSpectra, and
 
             #fitsZero[testIndices] = dataCO[testIndices]
+            fitsZero[cloudIndex] =  dataCO[cloudIndex]
+            if 1: #calculate velocity dispersion, two versions
+                # cropThe cloudRange
+                minY = np.min(cloudY0)
+                maxY = np.max(cloudY0)
+
+                ###########
+                minX = np.min(cloudX0)
+                maxX = np.max(cloudX0)
+
+                ###########
+                minZ = np.min(cloudZ0)
+                maxZ = np.max(cloudZ0)
+                ######################################################################
+                #cloudCropSpectra = fitsZero[:, minY:maxY + 1, minX:maxX + 1]
+
+                cloudCropCube = fitsZero[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
+                cloudVaxis= Vaxis[ minZ:maxZ+1 ]
+                
+                averageSpectraCrop = np.nansum(cloudCropCube, axis=(1, 2))
+
+                #intCloud = np.nansum(cloudCropCube, axis=0)
+
+                # count the number spectra
+
+                totalSpectral = len(zeroProjection[zeroProjection > 0])
+
+                meanSpectral = averageSpectraCrop / 1. / totalSpectral
+
+                spectraPeak = np.max(meanSpectral)
+
+                area = self.getVelResolution() * np.sum(meanSpectral)
+
+                eqLineWidth = area / spectraPeak
+                eachC[self.eqLwCol] = eqLineWidth  # np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
 
 
+                vMeanAverageSp,vrmsAverageSp=doFITS.weighted_avg_and_std(cloudVaxis, meanSpectral   )
+                eachC[self.vrmsAvgSpectraCol] = vrmsAverageSp  # np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
 
-
+                eachC[self.vmeanAvgSpectraCol] = vMeanAverageSp  # np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
 
             #fitsZero[cloudIndex] =consecutiveMask[cloudIndex]  #too slow, need a better way
             #consecutiveCheck= consecutiveMask[cloudIndex]
@@ -1526,8 +1597,11 @@ class checkFillingFactor(object):
 
 
 
-            if len(negativeData)<10:
-                eachC[self.peakChannelCol] = Nz-10 # np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
+            #if len(negativeData)<10:
+                #eachC[self.peakChannelCol] = Nz-10 # np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
+            if 1:
+                pass
+
             else:
                 rmsSpectra=np.std(negativeData,ddof=1)/np.sqrt(1-2./np.pi )
                 cloudPeakSpectra=averageSpectra>= cutSigma*rmsSpectra
@@ -1585,13 +1659,11 @@ class checkFillingFactor(object):
 
 
 
-            cropWCS = wcsCloud[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
-
-
-            saveFullName=os.path.join(savePath,saveName)
 
             if writeFITS:
-                fitsZero[cloudIndex] =  dataCO[cloudIndex]
+                cropWCS = wcsCloud[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
+                saveFullName = os.path.join(savePath, saveName)
+                #fitsZero[cloudIndex] =  dataCO[cloudIndex]
 
                 cropData = fitsZero[minZ:maxZ + 1, minY:maxY + 1, minX:maxX + 1]
 
@@ -1603,7 +1675,17 @@ class checkFillingFactor(object):
         pbar.finish()
 
         cloudTB["sum"].unit="K"
+        del cloudTB["area_ellipse"]
+        del cloudTB["flux"]
+        del cloudTB["major_sigma"]
+        del cloudTB["minor_sigma"]
+        del cloudTB["radius"]
 
+        cloudTB["v_cen"].unit="km/s"
+        cloudTB["x_cen"].unit="deg"
+        cloudTB["y_cen"].unit="deg"
+
+        
         if saveTag=="":
 
             cloudTB.write("edgeInfo_"+os.path.basename(cloudTBFile),overwrite=True)
@@ -2073,7 +2155,40 @@ class checkFillingFactor(object):
 
         return None
 
-    def cleanFITSsigma2(self,FITSfile,cutoff=2,minPts=4,contype=1,removeFITS=False):
+
+
+    def cleanFITSsigma2(self,FITSfile,cutoff=2,minPts=4,contype=1  ):
+        """
+
+        #an updated version of DBSCAN code, which is more easily to use
+
+        :param FITSfile:
+        :param cutoff:
+        :param minPts:
+        :param contype:
+        :return:
+        """
+
+        smFactor=self.getSmoothFactor(FITSfile)
+
+        doMWdbscan = MWISPDBSCAN()
+        doMWdbscan.rawCOFITS =  FITSfile
+        doMWdbscan.rmsFITS = self.getRMSFITS()
+
+        doMWdbscan.setDBSCANParameters( cutoff_sigma=cutoff,minPts=minPts,connectivity=contype)
+        doMWdbscan.processPath = self.tmpPath
+
+        doMWdbscan.computeDBSCAN()
+        doMWdbscan.getCatFromLabelArray(doClean=True)
+
+        #only produce clean fits for smFactor 1.0
+        if smFactor==1.0:
+            doMWdbscan.produceCleanFITS()
+
+
+
+
+    def cleanFITSsigma2BACKUP(self,FITSfile,cutoff=2,minPts=4,contype=1,removeFITS=False):
         """
         Used  DBSCAN to mask noise pixels, then calculate the total flux
         :param FITSfile:
@@ -2970,8 +3085,20 @@ class checkFillingFactor(object):
 
 
         if useODR:
+            #fitting function with ODR
 
-            print np.min( ffError ),"Miniumum Error?"
+            ffModel = odrpack.Model(testffAndSizeFuncODR)
+            if sizeError is None:
+                mydata = odrpack.RealData(sizeArray, ffArray, sy=ffError)
+            else:
+                mydata = odrpack.RealData(sizeArray , ffArray, sx=sizeError, sy=ffError)
+
+
+            myodr = odrpack.ODR(mydata, ffModel, beta0=[4])
+            myOutPut = myodr.run()
+            # myOutPut.pprint()
+
+            return myOutPut.beta, myOutPut.sd_beta
 
         return 0,   0
 
@@ -3041,7 +3168,13 @@ class checkFillingFactor(object):
         #print x
         #print y
         try:
-            params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, sigma=fluxError,absolute_sigma=True,  p0=[np.mean(y), 0.5, np.mean(y)])
+            if fluxError!=None:
+                params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, sigma=fluxError,absolute_sigma=True,  p0=[np.mean(y), 0.5, np.mean(y)])
+
+            else:
+                params, paramas_covariance = optimize.curve_fit(ffFunction, x, y,   p0=[np.mean(y), 0.5, np.mean(y)])
+
+
             errors = np.sqrt(np.diag(paramas_covariance))
 
             #params,errors=self.ffOdr(x,y,fluxError) #dot no use Odr for filing factor fitting, fore there is no error in axis
@@ -3113,8 +3246,13 @@ class checkFillingFactor(object):
         axFitting.legend(loc=5)
         ###########################
         saveTag= "{}_factorFitting_ID{}".format(self.calCode,calID)
+        if calID!=0:
+            plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
+            
+        else:
+            plt.savefig(self.paperFigurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
 
-        plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
+            
 
         plt.close(fig )
         gc.collect()
@@ -3141,6 +3279,11 @@ class checkFillingFactor(object):
 
 
             processTB=Table.read(eachTB)
+            #remove wrong clouds caused by bad channels
+
+            processTB=self.removeFakeClouds(processTB)
+
+
 
             fluxList.append( np.sum(processTB["sum"])*velReslution )
 
@@ -3179,11 +3322,17 @@ class checkFillingFactor(object):
 
             fluxList, fluxError = self.getFluxAndErrorList(smTBFiles)
 
-            mwispFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamSizeArray, fluxList, 0, drawFigure=True)
+            mwispFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamSizeArray, fluxList,fluxError, 0, drawFigure=True)
 
             mwispFillingList.append( mwispFilling )
             cfaFillingList.append( cfaFilling )
             fittingParaList.append( fittingParaAndError )
+
+            x = self.getBeamSize() * self.smoothFactors
+            np.save(self.calCode + "X", x)
+            np.save(self.calCode + "Y", fluxList)
+
+
 
         np.save("mwispFillingRaw", mwispFillingList )
         np.save("cfaFillingRaw", cfaFillingList )
@@ -3370,9 +3519,21 @@ class checkFillingFactor(object):
             else:
                 cStr=  self.getScitificStr(para[2], paraError[2])
 
-            if i % 3 != 1:
-                armStr=""
-            lintStr="{} & {} & {} & {} & {} & {}  \\\\".format( armStr , lineStr , factorStr,  aStr, bStr, cStr   )
+
+            #print lineStr,armStr, "?????????????????????????"
+
+            if lineStr==self.lineStrList[-1] and armStr==self.allArmList[-1]:
+
+
+                lintStr="   & {} & -- & -- & -- & --  \\\\".format(   lineStr    )
+
+
+            else:
+
+                if i % 3 != 1:
+                    armStr = ""
+
+                lintStr="{} & {} & {} & {} & {} & {}  \\\\".format( armStr , lineStr , factorStr,  aStr, bStr, cStr   )
 
 
 
@@ -3411,9 +3572,9 @@ class checkFillingFactor(object):
 
         :return:
         """
-        mwispFillingList=np.load("mwispFilling.npy")
-        cfaFillingList=np.load("cfaFilling.npy")
-        paraFitting = np.load("fittingPara.npy")
+        mwispFillingList=np.load("mwispFillingRaw.npy")
+        cfaFillingList=np.load("cfaFillingRaw.npy")
+        paraFitting = np.load("fittingParaRaw.npy")
 
 
 
@@ -3445,7 +3606,7 @@ class checkFillingFactor(object):
             if i % 3 != 1:
                 armStr=""
 
-            codeI=self.allCodeList[i]
+            codeI=self.allRawCodeList[i]
             X=np.load(codeI+"X.npy")
             Y=np.load(codeI+"Y.npy")
 
