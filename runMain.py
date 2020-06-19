@@ -258,7 +258,29 @@ class fillingMain(object):
 
 doMain=fillingMain()
 
+
+
+
+
 if 1: #testing
+
+    #for eachCoe in doFF.allRawCodeList:
+    for eachCode in [ doFF.codeRawLocalCO12]:
+    #for eachCode in doFF.allRawCodeList :
+
+        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
+
+        tb=doMain.getFFTB(doFF.calCode)
+        testTB=Table.read(tb)
+
+        doFF.testThreeFunctions( tb,showSizeRange=[-1,40],useODR=False )
+
+    sys.exit()
+
+
+
+
+if 0: #testing
 
     #for eachCoe in doFF.allRawCodeList:
     for eachCode in [ doFF.codeRawLocalCO12]:

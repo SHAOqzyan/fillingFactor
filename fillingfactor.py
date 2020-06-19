@@ -86,6 +86,17 @@ def testffAndSizeFunc(x,  a  ):
     #c=b
     return x/(x +a)
 
+
+def testffAndSizeFunc1(x, a):
+    return x / (x + a)
+
+def testffAndSizeFunc2(x, a,b):
+    return a- a*np.exp(-b*x )
+
+def testffAndSizeFunc3(x, a,b,c):
+    return a*np.exp(-b*x)  +c
+
+
     #return   np.exp(-a/np.sqrt(x) )
 def testffAndSizeFuncODR(B,x  ):
     #return  b- b*np.exp(-a*x )
@@ -954,6 +965,26 @@ class checkFillingFactor(object):
 
 
 
+    def addFFValues(self,fillingTB):
+        """
+        add filling factors to
+        :return:
+        """
+
+        if type(fillingTB)==Table:
+            ffTB=fillingTB
+        else:
+
+            ffTB = Table.read(fillingTB)
+        ffTB = ffTB[ffTB[self.ffMWISPCol] >= 0]
+        ffTB = ffTB[ffTB[self.ffMWISPCol] <= 1]
+        ffTB = self.addMWISPFFerror(ffTB)
+        ffTB = self.addCfaFFerror(ffTB)
+
+        ffTB=ffTB[ ffTB[self.ffMWISPErrorCol]>0]
+
+
+        return ffTB
 
 
     def fittingAngularSizeFF(self,fillingTB,showSizeRange=[0,40],saveTag="" ,useODR=False):
@@ -966,22 +997,10 @@ class checkFillingFactor(object):
         # get the distance splitting line between different
 
         drawCode = self.drawCodeSize
-        # draw the
-        #fillingTB = "edgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
-        if type(fillingTB)==Table:
-            ffTB=fillingTB
-        else:
-
-            ffTB = Table.read(fillingTB)
-        ffTB = ffTB[ffTB[self.ffMWISPCol] >= 0]
-        ffTB = ffTB[ffTB[self.ffMWISPCol] <= 1]
-        ffTB = self.addMWISPFFerror(ffTB)
-        ffTB = self.addCfaFFerror(ffTB)
-
 
         #remove bad clouds
 
-        ffTB=ffTB[ ffTB[self.ffMWISPErrorCol]>0]
+        ffTB= self.addFFValues(fillingTB)
 
         if 0: #do not use error control
             errorControl=ffTB[self.ffMWISPErrorCol]/ffTB[self.ffMWISPCol ]
@@ -2185,53 +2204,6 @@ class checkFillingFactor(object):
         if smFactor==1.0:
             doMWdbscan.produceCleanFITS()
 
-
-
-
-    def cleanFITSsigma2BACKUP(self,FITSfile,cutoff=2,minPts=4,contype=1,removeFITS=False):
-        """
-        Used  DBSCAN to mask noise pixels, then calculate the total flux
-        :param FITSfile:
-        :return:
-        """
-        print "Cleaning FITS ",FITSfile
-
-        rmsFITS=self.getRMSFITS()
-        saveTag=os.path.basename(FITSfile)
-        saveTag = saveTag[0 : -5]
-
-        #rawFITS="/home/qzyan/WORK/dataDisk/MWISP/G120/100_150_U.fits" #input raw coFITS
-        #doAllDBSCAN.rmsCO12=0.5 # K, set the rms
-
-
-
-        FITSrms =  self.getMeanRMS() #doFITS.getRMSFITS(FITSfile , ""  , returnRMSValue=True )
-
-        doAllDBSCAN.rmsCO12=  FITSrms
-        print "The rms ", FITSrms
-        #saveTag="Q2Test" #your project code
-
-        #cutoff=2 #in units of sigma
-        #minPts=4
-        #contype=1
-
-        doAllDBSCAN.testAllPath=self.tmpPath
-        #doAllDBSCAN.testAllPath=  FITSrms
-        doAllDBSCAN.setfastDBSCANrms(FITSrms)
-
-        dbscanLabelFITS, rawDBSCANTBFile  = doAllDBSCAN.pureDBSCAN(FITSfile, cutoff , MinPts=minPts, saveTag= saveTag , connectivity= contype , inputRMS=FITSrms, rmsFITS=rmsFITS, redo=True, keepFITSFile=True)
-
-        #
-
-        cleanFITSlabel = doAllDBSCAN.getMaskByLabel(  dbscanLabelFITS  , rawDBSCANTBFile, onlyClean=True , workPaper='FF')
-        TB=doAllDBSCAN.getMaskByLabel( dbscanLabelFITS ,  rawDBSCANTBFile , onlySelect=True ,  workPaper='FF') #only Select=True, meas we only want to select the catlaog
-
-
-
-        TB.write(  cleanFITSlabel[0:-5]+".fit"  , overwrite=True)
-        if removeFITS:
-            os.remove(cleanFITSlabel)
-            os.remove(dbscanLabelFITS)
 
     def get3DRMSData(self,rmsData,Nz):
 
@@ -5945,7 +5917,24 @@ class checkFillingFactor(object):
 
         fits.writeto(saveCorrectedFITS,rawCOData,header=rawCOHead,overwrite=True )
 
+    def testThreeFunctions(self,fillingTB):
+        ##calculate the chi-square
 
+        ffTB=self.addFFValues(fillingTB)
+
+
+
+        drawX = self.getCloudSize(useTB)
+        drawY = useTB[self.ffMWISPCol]
+        yError= useTB[self.ffMWISPErrorCol]
+
+        para,paraError=self.fittingFFAndSize(testffAndSizeFunc1, drawX,drawY, yError,sizeError=errorSize,  useODR=False)
+        print para,paraError
+        para,paraError=self.fittingFFAndSize(testffAndSizeFunc2, drawX,drawY, yError,sizeError=None,  useODR=False)
+        print para, paraError
+
+        para,paraError=self.fittingFFAndSize(testffAndSizeFunc3, drawX,drawY, yError,sizeError=None,  useODR=False)
+        print para,paraError
 
 
     def zzz(self):
