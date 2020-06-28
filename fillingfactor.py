@@ -121,7 +121,11 @@ class checkFillingFactor(object):
 
 
     saveFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/"
-    #saveFITSPath="./"
+
+    if os.path.isdir(saveFITSPath):
+        pass
+    else:
+        saveFITSPath="./"
 
     dataPath= saveFITSPath+"data/"
     rawFITS=  dataPath + "G2650Local30.fits"
