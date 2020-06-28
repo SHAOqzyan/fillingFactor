@@ -35,6 +35,7 @@ doFITS=myFITS() #used to deal fits with myPYTHON
 ########
 def ffFunction(x,a, b, c):
     #return a*(x-x0)**2+c
+    #print a, b,c
     return a*np.exp(-b*x)  +c
 
 
@@ -269,6 +270,7 @@ class checkFillingFactor(object):
 
 
     noiseFactors =  np.arange(0.0, 2.1, 0.1  ) #  in Kelvin
+    cutoffFactors =  np.arange(2.0,10.5,0.5  ) #  in Kelvin
 
 
     #just for test
@@ -321,6 +323,8 @@ class checkFillingFactor(object):
 
     allLineList= lineStrList+ lineStrList+lineStrList+lineStrList
 
+    ##################### smooth factors
+
     ffMWISPCol="fillingFactorMWISP"
     ffMWISPErrorCol="fillingFactorMWISPError"
 
@@ -336,6 +340,23 @@ class checkFillingFactor(object):
     aErrorCol="error_a"
     bErrorCol="error_b"
     cErrorCol="error_c"
+
+    ##################### cutoff factors
+
+    cutFFffMWISPCol = "cutFFfillingFactorMWISP"
+    cutFFffMWISPErrorCol = "cutFFfillingFactorMWISPError"
+
+    cutFFffCfACol = "cutFFfillingFactorCfa"
+    cutFFffCfAErrorCol = "cutFFfillingFactorErrorCfa"
+
+    cutFFaCol = "cutFFpara_a"
+    cutFFbCol = "cutFFpara_b"
+    cutFFcCol = "cutFFpara_c"
+
+    cutFFaErrorCol = "cutFFerror_a"
+    cutFFbErrorCol = "cutFFerror_b"
+    cutFFcErrorCol = "cutFFerror_c"
+
 
 
     #################################
@@ -868,7 +889,7 @@ class checkFillingFactor(object):
         #axBeam.plot(beamSize,Nlist,'o-',color='b')
 
 
-        mwispF,cfaF,parameters=self.getFillingFactorAndDraw(  beamSize, Nlist,None, 1, drawFigure=False)
+        mwispF,cfaF,parameters=self.getFillingFactorAndDraw(  beamSize, Nlist,None, 1, drawFigure=False,saveTag="_Number")
         print mwispF,cfaF
         params,paramsErros=parameters
         axBeam.scatter(  beamSize  , Nlist , s=15,  color='red'   )
@@ -1420,10 +1441,10 @@ class checkFillingFactor(object):
 
         cloudTB[self.conseCol] = cloudTB["peak"]*0 #number of spectra that have
         cloudTB[self.conseCol].unit=""
-        cloudTB["peakB"].unit=""
-        cloudTB["peakL"].unit=""
-        cloudTB["peakV"].unit=""
-        cloudTB["peak"].unit="K"
+        #cloudTB["peakB"].unit=""
+        #cloudTB["peakL"].unit=""
+        #cloudTB["peakV"].unit=""
+        #cloudTB["peak"].unit="K"
 
         cloudTB[self.eqLwCol] = cloudTB["peak"]*0 #number of spectra that have
         cloudTB[self.eqLwCol].unit="km/s"
@@ -1694,11 +1715,11 @@ class checkFillingFactor(object):
         pbar.finish()
 
         cloudTB["sum"].unit="K"
-        del cloudTB["area_ellipse"]
-        del cloudTB["flux"]
-        del cloudTB["major_sigma"]
-        del cloudTB["minor_sigma"]
-        del cloudTB["radius"]
+        #del cloudTB["area_ellipse"]
+        #del cloudTB["flux"]
+        #del cloudTB["major_sigma"]
+        #del cloudTB["minor_sigma"]
+        #del cloudTB["radius"]
 
         cloudTB["v_cen"].unit="km/s"
         cloudTB["x_cen"].unit="deg"
@@ -2203,6 +2224,7 @@ class checkFillingFactor(object):
         #only produce clean fits for smFactor 1.0
         if smFactor==1.0:
             doMWdbscan.produceCleanFITS()
+
 
 
     def get3DRMSData(self,rmsData,Nz):
@@ -3039,11 +3061,11 @@ class checkFillingFactor(object):
             parametersN=useFunction.func_code.co_argcount
             print parametersN,"?????????????"
             if parametersN== 4:
-                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,   absolute_sigma=True, p0=[1, 1, 1])
+                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,   absolute_sigma=True, p0=[1, 0.5, 1])
 
             if parametersN == 3:
                 #params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[  0.5, 1])
-                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[  10, 1])
+                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[  1, 0.5])
 
 
             if parametersN == 2:
@@ -3125,7 +3147,7 @@ class checkFillingFactor(object):
 
 
 
-    def getFillingFactorAndDraw(self,beamList,fluxList,fluxError,calID,drawFigure=False):
+    def getFillingFactorAndDraw(self,beamList,fluxList,fluxError,calID,drawFigure=False,saveTag=""):
         """
 
         :param beamList:
@@ -3139,22 +3161,27 @@ class checkFillingFactor(object):
 
         #print x
         #print y
-        try:
-            if fluxError!=None:
-                params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, sigma=fluxError,absolute_sigma=True,  p0=[np.mean(y), 0.5, np.mean(y)])
-
-            else:
-                params, paramas_covariance = optimize.curve_fit(ffFunction, x, y,   p0=[np.mean(y), 0.5, np.mean(y)])
+        #try:
 
 
-            errors = np.sqrt(np.diag(paramas_covariance))
 
-            #params,errors=self.ffOdr(x,y,fluxError) #dot no use Odr for filing factor fitting, fore there is no error in axis
+        if fluxError is not None:
 
 
-        except:
+            params, paramas_covariance = optimize.curve_fit(ffFunction, x, y, sigma=fluxError, absolute_sigma=True,  p0=[np.mean(y), 0.5, np.mean(y)])
 
-            return 0, 0, [[0,0,0],[0,0,0]]
+        else:
+            params, paramas_covariance = optimize.curve_fit(ffFunction, x, y,   p0=[np.mean(y), 0.5, np.mean(y)])
+
+
+        errors = np.sqrt(np.diag(paramas_covariance))
+
+        #params,errors=self.ffOdr(x,y,fluxError) #dot no use Odr for filing factor fitting, fore there is no error in axis
+
+
+        #except:
+
+            #return 0, 0, [[0,0,0],[0,0,0]]
 
 
 
@@ -3217,12 +3244,13 @@ class checkFillingFactor(object):
         axFitting.axvline(x=cfaBeam, ymax=0.2, ls="--", color='green', label="CfA resolutuion (8.5 arcmin)")
         axFitting.legend(loc=5)
         ###########################
-        saveTag= "{}_factorFitting_ID{}".format(self.calCode,calID)
+        saveTag= "{}_factorFitting_ID{}{}".format(self.calCode,calID,saveTag)
         if calID!=0:
             plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
             
         else:
             plt.savefig(self.paperFigurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
+            plt.savefig(self.paperFigurePath+"{}.pdf".format( saveTag ), bbox_inches='tight' )
 
             
 
@@ -3258,7 +3286,7 @@ class checkFillingFactor(object):
 
 
             fluxList.append( np.sum(processTB["sum"])*velReslution )
-
+            print eachTB, np.sum(processTB["sum"])*velReslution
             fluxError = np.sqrt(np.sum(processTB["pixN"]))*meanRMS*velReslution
 
             errorList.append(fluxError)
@@ -3293,6 +3321,9 @@ class checkFillingFactor(object):
             smTBFiles = self.getSmoothListFixNoise(getCleanTBFile=True)
 
             fluxList, fluxError = self.getFluxAndErrorList(smTBFiles)
+
+
+
 
             mwispFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamSizeArray, fluxList,fluxError, 0, drawFigure=True)
 
@@ -4148,7 +4179,32 @@ class checkFillingFactor(object):
         return fluxList
 
 
+    def addCutFFColnames(self,cleanTB):
+        ffTB=cleanTB.copy()
+        ffTB[self.cutFFffMWISPCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFffMWISPCol].unit=""
 
+        
+        ffTB[self.cutFFffCfACol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFffCfACol].unit=""
+
+        ffTB[self.cutFFaCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFaCol].unit=""
+
+        ffTB[self.cutFFbCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFcCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFaErrorCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFbErrorCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFcErrorCol] = cleanTB["peak"] * 0
+
+        ffTB[self.cutFFbCol].unit=""
+        ffTB[self.cutFFcCol].unit=""
+        ffTB[self.cutFFaErrorCol].unit=""
+        ffTB[self.cutFFbErrorCol].unit=""
+        ffTB[self.cutFFcErrorCol].unit=""
+
+
+        return ffTB
 
     def addFFColnames(self,cleanTB):
         ffTB=cleanTB.copy()
@@ -4164,9 +4220,25 @@ class checkFillingFactor(object):
 
         return ffTB
 
+    def addCutOffFluxColnames(self, cleanTB ):
+        """
+        adding columns to record cutoff flux
+        :param cleanTB:
+        :return:
+        """
+        for eachCut in self.cutoffFactors:
+ 
+            colName,colPixName=self.getFluxColNameCutoff(eachCut)
+
+            cleanTB[colName]=cleanTB["peak"]*0
+            cleanTB[colPixName]=cleanTB["peak"]*0
+            cleanTB[colPixName].unit=""
 
 
-    def getIndices(self,labelSets, choseID ):
+
+
+
+    def getIndices(self,labelSets, choseID ,return2D=False):
         Z0, Y0, X0, values1D =labelSets
         cloudIndices = np.where(values1D == choseID)
 
@@ -4174,8 +4246,13 @@ class checkFillingFactor(object):
         cY0 = Y0[cloudIndices]
         cZ0 = Z0[cloudIndices]
 
-        return tuple([cZ0, cY0, cX0])
+        if not return2D:
 
+            return tuple([cZ0, cY0, cX0])
+        else:
+            return tuple([cZ0, cY0, cX0]), tuple([  cY0, cX0])
+
+            
     def getCloudCube(self,ID):
 
         searCubePath=self.checkCloudCubeSavePath()
@@ -4299,57 +4376,28 @@ class checkFillingFactor(object):
         """
         return "fluxSM{:.1f}".format( smFactor ), "pixSM{:.1f}".format( smFactor )
 
-    def getFluxColNameNoiseChange(self,smFactor):
+
+
+    def getFluxColNameCutoff(self,cutoffFactor):
         """
         The pix name is is to record the tao pix Number of the flux, which is used to estimate the error of the total flux
         :param smFactor:
         :return:
         """
-        return "fluxNC{:.1f}".format( smFactor ), "pixNC{:.1f}".format( smFactor )
+        return "fluxCut{:.1f}".format( cutoffFactor ), "pixCut{:.1f}".format( cutoffFactor )
 
 
 
-    def getSmoothFluxColNoiseChange(self,smFITS, TB,  labelSets, sigmaCut=2.6 ):
-        """
-        :return:
-        """
 
-        ####
-        print "Extracting flux from ", smFITS
-        dataSm,headSm= doFITS.readFITS(smFITS)
-
-        noiseFactor =  self.getNoiseFactor(smFITS)
-
-        colName,colPixName=self.getFluxColNameNoiseChange(noiseFactor)
-
-        TB[colName]=TB["peak"]*0
-        TB[colPixName]=TB["peak"]*0
-
-        widgets = ['Extracting flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
-                   FileTransferSpeed()]  # see docs for other options
-        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
-        pbar.start()
+    #def getFluxColNameNoiseChange(self,cutoffFactor):
+        #"""
+        #The pix name is is to record the tao pix Number of the flux, which is used to estimate the error of the total flux
+        #:param smFactor:
+        #:return:
+        #"""
+        #return "fluxNC{:.1f}".format( cutoffFactor ), "pixNC{:.1f}".format( cutoffFactor )
 
 
-        i=0
-        noise=self.getMeanRMS()+noiseFactor
-        for eachRow in TB:
-            i=i+1
-            #gc.collect()
-
-            ID = eachRow["_idx"]
-
-            cloudIndex = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
-            coValues=   dataSm[cloudIndex]
-            coValues= coValues[coValues>=sigmaCut* noise ]
-            fluxID=np.sum(coValues)*self.getVelResolution()
-
-            eachRow[colName] = fluxID
-            eachRow[colPixName] =  len(coValues)
-
-            pbar.update(i)
-
-        pbar.finish()
 
 
 
@@ -4439,12 +4487,38 @@ class checkFillingFactor(object):
 
 
 
-    def getFluxList(self,row):
+    def getFluxList(self,row, useCutoff=False ):
         """
 
         :param row:
         :return:
         """
+
+
+        if useCutoff:
+
+            fluxList = []
+            fluxErrorList = []
+
+            meanRMS = self.getMeanRMS()
+            
+            
+            
+            for eachCutoff in self.cutoffFactors :
+                colName, colPixName = self.getFluxColNameCutoff(eachCutoff)
+                fluxList.append(row[colName])  # the flux is already K km/s
+                totalVox = row[colPixName]
+
+                totalVox = max([1, totalVox])  # assign 1 pixel error to 0 flux
+
+                eRRor = np.sqrt(totalVox) * meanRMS * self.getVelResolution()
+
+                fluxErrorList.append(eRRor)
+
+            return np.asarray(fluxList), fluxErrorList
+
+
+
 
         fluxList=[]
         fluxErrorList=[]
@@ -4486,10 +4560,81 @@ class checkFillingFactor(object):
         ID = eachRow[self.idCol]
         wmsipFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamArray, fluxList, calID=ID,   drawFigure=drawFigure)
         return wmsipFilling
+
+
+    def calculateFillingFactorCutoff(self,TB,drawFigure=False,inputID=None):
+
+        """
+        :param TB:
+        :return:
+        """
+        #TB=Table.read(TBFile)
+        #saveName="cutFF_"+TBFile
+
+        TB=self.addCutFFColnames(TB)
+
+        cutoffArray= self.cutoffFactors* self.getMeanRMS()
+
+        #add progress bar
+        widgets = ['Calculating cutoff filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+        i=0
+        for eachRow in TB:
+            i=i+1
+            pbar.update(i)
+            fluxList,fluxError = self.getFluxList(eachRow,useCutoff=True)
+
+
+            ID=eachRow[ self.idCol ]
+            if inputID!=None and ID==inputID: #for debug
+
+                print fluxList
+                wmsipFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(cutoffArray, fluxList,   fluxError, calID=ID,   drawFigure=True)
+                print "filling factor", wmsipFilling
+                print "Parameters", fittingParaAndError[0]
+                print "Para error", fittingParaAndError[1]
+
+                return
+
+            #crop
+
+
+            wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(cutoffArray,fluxList,fluxError,calID=ID,drawFigure=drawFigure)
+
+            para, paraError = fittingParaAndError
+            eachRow[self.cutFFffMWISPCol]=wmsipFilling
+            eachRow[self.cutFFffCfACol]=cfaFilling
+
+            eachRow[self.cutFFaCol]=para[0]
+            eachRow[self.cutFFbCol]=para[1]
+            eachRow[self.cutFFcCol]=para[2]
+
+
+            eachRow[self.cutFFaErrorCol]=paraError[0]
+            eachRow[self.cutFFbErrorCol]=paraError[1]
+            eachRow[self.cutFFcErrorCol]=paraError[2]
+
+
+
+
+
+
+        pbar.finish()
+        #TB.write( saveName , overwrite=True )
+        return TB
+
+
+
+
+
+
+
     def calculateFillingFactor(self,TBFile,drawFigure=False,inputID=None):
 
         """
-
         :param TB:
         :return:
         """
@@ -4929,13 +5074,37 @@ class checkFillingFactor(object):
 
         return areaCenters
 
-    def getFillingErrorAndError(self, beamSize , ffTB):
+    def getFillingErrorAndError(self, beamSize , ffTB, useCutoff=False ):
 
         """
 
         :param ffTB:
         :return:
         """
+        print ffTB.colnames
+
+        if useCutoff:
+            x = beamSize  # arcmin
+            a = ffTB[self.cutFFaCol]
+            b = ffTB[self.cutFFbCol]
+            c = ffTB[self.cutFFcCol]
+
+            stdA = ffTB[self.cutFFaErrorCol]
+            stdB = ffTB[self.cutFFbErrorCol]
+            stdC = ffTB[self.cutFFcErrorCol]
+
+            fx = ffFunction(x, a, b, c)
+
+            f0 = ffFunction(0, a, b, c)
+            varX = stdA ** 2 * (dya(x, a, b, c)) ** 2 + stdB ** 2 * (dyb(x, a, b, c)) ** 2 + stdC ** 2
+
+            var0 = stdA ** 2 * (dya(0, a, b, c)) ** 2 + stdB ** 2 * (dyb(0, a, b, c)) ** 2 + stdC ** 2
+
+            varFF = varX / f0 ** 2 + (-fx / f0 ** 2) ** 2 * var0
+
+            return fx / f0, np.sqrt(varFF)
+
+
         x=  beamSize #arcmin
         a=ffTB[self.aCol]
         b=ffTB[self.bCol]
@@ -4960,7 +5129,7 @@ class checkFillingFactor(object):
         #beamSize
 
 
-    def addMWISPFFerror(self, TB ):
+    def addMWISPFFerror(self, TB  ):
         """
 
         :return:
@@ -4985,6 +5154,21 @@ class checkFillingFactor(object):
         TB[self.ffMWISPErrorCol] = mwispFFError
 
         return TB
+
+
+    def addMWISPFFerrorCutoff(self, TB  ):
+        """
+
+        :return:
+        """
+
+        mwispFF,mwispFFError= self.getFillingErrorAndError(self.getBeamSize(), TB  ,useCutoff=True )
+
+
+        TB[self.cutFFffMWISPErrorCol] = mwispFFError
+
+        return TB
+
 
     def addCfaFFerror(self, TB ):
         """
@@ -5917,24 +6101,290 @@ class checkFillingFactor(object):
 
         fits.writeto(saveCorrectedFITS,rawCOData,header=rawCOHead,overwrite=True )
 
-    def testThreeFunctions(self,fillingTB):
+
+
+    def calculateChiSquare(self,x,y,yError, ffFunction, parameters):
+        """
+
+        :param x:
+        :param y:
+        :param yError:
+        :param function:
+        :param parameters:
+        :return:
+        """
+
+
+        yMu= ffFunction(x, *parameters )
+
+        x2=(yMu-y)**2/yError**2
+
+        x2=np.sum(x2)
+
+        print x2,"chisquare"
+
+        return x2
+
+
+    def weightedRMS(self,x,y,yError, ffFunction, parameters):
+        """
+
+        :param x:
+        :param y:
+        :param yError:
+        :param function:
+        :param parameters:
+        :return:
+        """
+
+
+        yMu= ffFunction(x, *parameters )
+
+
+        residual= yMu-y
+        #x2=(yMu-y)**2/yError**2
+
+        #x2=np.sum(x2)
+
+
+        weights= 1./yError**2
+        weights=weights/np.sum( weights )
+
+
+
+        return np.sqrt( np.sum(weights*residual**2) )
+
+
+
+    def testThreeFunctions(self,testFun,fillingTB,errorCut=None):
         ##calculate the chi-square
 
         ffTB=self.addFFValues(fillingTB)
 
+        if errorCut is not None:
+
+            selectByError=  ffTB[self.ffMWISPErrorCol] /ffTB[self.ffMWISPCol]
+            ffTB=ffTB[selectByError<=errorCut]
+        else:
+            pass
+        drawX = self.getCloudSize(ffTB)
+        drawY = ffTB[self.ffMWISPCol]
+        yError= ffTB[self.ffMWISPErrorCol]
 
 
-        drawX = self.getCloudSize(useTB)
-        drawY = useTB[self.ffMWISPCol]
-        yError= useTB[self.ffMWISPErrorCol]
-
-        para,paraError=self.fittingFFAndSize(testffAndSizeFunc1, drawX,drawY, yError,sizeError=errorSize,  useODR=False)
+        para,paraError=self.fittingFFAndSize(testFun, drawX,drawY, yError,sizeError=None,  useODR=False)
         print para,paraError
-        para,paraError=self.fittingFFAndSize(testffAndSizeFunc2, drawX,drawY, yError,sizeError=None,  useODR=False)
+        return self.calculateChiSquare(drawX,drawY,yError, testFun,para)
+
+
+    def splitTBIntoTrainingTest(self,TB,trainingRatio=0.8):
+        """
+        :param TB:
+        :return:
+        """
+        N=len(TB)
+
+        #
+        indexArray = np.arange(N)
+
+
+        np.random.shuffle(indexArray)
+
+        cutIndex=int(round( N/1.0*trainingRatio ) )
+
+
+        newRandonTB= TB[indexArray]
+
+        return newRandonTB[:cutIndex] , newRandonTB[cutIndex:]
+
+
+
+
+    def testThreeFunctionsByTraining(self, testFun, fillingTB,errorCut=None , trainingRatio=0.7,drwaFigure=False):
+        ##calculate the chi-square
+
+        ffTB = self.addFFValues(fillingTB)
+
+
+        if errorCut is not None:
+
+            selectByError = ffTB[self.ffMWISPErrorCol] / ffTB[self.ffMWISPCol]
+            ffTB = ffTB[selectByError <= errorCut]
+        else:
+            pass
+
+        #split the table with training and test
+
+        trainingTB,testTB= self.splitTBIntoTrainingTest(ffTB,trainingRatio=trainingRatio)
+
+
+
+        drawX = self.getCloudSize(trainingTB)
+        drawY = trainingTB[self.ffMWISPCol]
+        yError = trainingTB[self.ffMWISPErrorCol]
+
+        para, paraError = self.fittingFFAndSize(testFun, drawX, drawY, yError, sizeError=None, useODR=False)
         print para, paraError
 
-        para,paraError=self.fittingFFAndSize(testffAndSizeFunc3, drawX,drawY, yError,sizeError=None,  useODR=False)
-        print para,paraError
+        testX= self.getCloudSize(testTB)
+        testY=  testTB[self.ffMWISPCol]
+        testYerror=  testTB[self.ffMWISPErrorCol]
+
+        saveName="paraN{}ErrorCut{}TrainingRatio{}".format(len(para),errorCut,trainingRatio)
+        
+        if drwaFigure: #draw a figure
+            plt.clf()
+            fig = plt.figure(figsize=(10, 8))
+            rc('text', usetex=True)
+            rc('font', **{'family': 'sans-serif', 'size': 13, 'serif': ['Helvetica']})
+            mpl.rcParams['text.latex.preamble'] = [
+                r'\usepackage{tgheros}',  # helvetica font
+                r'\usepackage{sansmath}',  # math-font matching  helvetica
+                r'\sansmath'  # actually tell tex to use it!
+                r'\usepackage{siunitx}',  # micro symbols
+                r'\sisetup{detect-all}',  # force siunitx to use the fonts
+            ]
+
+            axCO = plt.subplot(111)
+
+            axCO.scatter(drawX,drawY,color="gray",s=5  )
+
+            axCO.scatter(testX,testY,color="blue",s=5  )
+            axCO.set_xlim(0,30)
+            axCO.legend(loc=4)
+
+            drawRange=  np.linspace(0,30,100)
+
+            axCO.plot( drawRange, testFun(drawRange,*para),"r-",lw=1 )
+
+
+            axCO.set_xlabel("Error threshold")
+            axCO.set_ylabel("Chi-Square")
+
+            plt.savefig(saveName+"trainingTest.png", bbox_inches='tight', dpi=300)
+
+        #return self.calculateChiSquare(testX, testY, testYerror, testFun, para)
+        return self.weightedRMS(testX, testY, testYerror, testFun, para)
+
+    def getLabelSet(self,labelData):
+        """
+
+        :param labelData:
+        :return:
+        """
+        noiseMask= np.min(   labelData[0] )
+
+        clusterIndex1D = np.where(labelData > noiseMask )
+        clusterValue1D = labelData[clusterIndex1D]
+
+        Z0, Y0, X0 = clusterIndex1D
+        labelSets=[Z0, Y0, X0, clusterValue1D ]
+
+        return  labelSets
+
+    def getSmoothFluxColCutoff(self, rawCOFITS, labelFITS, rmsFITS,TBFile ):
+        """
+        get the change of flux according to the cutoff sigmas, remember, this has to be cut according to the rmsData
+        :return:
+        """
+
+        ####
+        print "Extracting cutoff flux from ", rawCOFITS
+
+        dataLabel , headLabel = doFITS.readFITS( labelFITS )
+        dataRaw , headRaw = doFITS.readFITS( rawCOFITS )
+        rmsData,rmsHead=doFITS.readFITS( rmsFITS )
+
+        TB=Table.read(TBFile)
+        self.addCutOffFluxColnames(TB)
+
+
+        labelSets= self.getLabelSet(dataLabel) #[Z0, Y0, X0, clusterValue1D ]
+
+
+
+        #colName,colPixName=self.getFluxColNameNoiseChange(cutoffFactor)
+
+        widgets = ['Extracting cutoff flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+        TB.sort("area_exact")
+        TB.reverse()
+        i=0
+        for eachRow in TB:
+            i=i+1
+            #gc.collect()
+
+            ID = eachRow["_idx"]
+
+            cloudIndex,cloudIndex2D = self.getIndices(labelSets, ID,return2D=True)  # np.where( cleanDataSM1==ID )
+            coValues=   dataRaw[cloudIndex]
+            rmsValues= rmsData[cloudIndex2D]
+
+
+            for eachCutoff in self.cutoffFactors:
+
+                selectCoValues= coValues[ coValues>=rmsValues*eachCutoff ]
+
+                #print selectCoValues
+
+                colName, colPixName = self.getFluxColNameCutoff(eachCutoff)
+
+                eachRow[colName]= np.sum( selectCoValues )*self.getVelResolution()
+                eachRow[colPixName]= len(selectCoValues)
+
+
+            
+
+
+
+            pbar.update(i)
+
+        pbar.finish()
+        TB.write("cutoffFlux_"+TBFile , overwrite=True)
+
+        TB=self.calculateFillingFactorCutoff(TB)
+        TB.write("cutoffFF_"+TBFile , overwrite=True)
+
+        print TB
+        #now TB contains all  cutOffFlux Info to calculate fifling factors
+
+
+    def cleanRawData(self):
+
+        """
+        remove data with largeRMS
+        :return:
+        """
+
+        #lRange, bRange, that need to set as nan
+
+        #lRangeNAN=[2814, 2868] # 26.25
+        #bRangeNAN=[1062,1122] #3.75 4.25
+
+        CO12RMSFITS="rawCO12RMS.fits"
+        rmsData,rmsHead=doFITS.readFITS( CO12RMSFITS )
+
+        wcsRMS=WCS(rmsHead,naxis=2)
+
+        lowerLeftPoint = wcsRMS.wcs_world2pix(26.25,3.75,0)
+        upperRightPoint= wcsRMS.wcs_world2pix(25.8,4.25,0)
+
+
+        lowerLeftPoint=map(round,lowerLeftPoint )
+        upperRightPoint=map(round,upperRightPoint )
+
+
+        x0,y0=map(int,lowerLeftPoint )
+        x1,y1=map(int,upperRightPoint )
+
+
+
+        rmsData[y0+1:y1, x0+1:x1+1 ]=np.nan
+        fits.writeto("test.fits",rmsData,header=rmsHead,overwrite=True)
+
 
 
     def zzz(self):

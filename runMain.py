@@ -1,4 +1,6 @@
-from fillingfactor import checkFillingFactor
+#from fillingfactor import checkFillingFactor
+from fillingfactor import *
+
 import os
 import sys
 from astropy.table import Table,vstack
@@ -109,6 +111,9 @@ class fillingMain(object):
         for eachF in noiseFiles:
 
             smFactor=doFF.getSmoothFactor(eachF)
+            if smFactor != 6.5 :
+                continue
+
 
             if onlyFirst:
                 if smFactor>1.0:
@@ -245,6 +250,103 @@ class fillingMain(object):
 
 
 
+    def drawChiSquareTest(self,trainingRatio=0.8):
+        """
+
+        :return:
+        """
+        print "Testing chi-square of three functions..."
+
+        chiSquareList1 = []
+        chiSquareList2 = []
+        chiSquareList3 = []
+
+
+
+        errorCutList =  a=np.arange(0.1,2.1,0.1)  #[0.50,0.40,0.30,0.20,0.10,0.05]
+        #errorCutList= [0.2, 0.5]
+        doFF.calCode = doFF.codeRawLocalCO12
+
+        tb = self.getFFTB(doFF.calCode)
+        testTB = Table.read(tb)
+
+        for eachEcut in  errorCutList:
+
+
+            if 0: # testThreeFunctionsByTraining
+
+                cs1=doFF.testThreeFunctions(testffAndSizeFunc1, testTB , errorCut = eachEcut  )
+                chiSquareList1.append(cs1)
+
+                cs2=doFF.testThreeFunctions(testffAndSizeFunc2, testTB , errorCut = eachEcut  )
+                chiSquareList2.append(cs2)
+
+
+                cs3=doFF.testThreeFunctions(testffAndSizeFunc3, testTB , errorCut = eachEcut  )
+                chiSquareList3.append(cs3)
+            if 1:
+
+                cs1=doFF.testThreeFunctionsByTraining(testffAndSizeFunc1, testTB , trainingRatio=trainingRatio, errorCut = eachEcut  )
+                chiSquareList1.append(cs1)
+
+                cs2=doFF.testThreeFunctionsByTraining(testffAndSizeFunc2, testTB , trainingRatio=trainingRatio,  errorCut = eachEcut  )
+                chiSquareList2.append(cs2)
+
+
+                cs3=doFF.testThreeFunctionsByTraining(testffAndSizeFunc3, testTB , trainingRatio=trainingRatio,  errorCut = eachEcut  )
+                chiSquareList3.append(cs3)
+
+        #draw three functions
+        plt.clf()
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 13, 'serif': ['Helvetica']})
+        mpl.rcParams['text.latex.preamble'] = [
+            r'\usepackage{tgheros}',  # helvetica font
+            r'\usepackage{sansmath}',  # math-font matching  helvetica
+            r'\sansmath'  # actually tell tex to use it!
+            r'\usepackage{siunitx}',  # micro symbols
+            r'\sisetup{detect-all}',  # force siunitx to use the fonts
+        ]
+
+
+        axCO = plt.subplot(111 )
+
+        axCO.plot(  errorCutList, chiSquareList1,'.-',color='blue', markersize=7,lw=1,label=r"$\rm y=x/\left(x+a\right)$")
+        axCO.plot(  errorCutList, chiSquareList2,'.-',color='green', markersize=7,lw=1,label=r"$\rm y=a\left(1-\exp\left(-bx\right)\right)$")
+        axCO.plot(  errorCutList, chiSquareList3,'.-',color='red', markersize=7,lw=1,label=r"$\rm a\exp\left(-bx\right)  +c$")
+
+        axCO.legend(loc=4)
+        axCO.set_ylim(0,0.15)
+
+        axCO.set_xlabel("Maximum relative error of filling factors")
+        axCO.set_ylabel("Chi-Square")
+        axCO.set_ylabel("Weighted rms of test data")
+
+        #print "{:.0f}\% test data".format(1-trainingRatio), "What the hell?????????"
+        at = AnchoredText(r"{:.0f}\% test data".format((1-trainingRatio)*100), loc=2, frameon=False)
+        axCO.add_artist(at)
+
+        saveTag= "modelTestTestRatio{:.2f}".format(1-trainingRatio)
+
+        plt.savefig(   saveTag+".png"  , bbox_inches='tight', dpi=600)
+        plt.savefig(   saveTag+".pdf"  , bbox_inches='tight', dpi=600)
+
+
+
+    def getCutffFF(self,calCode):
+
+        doFF.calCode=calCode
+
+        rawCOFITS=doFF.getRawCOFITS()
+        labelFITS= doFF.getSmoothAndNoiseFITSSingle( smFactor=1.0,  noiseFactor=0.0 , getCleanFITS=True)
+        TBFile=self.getFFTB(calCode)
+        rmsFITS=doFF.getRMSFITS()
+        doFF.getSmoothFluxColCutoff(rawCOFITS,labelFITS,rmsFITS, TBFile )
+
+
+
+
     def zzz(self):
         """
 
@@ -260,9 +362,125 @@ doMain=fillingMain()
 
 
 
+if 1: #clean data
+    #some area has too large noise, need to removethis par
+    pass
+    doFF.cleanRawData()
+if 0: # clean all fits, #Do this tonight
+
+    for eachCode in doFF.allRawCodeList:
+
+        doMain.cleanFITS( eachCode, onlyFirst=False )
+
+        doMain.removeUselessFITS(eachCode)
+
+    sys.exit()
 
 
-if 1: #testing
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+    doFF.callFillingFactorAllSM() #this is over all cloud fits
+    #doFF.printFillingCat()
+    #doFF.printFluxCat()
+
+    #doFF.drawCloudNumberChange()
+
+    sys.exit()
+
+
+
+
+
+if 0:
+
+    for eachCode in doFF.allRawCodeList :
+
+        doFF.calCode= eachCode  #doFF.codeRawLocalCO12
+        tbFile=doMain.getFFTB(doFF.codeRawLocalCO12)
+
+        doFF.calculateFillingFactor( tbFile, drawFigure=True )
+        #doFF.calculateFillingFactor( tbFile,   inputID=395765 )
+        aaaa
+    sys.exit()
+
+
+if 0:
+    doFF.calCode=doFF.codeRawLocalCO12
+
+    TB=Table.read("cutoffFF_pureEdgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit")
+
+
+    newTB=doFF.addMWISPFFerrorCutoff(TB)
+    newTB= doFITS.selectTBByColRange(newTB, "cutFFfillingFactorMWISPError",maxV=0.3  )
+
+
+    newTB.write("aaaaa.fit")
+
+    sys.exit()
+
+if 0:
+    #doMain.getCuoffFlux( doFF.codeRawLocalCO18 )
+    doMain.getCutffFF( doFF.codeRawLocalCO12 )
+
+    sys.exit()
+
+
+
+
+
+if 0:
+    #doMain.getCuoffFlux( doFF.codeRawLocalCO18 )
+    #doMain.getCutffFF( doFF.codeRawLocalCO13 )
+
+    doFF.calCode=doFF.codeRawLocalCO12
+    TB=Table.read("cutoffFlux_pureEdgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit")
+
+    TB.sort("sum")
+    TB.reverse()
+
+
+    newTB=doFF.addMWISPFFerrorCutoff(TB)
+
+    print newTB
+
+
+    #doFF.calculateFillingFactorCutoff(TB,drawFigure=True)
+    sys.exit()
+
+
+
+if 0:
+    doMain.drawChiSquareTest(trainingRatio=0.8 )
+    #doMain.drawChiSquareTest(trainingRatio=0.7 )
+
+    sys.exit()
+
+
+
+
+
+if 0:
+
+    for eachCode in doFF.allRawCodeList :
+        doMain.getFillingFactorAndEdge(eachCode,drawFigure=False)
+
+
+
+    sys.exit()
+
+
+
+
+if 0:  # find clouds #
+
+    for eachCode in doFF.allRawCodeList:
+        doFF.getFluxListForEachCloud(calCode= eachCode )
+
+    sys.exit()
+
+
+if 0: #testing
 
     #for eachCoe in doFF.allRawCodeList:
     for eachCode in [ doFF.codeRawLocalCO12]:
@@ -273,7 +491,7 @@ if 1: #testing
         tb=doMain.getFFTB(doFF.calCode)
         testTB=Table.read(tb)
 
-        doFF.testThreeFunctions( tb,showSizeRange=[-1,40],useODR=False )
+        doFF.testThreeFunctions( tb  )
 
     sys.exit()
 
@@ -300,16 +518,6 @@ if 0: #testing
 
 
 
-if 0: # clean all fits, #Do this tonight
-
-    for eachCode in doFF.allRawCodeList:
-
-        doMain.cleanFITS( eachCode, onlyFirst=True )
-        doMain.removeUselessFITS(eachCode)
-
-    sys.exit()
-
-
 
 
 
@@ -326,17 +534,6 @@ if 0:#find clouds #
 
 
 
-if 0:
-    doFF.calCode=doFF.codeRawLocalCO12
-    #doFF.callFillingFactorAllSM() #this is over all cloud fits
-    #doFF.printFillingCat()
-    #doFF.printFluxCat()
-
-    doFF.drawCloudNumberChange()
-
-
-
-    sys.exit()
 
 
 
@@ -370,19 +567,6 @@ if 0:
 
 #draw filling factor for a particular ID
 
-
-if 0:
-
-    #for eachCode in doFF.allRawCodeList :
-
-    doFF.calCode=doFF.codeRawLocalCO12
-    tbFile=doMain.getFFTB(doFF.codeRawLocalCO12)
-
-    doFF.calculateFillingFactor( tbFile, drawFigure=True )
-    #doFF.calculateFillingFactor( tbFile,   inputID=395765 )
-
-
-    sys.exit()
 
 if 0:
     doFF.calCode=doFF.codeRawLocalCO12
