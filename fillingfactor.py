@@ -913,7 +913,7 @@ class checkFillingFactor(object):
 
 
 
-    def getBeamSize(self,calCode="3333"):
+    def getBeamSize(self ):
         if "12" in self.calCode:
             return self.rawBeamSizeCO12
 
@@ -2034,7 +2034,7 @@ class checkFillingFactor(object):
 
 
 
-    def smoothFITSbySMFactor(self,rawCOFITS, rawBeamSize = 52./60  ):
+    def smoothFITSbySMFactor(self,rawCOFITS=None, rawBeamSize = 52./60  ):
 
         """
         Default
@@ -2044,6 +2044,9 @@ class checkFillingFactor(object):
         """
         #calCode=rawCOFITS[0:-5]
         #self.calCode=calCode
+
+        if rawCOFITS is None:
+            rawCOFITS=self.getRawCOFITS()
         for eachSMFactor in self.smoothFactors:
             print "Smooting by factor of ",eachSMFactor
             self.smoothCubeSingle(rawCOFITS,  savePath=self.tmpPath,disFactor=eachSMFactor)
@@ -6363,27 +6366,37 @@ class checkFillingFactor(object):
 
         #lRangeNAN=[2814, 2868] # 26.25
         #bRangeNAN=[1062,1122] #3.75 4.25
+        for eachCode in self.allRawCodeList:
 
-        CO12RMSFITS="rawCO12RMS.fits"
-        rmsData,rmsHead=doFITS.readFITS( CO12RMSFITS )
-
-        wcsRMS=WCS(rmsHead,naxis=2)
-
-        lowerLeftPoint = wcsRMS.wcs_world2pix(26.25,3.75,0)
-        upperRightPoint= wcsRMS.wcs_world2pix(25.8,4.25,0)
+            self.calCode=eachCode
 
 
-        lowerLeftPoint=map(round,lowerLeftPoint )
-        upperRightPoint=map(round,upperRightPoint )
+            rmsFITS= self.getRMSFITS()
+            rmsData,rmsHead=doFITS.readFITS( rmsFITS )
+
+            wcsRMS=WCS(rmsHead,naxis=2)
+
+            lowerLeftPoint = wcsRMS.wcs_world2pix(26.25,3.75,0)
+            upperRightPoint= wcsRMS.wcs_world2pix(25.8,4.25,0)
 
 
-        x0,y0=map(int,lowerLeftPoint )
-        x1,y1=map(int,upperRightPoint )
+            lowerLeftPoint=map(round,lowerLeftPoint )
+            upperRightPoint=map(round,upperRightPoint )
 
 
+            x0,y0=map(int,lowerLeftPoint )
+            x1,y1=map(int,upperRightPoint )
 
-        rmsData[y0+1:y1, x0+1:x1+1 ]=np.nan
-        fits.writeto("test.fits",rmsData,header=rmsHead,overwrite=True)
+            rmsData[y0+1:y1, x0+1:x1+1 ]=np.nan
+            fits.writeto(rmsFITS,rmsData,header=rmsHead,overwrite=True)
+
+            COFITS=self.getRawCOFITS()
+
+            dataCO,headCO=doFITS.readFITS(COFITS)
+            dataCO[:,y0+1:y1, x0+1:x1+1 ]=np.nan
+
+            fits.writeto( COFITS ,dataCO,header=headCO,overwrite=True)
+
 
 
 

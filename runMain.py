@@ -362,7 +362,16 @@ doMain=fillingMain()
 
 
 
-if 1: #clean data
+if 1:
+
+    for eachCode in doFF.allRawCodeList:
+        doFF.calCode=eachCode
+        doFF.smoothFITSbySMFactor()
+
+    sys.exit()
+
+
+if 0: #clean data
     #some area has too large noise, need to removethis par
     pass
     doFF.cleanRawData()
