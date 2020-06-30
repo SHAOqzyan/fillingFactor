@@ -123,6 +123,7 @@ class checkFillingFactor(object):
     saveFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/"
 
     if os.path.isdir(saveFITSPath):
+
         pass
     else:
         saveFITSPath="./"
@@ -1536,7 +1537,7 @@ class checkFillingFactor(object):
 
                 spectraPeak = np.max(meanSpectral)
 
-                area = self.getVelResolution() * np.sum(meanSpectral)
+                area = self.getVelResolution() * np.sum(meanSpectral,dtype=float)
 
                 eqLineWidth = area / spectraPeak
                 eachC[self.eqLwCol] = eqLineWidth  # np.max( [totalPeakN1, totalPeakN2, totalPeakN3] )
@@ -2097,7 +2098,7 @@ class checkFillingFactor(object):
         fluxList = []
 
         for eachTB in TBList:
-            totalFlux=np.sum(eachTB["sum"])*self.getVelResolution() #convert to 0.2 km/s
+            totalFlux=np.sum(eachTB["sum"],dtype=float)*self.getVelResolution() #convert to 0.2 km/s
 
             fluxList.append(totalFlux)
 
@@ -2113,7 +2114,7 @@ class checkFillingFactor(object):
 
         for eachTB in TBList:
 
-            totalArea=np.sum(eachTB["area_exact"])  #convert to 0.2 km/s
+            totalArea=np.sum(eachTB["area_exact"],dtype=float)  #convert to 0.2 km/s
             areaList.append(totalArea)
 
         return np.asarray(areaList)
@@ -2954,6 +2955,9 @@ class checkFillingFactor(object):
 
         ceanTBFiless = self.getSmoothListFixNoise(getCleanTBFile=True)
 
+        cleanFITSFileSm1=self.getSmoothAndNoiseFITSSingle(getCleanFITS=True)
+
+
         eqSigmaList = []
 
         for i in range(len(smFiles)):
@@ -2963,14 +2967,14 @@ class checkFillingFactor(object):
             print fitsName
             print tbFileName
 
-            eqDownToSigma = self.getEqualCutOff(fitsName, tbFileName) / self.getMeanRMS()
+            eqDownToSigma = self.getEqualCutOff(fitsName, tbFileName, cleanFITSFileSm1 ) / self.getMeanRMS()
             print eqDownToSigma
             eqSigmaList.append(eqDownToSigma)
 
         print eqSigmaList
         print  "the equal sigma list is ", np.mean(eqSigmaList)
 
-    def getEqualCutOff(self,fitsFile,TBFile):
+    def getEqualCutOff(self,fitsFile,TBFile,cleaFITSFileSm1):
 
         """
         get the equivalent cutoff of fitsFile to get the equivalent flux with DBSCAN catalg
@@ -2979,30 +2983,30 @@ class checkFillingFactor(object):
         :return:
         """
 
-
+        print cleaFITSFileSm1,"file "
         tbFile=Table.read(TBFile)
 
         dbscanFlux = np.sum(tbFile["sum"])*self.getVelResolution()
-
+        print "Total dbscanFlux",dbscanFlux
         precision=0.0001 #percent
 
-
-
         downToKUp = 3. #upper, the lower is 3 K
-        downToKLow = 1.0 #upper, the lower is 1 K
+        downToKLow =0.01 #upper, the lower is 1 K
 
 
         data, head = myFITS.readFITS(fitsFile)
         #self.maskNoiseEdge(data)
 
+        dataCluster,headCluster=myFITS.readFITS(cleaFITSFileSm1)
 
-
+        data[ dataCluster==0 ]=0 #mask the data area
+        print   np.nansum(data[data >0]) *self.getVelResolution()
         while 1:
             #calcualate cutoff rms
             downToKTry = (downToKUp + downToKLow) / 2.
             #print "Trying downToK, ", downToKTry
             sumV = np.nansum(data[data >= downToKTry]) *self.getVelResolution()
-
+            print downToKTry,"cutoff flux ",sumV
             ###
             diff= abs( sumV-dbscanFlux)/dbscanFlux
             #print diff
@@ -3015,7 +3019,7 @@ class checkFillingFactor(object):
 
                 else: # sumV is too small, decrease the try value by dowong
                     downToKUp= downToKTry
-            print downToKTry
+
 
         return downToKTry
 
@@ -3209,7 +3213,7 @@ class checkFillingFactor(object):
         rc('text', usetex=True)
         rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
 
-        if 0:
+        if 1:
             mpl.rcParams['text.latex.preamble'] = [
                 r'\usepackage{tgheros}',  # helvetica font
                 r'\usepackage{sansmath}',  # math-font matching  helvetica
@@ -3226,14 +3230,26 @@ class checkFillingFactor(object):
 
         fittingX = np.arange(0, np.max(x), 0.01)
         # axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
-        axFitting.plot(fittingX, ffFunction(fittingX, *params), color='blue', lw=1.0)
 
-        fillingWMISP = "The filling factor ({}) of MWISP is: {:.3f}".format(self.calCode, wmsipFilling)
-        fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, cfaFilling)
+        aDig,aPower=self.getScitificNotition(params[0])
+        cDig,cPower=self.getScitificNotition(params[2])
+        armStr=self.getArmStr()
+        lineStr=self.getLineStr()
+        fillingWMISP = r"The BFF of {} in the {} arm is: {:.3f}".format(lineStr,armStr, wmsipFilling)
+
+        formulaFunction=r"$y={}\times10^{}\exp\left(-{:.3f}x\right)+{}\times10^{}$   ".format(aDig, aPower,params[1], cDig, cPower   )
+
+        ffs=axFitting.plot(fittingX, ffFunction(fittingX, *params), color='blue', lw=1.0,label=formulaFunction)
+
+
+
+
+        #fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, cfaFilling)
+        ffs2=axFitting.plot(fittingX, ffFunction(fittingX, *params), color='white',alpha=0, lw=1.0,label=fillingWMISP)
 
         #three paramters
 
-        paramterValues="a: {:.2f}(+/-{:.2f}), b: {:.2f}(+/-{:.2f}), c: {:.2f}(+/-{:.2f})".format(params[0],errors[0],params[1],errors[1],params[2],errors[2])
+        #paramterValues="a: {:.2f}(+/-{:.2f}), b: {:.2f}(+/-{:.2f}), c: {:.2f}(+/-{:.2f})".format(params[0],errors[0],params[1],errors[1],params[2],errors[2])
 
         # at = AnchoredText(r"The noise rms is {} K (1$\sigma$)".format(self.MWISPrmsCO12), loc=1, frameon=False)
         # axFitting.add_artist(at)
@@ -3241,15 +3257,27 @@ class checkFillingFactor(object):
         # if cfaBeam> np.max(x):
         # cfaFilling= 0
 
-        at = AnchoredText(fillingWMISP + "\n" + fillingCfA+"\n"+paramterValues, loc=1, frameon=False)
-        axFitting.add_artist(at)
+        #at = AnchoredText(fillingWMISP + "\n" + fillingCfA+"\n"+paramterValues, loc=1, frameon=False)
+        #at = AnchoredText(fillingWMISP , loc=3, frameon=False  )
+        #axFitting.add_artist(at)
         ###
 
         axFitting.axvline(x=0, ls="--", color='black')
+        axFitting.set_xlim(-0.5,9.5)
 
         # draw CfA resolution
-        axFitting.axvline(x=cfaBeam, ymax=0.2, ls="--", color='green', label="CfA resolutuion (8.5 arcmin)")
-        axFitting.legend(loc=5)
+        #axFitting.axvline(x=cfaBeam, ymax=0.2, ls="--", color='green', label="CfA resolutuion (8.5 arcmin)")
+
+        #manual legend
+
+
+
+
+        axFitting.legend( loc=1)
+
+        axFitting.set_xlabel("Beam size (arcmin)")
+        #axFitting.set_ylabel("Flux (arcmin)")
+        axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
         ###########################
         saveTag= "{}_factorFitting_ID{}{}".format(self.calCode,calID,saveTag)
         if calID!=0:
@@ -3264,9 +3292,43 @@ class checkFillingFactor(object):
         plt.close(fig )
         gc.collect()
 
-
+        aaaa
 
         return wmsipFilling, cfaFilling,  fittingParaAndError
+
+    def getScitificNotition(self, number ):
+        a="{:.3e}".format( number )
+        digitalPart,power=a.split("e")
+        return digitalPart,int(power)
+
+
+    def getArmStr(self):
+        """
+        return arm str
+        :return:
+        """
+
+        if "Local" in self.calCode:
+            return "Local"
+
+        if "Sgr" in self.calCode:
+            return "Sagittarius"
+        if "Out" in self.calCode:
+            return "Outer"
+
+        if "Scu" in self.calCode:
+            return "Scutum"
+
+    def getLineStr(self):
+
+        if "12" in self.calCode:
+            return "$^{12}\mathrm{CO}$"
+
+        if "13" in self.calCode:
+            return "$^{13}\mathrm{CO}$"
+
+        if "18" in self.calCode:
+            return "$\mathrm{C}^{18}\mathrm{O}$"
 
     def getFluxAndErrorList(self,TBList):
         """
@@ -3293,7 +3355,7 @@ class checkFillingFactor(object):
 
 
             fluxList.append( np.sum(processTB["sum"])*velReslution )
-            print eachTB, np.sum(processTB["sum"])*velReslution
+            #print eachTB, np.sum(processTB["sum"])*velReslution
             fluxError = np.sqrt(np.sum(processTB["pixN"]))*meanRMS*velReslution
 
             errorList.append(fluxError)
@@ -3329,8 +3391,8 @@ class checkFillingFactor(object):
 
             fluxList, fluxError = self.getFluxAndErrorList(smTBFiles)
 
-
-
+            print beamSizeArray
+            print fluxList
 
             mwispFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamSizeArray, fluxList,fluxError, 0, drawFigure=True)
 
@@ -4127,7 +4189,7 @@ class checkFillingFactor(object):
             indexSelect = np.logical_and(  data==ID , dataSm>0 )
 
             coValues= CODataRaw[indexSelect]    #rawCOValues[smLabels>0]
-            flux=np.sum(coValues)*self.getVelResolution()
+            flux=np.sum(coValues,dtype=float)*self.getVelResolution()
             print flux
             fluxList.append(flux)
 
@@ -4175,7 +4237,7 @@ class checkFillingFactor(object):
 
             coValues=   dataSm[cloudIndex]
             coValues= coValues[coValues>=sigmaCut* noise ]
-            flux=np.sum(coValues)*self.getVelResolution()
+            flux=np.sum(coValues,dtype=float)*self.getVelResolution()
             fluxList.append(flux)
 
 
@@ -4293,7 +4355,7 @@ class checkFillingFactor(object):
 
         dataCO,head=doFITS.readFITS(cloudCube)
 
-        intMap=np.sum(dataCO,axis=0)
+        intMap=np.sum(dataCO,axis=0,dtype=float)
 
         ##########################
         #draw integration map
@@ -4443,7 +4505,7 @@ class checkFillingFactor(object):
             cloudIndex = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
             coValues=   dataSm[cloudIndex]
             coValues= coValues[coValues>=sigmaCut* noise ]
-            fluxID=np.sum(coValues)*self.getVelResolution()
+            fluxID=np.sum(coValues,dtype=float)*self.getVelResolution()
 
             eachRow[colName] = fluxID
             eachRow[colPixName] =  len(coValues)
@@ -5814,7 +5876,7 @@ class checkFillingFactor(object):
 
         pvData,pvHead=doFITS.readFITS("/home/qzyan/WORK/diskMWISP/fillingFactorData/data/rawLocalCO12_LV.fits")
 
-        lvData=np.sum(rawData,axis=1)
+        lvData=np.sum(rawData,axis=1,dtype=float)
 
 
 
@@ -6339,7 +6401,7 @@ class checkFillingFactor(object):
 
                 colName, colPixName = self.getFluxColNameCutoff(eachCutoff)
 
-                eachRow[colName]= np.sum( selectCoValues )*self.getVelResolution()
+                eachRow[colName]= np.sum( selectCoValues ,dtype=float )*self.getVelResolution()
                 eachRow[colPixName]= len(selectCoValues)
 
 
@@ -6358,6 +6420,30 @@ class checkFillingFactor(object):
         print TB
         #now TB contains all  cutOffFlux Info to calculate fifling factors
 
+    def getSubDataAndRms(self):
+        
+        extraFITSPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/extraFITS/"
+
+
+        subCO12=extraFITSPath+"0260+040U.fits"
+        subCO13=extraFITSPath+"0260+040L.fits"
+        subCO18=extraFITSPath+"0260+040L2.fits"
+
+
+
+        subCO12Rms = extraFITSPath+"0260+040U_rms.fits"
+        subCO13Rms = extraFITSPath+"0260+040L_rms.fits"
+        subCO18Rms = extraFITSPath+"0260+040L2_rms.fits"
+
+        if "12" in self.calCode:
+            return subCO12,subCO12Rms
+        if "13" in self.calCode:
+            return subCO13,subCO13Rms
+        if "18" in self.calCode:
+            return subCO18,subCO18Rms
+        
+        
+
 
     def cleanRawData(self):
 
@@ -6365,6 +6451,16 @@ class checkFillingFactor(object):
         remove data with largeRMS
         :return:
         """
+
+        #connect rawData with an extra data, to make a complete fits
+
+
+        rawDataBackupPath="/home/qzyan/WORK/diskMWISP/fillingFactorData/data/backupRawData/"
+        rawRmsBackupPath="/home/qzyan/WORK/myDownloads/fillingFactor/backup/"
+
+
+
+
 
         #lRange, bRange, that need to set as nan
 
@@ -6374,33 +6470,105 @@ class checkFillingFactor(object):
 
             self.calCode=eachCode
 
+            subCO,subRMS= self.getSubDataAndRms()
 
-            rmsFITS= self.getRMSFITS()
-            rmsData,rmsHead=doFITS.readFITS( rmsFITS )
+            rmsFITSInComplete= self.getRMSFITS()
+            rmsFITSInCompleteFile=  rawRmsBackupPath+os.path.basename(rmsFITSInComplete )
 
-            wcsRMS=WCS(rmsHead,naxis=2)
-
-            lowerLeftPoint = wcsRMS.wcs_world2pix(26.25,3.75,0)
-            upperRightPoint= wcsRMS.wcs_world2pix(25.8,4.25,0)
-
-
-            lowerLeftPoint=map(round,lowerLeftPoint )
-            upperRightPoint=map(round,upperRightPoint )
+            dataFITSInComplete= self.getRawCOFITS()
+            dataFITSInCompleteFile=rawDataBackupPath+ os.path.basename(dataFITSInComplete )
 
 
-            x0,y0=map(int,lowerLeftPoint )
-            x1,y1=map(int,upperRightPoint )
 
-            rmsData[y0+1:y1, x0+1:x1+1 ]=np.nan
-            fits.writeto(rmsFITS,rmsData,header=rmsHead,overwrite=True)
+            self.addSubFITS2D(rmsFITSInCompleteFile, subRMS, rmsFITSInComplete)
 
-            COFITS=self.getRawCOFITS()
+            self.addSubFITS3D(dataFITSInCompleteFile, subCO ,dataFITSInComplete)
 
-            dataCO,headCO=doFITS.readFITS(COFITS)
-            dataCO[:,y0+1:y1, x0+1:x1+1 ]=np.nan
 
-            fits.writeto( COFITS ,dataCO,header=headCO,overwrite=True)
 
+
+    def addSubFITS3D(self,fitsInComplete,fitsSub,outFITS,lRange=[25.8,26.25 ], bRange= [3.75, 4.25  ]):
+        """
+        take two fits, and merge them together
+
+        :param fitsInComplete:
+        :param fitsSub:
+        :param lRange:
+        :param bRabge:
+        :return:
+        """
+
+        print "Adding ",fitsSub, "to",fitsInComplete
+
+        dataInComplete, headInComplete = doFITS.readFITS(fitsInComplete)
+
+        dataSpec, velSpec = doFITS.getSpectraByIndex(dataInComplete, headInComplete, 0, 0)
+
+        vRange = [np.min(velSpec), np.max(velSpec)]
+
+        print vRange,lRange,bRange
+
+        cropCubeSub = doFITS.cropFITS(fitsSub, outFITS=None, Vrange=vRange, Lrange=lRange, Brange=bRange,   overWrite=True)
+
+
+
+        dataCropSub, headCropSub = doFITS.readFITS(cropCubeSub)
+
+
+        ##########
+        wcsRMS = WCS(headInComplete, naxis=2)
+
+        lowerLeftPoint = wcsRMS.wcs_world2pix(max(lRange), min(bRange), 0)
+        upperRightPoint = wcsRMS.wcs_world2pix(min(lRange), max(bRange), 0)
+
+        lowerLeftPoint = map(round, lowerLeftPoint)
+        upperRightPoint = map(round, upperRightPoint)
+
+        x0, y0 = map(int, lowerLeftPoint)
+        x1, y1 = map(int, upperRightPoint)
+
+        dataInComplete[:,y0 + 1:y1, x0 + 1:x1 + 1] = dataCropSub[:,1:-1,1:]
+
+        fits.writeto(outFITS, dataInComplete, header=headInComplete, overwrite=True)
+
+
+    def addSubFITS2D(self,fitsInComplete,fitsSub,outFITS,lRange=[25.8,26.25 ], bRange= [3.75, 4.25  ]):
+        """
+        take two fits, and merge them together
+
+        :param fitsInComplete:
+        :param fitsSub:
+        :param lRange:
+        :param bRabge:
+        :return:
+        """
+        print "Adding ",fitsSub
+        dataInComplete, headInComplete = doFITS.readFITS(fitsInComplete)
+
+
+        cropCubeSub = doFITS.cropFITS2D(fitsSub, outFITS=None, Lrange=lRange, Brange=bRange,   overWrite=True)
+
+
+
+        #######
+        dataCropSub, headCropSub = doFITS.readFITS(cropCubeSub)
+
+
+        ##########
+        wcsRMS = WCS(headInComplete, naxis=2)
+
+        lowerLeftPoint = wcsRMS.wcs_world2pix(max(lRange), min(bRange), 0)
+        upperRightPoint = wcsRMS.wcs_world2pix(min(lRange), max(bRange), 0)
+
+        lowerLeftPoint = map(round, lowerLeftPoint)
+        upperRightPoint = map(round, upperRightPoint)
+
+        x0, y0 = map(int, lowerLeftPoint)
+        x1, y1 = map(int, upperRightPoint)
+
+        dataInComplete[ y0 + 1:y1, x0 + 1:x1 + 1] = dataCropSub[ 1:-1,1:]
+
+        fits.writeto(outFITS, dataInComplete, header=headInComplete, overwrite=True)
 
 
 

@@ -111,8 +111,7 @@ class fillingMain(object):
         for eachF in noiseFiles:
 
             smFactor=doFF.getSmoothFactor(eachF)
-            if smFactor != 6.5 :
-                continue
+
 
 
             if onlyFirst:
@@ -361,27 +360,29 @@ class fillingMain(object):
 doMain=fillingMain()
 
 
-
 if 1:
 
     for eachCode in doFF.allRawCodeList:
-        doFF.calCode=eachCode
+        doFF.calCode=  eachCode
         doFF.smoothFITSbySMFactor()
 
     sys.exit()
+
 
 
 if 0: #clean data
     #some area has too large noise, need to removethis par
     pass
     doFF.cleanRawData()
+
+
+
 if 0: # clean all fits, #Do this tonight
 
-    for eachCode in doFF.allRawCodeList:
+    for eachCode in doFF.allRawCodeList: #dow SgrCO12 and Local CO12 first
 
-        doMain.cleanFITS( eachCode, onlyFirst=False )
-
-        doMain.removeUselessFITS(eachCode)
+        doMain.cleanFITS( eachCode  , onlyFirst=True )
+        doMain.removeUselessFITS( eachCode  )
 
     sys.exit()
 
@@ -396,6 +397,43 @@ if 0:
     #doFF.drawCloudNumberChange()
 
     sys.exit()
+
+
+
+if 0:
+
+    doFF.calCode=doFF.codeRawLocalCO12
+    doFF.testEqualCutOff()
+
+    sys.exit()
+
+
+#the first flux,should used the raw molecular flux, not 2.6 sigma cut, fix this but
+
+if 0: # addNoise
+    doFF.calCode=doFF.codeRawSgrCO12
+    smFiles = doFF.getSmFITSFileList()
+
+    for eachSMF in smFiles:
+        print "Processing ",eachSMF
+        doFF.addNoiseByRMSFITS( eachSMF,noiseFactor=0.0 )
+
+
+
+
+
+
+
+if 0: # clean all fits, #Do this tonight
+
+    for eachCode in doFF.allRawCodeList:
+
+        doMain.cleanFITS( eachCode, onlyFirst=False )
+
+        doMain.removeUselessFITS(eachCode)
+
+    sys.exit()
+
 
 
 
@@ -577,12 +615,6 @@ if 0:
 #draw filling factor for a particular ID
 
 
-if 0:
-    doFF.calCode=doFF.codeRawLocalCO12
-    doFF.testEqualCutOff()
-
-
-    sys.exit()
 
 
 if 0:
