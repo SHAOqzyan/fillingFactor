@@ -503,7 +503,7 @@ if 0: #
 
 
 
-if 0: #pipeline
+if 1: #pipeline
 
     processCode=   doFF.surveyCodeMWISPCO13
     # SMOOTH
@@ -511,7 +511,7 @@ if 0: #pipeline
         doFF.calCode= processCode
         doFF.smoothFITSbySMFactor()
     # addnoise
-
+    aaaaaaaaaaaaaaaaaaa
     if 1:
         smFiles = doFF.getSmFITSFileList()
 
