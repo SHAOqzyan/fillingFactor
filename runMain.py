@@ -492,7 +492,7 @@ if 1: #pipeline of calculating filling factors
         doFF.calCode= processCode
         doFF.smoothFITSbySMFactor()
     # addnoise
-
+    aaaaaa
     if 1:
         smFiles = doFF.getSmFITSFileList()
 
