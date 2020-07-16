@@ -229,23 +229,21 @@ class fillingMain(object):
         #plt.title('Fourier transform')
         plt.savefig(   "fftTest{}.png".format(drawChannel) , bbox_inches='tight', dpi=600)
 
-    def fittingFFWithAllTBs(self,codeList,saveTag=""):
+
+    def getCombinFFTB(self,codeList):
         """
-        fitting an overall filling factor, with all samples
+
         :return:
         """
-
-        #according to the code list
-
-        #for eachCoe in doFF.allRawCodeList:
-
         combineTB=None
 
         for eachCode in  codeList:
+
         #for eachCode in doFF.allRawCodeList :
 
             doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
             tb=doMain.getFFTB(doFF.calCode)
+
             testTB=Table.read(tb)
             print "Total number of clouds of ",eachCode, " is ",len(testTB)
             #add size in beam colName
@@ -260,7 +258,22 @@ class fillingMain(object):
             else:
                 combineTB=vstack([combineTB,testTB])
 
+        return combineTB
 
+
+
+
+    def fittingFFWithAllTBs(self,codeList,saveTag=""):
+        """
+        fitting an overall filling factor, with all samples
+        :return:
+        """
+
+        #according to the code list
+
+        #for eachCoe in doFF.allRawCodeList:
+
+        combineTB=self.getCombinFFTB(codeList)
 
         # use BeamFactorUnitFor combined clouds
         doFF.fittingAngularSizeFF( combineTB,showSizeRange=[-1,40],saveTag=saveTag,useBeamFactorUnit=True )
@@ -282,11 +295,21 @@ class fillingMain(object):
 
         errorCutList =  np.arange(0.1,2.1,0.1)  #[0.50,0.40,0.30,0.20,0.10,0.05]
         #errorCutList= [0.2, 0.5]
+
         doFF.calCode = doFF.codeRawLocalCO12
 
-        tb = self.getFFTB(doFF.calCode)
-        ffTB = Table.read(tb)
-        ffTB = doFF.addFFValues(ffTB)
+        if 1: #use single molecular cloud
+
+            tb = self.getFFTB(doFF.calCode)
+            ffTB = Table.read(tb)
+
+
+            ffTB = doFF.addFFValues(ffTB)
+            print len( ffTB)
+            ###### #####test with all molecular clouds
+        else:
+            ffTB=self.getCombinFFTB(doFF.allRawCodeList)
+            ffTB = doFF.addFFValues(ffTB)
 
 
 
@@ -358,11 +381,52 @@ class fillingMain(object):
         ]
 
 
+
+
+        #draw a figure with
+        axFF = plt.subplot(121 )
+
+        print "Traing number of examples",len(trainHalfErrorCut)
+        print "test number   of examples",len(testHalfErrorCut)
+
+
+        drawXTrain = doFF.getCloudSize(trainHalfErrorCut)
+        drawYTrain = trainHalfErrorCut[doFF.ffMWISPCol]
+        yErrorTrain = trainHalfErrorCut[doFF.ffMWISPErrorCol]
+
+        axFF.errorbar(drawXTrain,   drawYTrain ,  yerr= yErrorTrain ,    markersize=1 , fmt='o',  color='gray' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="Training data (50\% maximum relative BFF errors)",zorder=1 )
+
+
+        drawXTest = doFF.getCloudSize(testHalfErrorCut)
+        drawYTest = testHalfErrorCut[doFF.ffMWISPCol]
+        yErrorTest = testHalfErrorCut[doFF.ffMWISPErrorCol]
+
+        axFF.errorbar(drawXTest,   drawYTest ,  yerr= yErrorTest ,    markersize=1 , fmt='o',  color='black' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="Validation data (50\% maximum relative BFF errors)" ,zorder=2 )
+
+
+
+        showSizeRange=[-1,100]
+        axFF.set_ylim([-0.01, 1.1])
+        axFF.set_xlim( showSizeRange )
+
+        axFF.legend(loc= 4 )
+
+        #draw four lines
+        x = np.arange(-0.1, showSizeRange[1], 0.01)
+        axFF.plot(x, testffAndSizeFunc1(x, *paraHalfErrorCutff1 ), "b-", lw=1 ,zorder=3)
+        axFF.plot(x, testffAndSizeFunc2(x, *paraHalfErrorCutff2 ), "g-", lw=1 ,zorder=3)
+        axFF.plot(x, testffAndSizeFunc3(x, *paraHalfErrorCutff3 ), "r-", lw=1 ,zorder=3)
+
+        axFF.axvline(x=0, ls="--", color='black', lw=0.8)
+        axFF.axhline(y=0,ls="--",color='black',lw=0.8)
+
+
+
         axTest = plt.subplot(122 )
 
-        axTest.plot(  errorCutList, chiSquareList1,'.-',color='blue', markersize=7,lw=1,label=r"$\mathit f=\mathit l/\left(\mathit l+ a\right)$")
-        axTest.plot(  errorCutList, chiSquareList2,'.-',color='green', markersize=7,lw=1,label=r"$\mathit f=a\left(1-\exp\left(-b\mathit l\right)\right)$")
-        axTest.plot(  errorCutList, chiSquareList3,'.-',color='red', markersize=7,lw=1,label=r"$\mathit f= a\exp\left(-b \mathit l\right)  +c$")
+        axTest.plot(  errorCutList, chiSquareList1,'.-',color='blue', markersize=7,lw=1,label=r"$\mathit f=\mathit l/\left(\mathit l+ a\right)$" )
+        axTest.plot(  errorCutList, chiSquareList2,'.-',color='green', markersize=7,lw=1,label=r"$\mathit f=a\left(1-\exp\left(-b\mathit l\right)\right)$" )
+        axTest.plot(  errorCutList, chiSquareList3,'.-',color='red', markersize=7,lw=1,label=r"$\mathit f= a\exp\left(-b \mathit l\right)  +c$" )
 
         axTest.legend(loc=4)
         axTest.set_ylim(0,0.15)
@@ -378,39 +442,7 @@ class fillingMain(object):
         saveTag= "modelTestTestRatio{:.2f}".format(1-trainingRatio)
 
 
-        #draw a figure with
-        axFF = plt.subplot(121 )
 
-        print "Traing number of examples",len(trainHalfErrorCut)
-        print "test number   of examples",len(testHalfErrorCut)
-
-
-        drawXTrain = doFF.getCloudSize(trainHalfErrorCut)
-        drawYTrain = trainHalfErrorCut[doFF.ffMWISPCol]
-        yErrorTrain = trainHalfErrorCut[doFF.ffMWISPErrorCol]
-
-        axFF.errorbar(drawXTrain,   drawYTrain ,  yerr= yErrorTrain ,    markersize=1 , fmt='o',  color='gray' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="Training data (50\% maximum relative BFF errors)" )
-
-
-        drawXTest = doFF.getCloudSize(testHalfErrorCut)
-        drawYTest = testHalfErrorCut[doFF.ffMWISPCol]
-        yErrorTest = testHalfErrorCut[doFF.ffMWISPErrorCol]
-
-        axFF.errorbar(drawXTest,   drawYTest ,  yerr= yErrorTest ,    markersize=1 , fmt='o',  color='black' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="Validation data (50\% maximum relative BFF errors)" )
-        showSizeRange=[-1,40]
-        axFF.set_ylim([-0.01, 1.1])
-        axFF.set_xlim( showSizeRange )
-
-        axFF.legend(loc= 4 )
-
-        #draw four lines
-        x = np.arange(-0.1, showSizeRange[1], 0.01)
-        axFF.plot(x, testffAndSizeFunc1(x, *paraHalfErrorCutff1 ), "b-", lw=1 )
-        axFF.plot(x, testffAndSizeFunc2(x, *paraHalfErrorCutff2 ), "g-", lw=1 )
-        axFF.plot(x, testffAndSizeFunc3(x, *paraHalfErrorCutff3 ), "r-", lw=1 )
-
-        axFF.axvline(x=0, ls="--", color='black', lw=0.8)
-        axFF.axhline(y=0,ls="--",color='black',lw=0.8)
 
         plt.savefig(   saveTag+".png"  , bbox_inches='tight', dpi=600)
         plt.savefig(   saveTag+".pdf"  , bbox_inches='tight' )
@@ -434,6 +466,8 @@ class fillingMain(object):
 
 
 
+
+
     def zzz(self):
         """
 
@@ -447,10 +481,71 @@ class fillingMain(object):
 
 doMain=fillingMain()
 
+
+
+if 1: #pipeline of calculating filling factors
+
+    processCode=   doFF.surveyCodeCOHRSCO32
+    doFF.calCode=processCode
+    # SMOOTH
+    if 1:
+        doFF.calCode= processCode
+        doFF.smoothFITSbySMFactor()
+    # addnoise
+
+    if 1:
+        smFiles = doFF.getSmFITSFileList()
+
+        for eachSMF in smFiles:
+            print "Processing ", eachSMF
+            doFF.addNoiseByRMSFITS(eachSMF, noiseFactor=0.0)
+    #search cloud
+    if 1:
+        doMain.cleanFITS(processCode, onlyFirst=True)
+        doMain.removeUselessFITS(processCode)
+
+    #calculate BFF
+    if 1:
+        doFF.getFluxListForEachCloud(calCode=  processCode  )
+    if 1:
+        doMain.getFillingFactorAndEdge(  processCode, drawFigure=False )
+
+
+
+    sys.exit()
+
+
 if 0: #prepare the data
     #doFF.calCode=  doFF.surveyCodeCfACO12
 
     doFF.clearSurveyData()
+
+
+
+
+if 0:
+    doMain.drawChiSquareTest(trainingRatio=0.8 )
+    doMain.drawChiSquareTest(trainingRatio=0.7 )
+
+    sys.exit()
+
+
+
+if 0 :
+
+    allCodeList = doFF.allRawCodeList+doFF.surveyCodeList
+
+    for eachCode in  allCodeList:
+
+        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
+
+        tb=doMain.getFFTB(doFF.calCode)
+        testTB=Table.read(tb)
+
+        doMain.getFillingFactorAndEdge(eachCode, drawFigure=False)
+
+    sys.exit()
+
 
 
 if 0: #testing
@@ -467,6 +562,54 @@ if 0: #testing
         doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,40],useODR=False )
 
     sys.exit()
+
+
+
+if 0: #
+
+    processCode=   doFF.surveyCodeOGSCO12
+    # SMOOTH
+    doFF.calCode= processCode
+
+    doMain.drawFillingFactor( processCode ,drawFigure=True,inputID=  26  )
+
+    sys.exit()
+
+
+
+if 0: # draw survey results
+
+    doFF.drawSurveyBFF()
+    sys.exit()
+
+
+if 0: #pipeline
+
+    processCode=   doFF.surveyCodeCfACO12
+    # SMOOTH
+    doFF.calCode= processCode
+
+
+    #calculate BFF
+    doFF.getFluxListForEachCloud(calCode=  processCode  )
+    doMain.getFillingFactorAndEdge(  processCode, drawFigure=False )
+
+    sys.exit()
+
+
+
+if 0:
+    doFF.calCode=doFF.surveyCodeCfACO12
+    doFF.getSNRMedian()
+
+    doFF.calCode=doFF.surveyCodeGRSCO13
+    doFF.getSNRMedian()
+
+    doFF.calCode=doFF.surveyCodeOGSCO12
+    doFF.getSNRMedian()
+
+
+
 
 
 
@@ -491,54 +634,8 @@ if 0:
 
 
 
-if 0: #
-
-    processCode=   doFF.surveyCodeOGSCO12
-    # SMOOTH
-    doFF.calCode= processCode
-
-    doMain.drawFillingFactor( processCode ,drawFigure=True,inputID=  26  )
-
-    sys.exit()
 
 
-
-if 1: #pipeline
-
-    processCode=   doFF.surveyCodeMWISPCO13
-    # SMOOTH
-    if 1:
-        doFF.calCode= processCode
-        doFF.smoothFITSbySMFactor()
-    # addnoise
-    aaaaaaaaaaaaaaaaaaa
-    if 1:
-        smFiles = doFF.getSmFITSFileList()
-
-        for eachSMF in smFiles:
-            print "Processing ", eachSMF
-            doFF.addNoiseByRMSFITS(eachSMF, noiseFactor=0.0)
-    #search cloud
-    if 1:
-        doMain.cleanFITS(processCode, onlyFirst=False)
-        doMain.removeUselessFITS(processCode)
-
-    #calculate BFF
-    if 1:
-        doFF.getFluxListForEachCloud(calCode=  processCode  )
-    if 1:
-        doMain.getFillingFactorAndEdge(  processCode, drawFigure=False )
-
-
-
-    sys.exit()
-
-if 0: # draw survey results
-    processCode=   doFF.surveyCodeCfACO12
-    doFF.calCode=  doFF.surveyCodeCfACO12
-
-    doFF.drawSurveyBFF()
-    sys.exit()
 
 if 0: #pipeline
 
@@ -713,12 +810,6 @@ if 0:  # find clouds #
 
 
 
-
-if 0:
-    doMain.drawChiSquareTest(trainingRatio=0.8 )
-    doMain.drawChiSquareTest(trainingRatio=0.7 )
-
-    sys.exit()
 
 
 

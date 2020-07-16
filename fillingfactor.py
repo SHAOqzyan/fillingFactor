@@ -435,9 +435,21 @@ class checkFillingFactor(object):
 
     surveyCodeMWISPCO13= "surveyMWISPCO13Q1"
 
-    #MWISPBeam= rawBeamSizeCO13   #arcom
-    surveyBeamSize={surveyCodeCfACO12:CfABeam, surveyCodeGRSCO13:GRSBeam ,  surveyCodeOGSCO12: OGSBeam , surveyCodeMWISPCO13:rawBeamSizeCO13   }
 
+    #COHRS
+    #rmsMWISPCO13 = "surveyMWISPCO13Q1_RMS.fits"
+
+    #MWISPCO13 = dataPath+ "surveyMWISPCO13Q1.fits"
+
+    surveyCodeCOHRSCO32= "surveyCOHRSCO32Q1"
+    
+
+    #MWISPBeam= rawBeamSizeCO13   #arcom
+    surveyBeamSize={surveyCodeCfACO12:CfABeam, surveyCodeGRSCO13:GRSBeam ,  surveyCodeOGSCO12: OGSBeam , surveyCodeMWISPCO13:rawBeamSizeCO13 , surveyCodeCOHRSCO32:  16/60. }
+    surveyMeanRMSDict = {surveyCodeCfACO12: 0.1 , surveyCodeGRSCO13: 0.1 ,  surveyCodeOGSCO12: 0.6 , surveyCodeMWISPCO13:MWISPrmsCO13 , surveyCodeCOHRSCO32: 0.4  }
+    surveyVelResDict = {surveyCodeCfACO12: 1.3 , surveyCodeGRSCO13:  0.2 ,  surveyCodeOGSCO12: 0.8 , surveyCodeMWISPCO13:MWISPrmsCO13 ,  surveyCodeCOHRSCO32: 1. }
+
+    surveyCodeList=[ surveyCodeCfACO12, surveyCodeGRSCO13, surveyCodeOGSCO12   ]
 
     smoothTag="_SmFactor_"
 
@@ -1392,7 +1404,7 @@ class checkFillingFactor(object):
             axFFvel.plot(x, testffAndSizeFunc(x, a),  "-", color='black',  lw=1, label=formulaTex)
 
             # add formula in the figure
-            axFFvel.legend(loc=5 )
+            axFFvel.legend(loc=5 ,  handlelength =1.2)
 
             axFFvel.axvline(x=0, ls="--", color='black', lw=0.8)
             axFFvel.axhline(y=0,ls="--",color='black',lw=0.8)
@@ -2371,6 +2383,12 @@ class checkFillingFactor(object):
 
         isRaw = self.isRaw( self.calCode )
 
+
+        if "survey" in self.calCode:
+            return  self.surveyMeanRMSDict[self.calCode]
+
+
+
         if "12" in self.calCode and not isRaw:
             return self.MWISPrmsCO12
 
@@ -2537,7 +2555,7 @@ class checkFillingFactor(object):
         :param targetBeam:
         :return:
         """
-
+        print "smoothing ...",FITSfile
         rawBeamSize = self.getBeamSize() # 52. / 60,
         fitsNameBase= os.path.basename(FITSfile)
 
@@ -2570,13 +2588,14 @@ class checkFillingFactor(object):
         processCube.allow_huge_operations = True
 
 
+
         RawBeam = radio_beam.Beam(major=rawBeamSize * u.arcmin, minor=rawBeamSize * u.arcmin, pa=0 * u.deg)
         processCube.beam =  RawBeam
 
         beamTarget = radio_beam.Beam(major=targetBeam * u.arcmin, minor= targetBeam * u.arcmin, pa=0 * u.deg)
 
 
-        new_cube = processCube.convolve_to(beamTarget)
+        new_cube = processCube.convolve_to(beamTarget )
 
         new_cube.write(saveName,overwrite=True)
 
@@ -3552,13 +3571,13 @@ class checkFillingFactor(object):
                 saveTag=saveTag+"_indivi"
                 plt.savefig(self.figurePath + "{}.pdf".format(saveTag), bbox_inches='tight' )
 
-            plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
+            plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=100)
             #plt.savefig(self.figurePath+"{}.pdf".format( saveTag ), bbox_inches='tight' )
             if testPoly:
                 plt.savefig(self.figurePath + "{}.pdf".format(saveTag), bbox_inches='tight' )
 
         else:
-            plt.savefig(self.paperFigurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=200)
+            plt.savefig(self.paperFigurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=100)
             plt.savefig(self.paperFigurePath+"{}.pdf".format( saveTag ), bbox_inches='tight' )
 
             
@@ -4853,6 +4872,16 @@ class checkFillingFactor(object):
         print "Extracting flux from ", smFITS
         dataSm,headSm= doFITS.readFITS(smFITS)
 
+
+        #calculate the angular size of eachClouds
+
+        db=abs(headSm["CDELT2"] ) *60
+
+        dl= abs( headSm["CDELT1"] ) * 60
+
+        omega=db*dl/0.25 #convert to MWISP unite #do not multiply omega, because a common factor on flux and error, does not change the filling factor
+
+
         smFactor = self.getSmoothFactor(smFITS)
         colName,colPixName=self.getFluxColName(smFactor)
 
@@ -4894,7 +4923,10 @@ class checkFillingFactor(object):
         :return:
         """
 
-        if calCode==None:
+
+
+
+        if calCode is None:
             testCode=self.calCode
         else:
             testCode = calCode
@@ -4902,6 +4934,10 @@ class checkFillingFactor(object):
         if testCode=="":
             print "Please set you calculation code!"
             aaaaaaaaaaaaa
+
+
+        if "survey" in  testCode :
+            return self.surveyVelResDict[testCode]
 
 
         isRawCode = self.isRaw(testCode)
@@ -4958,7 +4994,9 @@ class checkFillingFactor(object):
             return np.asarray(fluxList),  np.asarray(fluxErrorList) 
 
 
+        #lse
 
+        #should use the original value ast the first values
 
         fluxList=[]
         fluxErrorList=[]
@@ -4978,7 +5016,10 @@ class checkFillingFactor(object):
             fluxErrorList.append( eRRor)
 
 
+        #replace the first with raw sum and error
 
+        #fluxList[0]= row["sum"]*self.getVelResolution()
+        #fluxErrorList[0]=  np.sqrt( row["pixN"] )*meanRMS*self.getVelResolution()
         return np.asarray(fluxList), np.asarray(fluxErrorList)
 
 
@@ -5094,10 +5135,15 @@ class checkFillingFactor(object):
         i=0
 
 
+
         if inputID!=None:
             
             eachRow=TB[TB["_idx"] ==inputID ][0]
             fluxList,fluxError = self.getFluxList(eachRow)
+
+            fluxList=fluxList
+            fluxError=fluxError
+
 
 
             wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDraw(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,testMCMC=True)
@@ -7143,6 +7189,7 @@ class checkFillingFactor(object):
 
             arrayList.append("{:.1f}".format(eachN))
         return arrayList
+
     def drawAnObservationBFF(self,axBFFcon,angularSizeRange=[2,3],observeTag="GMC in local group galaxies with ALMA" ,color="blue",lHalf=5.532,minX=-15 ):
         """
 
@@ -7181,6 +7228,27 @@ class checkFillingFactor(object):
         """
         
         
+        #COHRS  
+        
+        rawCOHRSData = "/home/qzyan/WORK/dataDisk/COHRS/final/COHRSCO13Q132bitms.fits"
+
+        cropVrangeCOHRS =  [-5, 70] #
+
+        cropBrangeCOHRS =  [-0.275, 0.275]
+        cropLrangeCOHRS =  [24.75, 48.75]
+
+        saveCOHRSCO13 = self.dataPath + self.surveyCodeCOHRSCO32+".fits"
+        saveCOHRSCO13_RMS = self.surveyCodeCOHRSCO32+"_RMS.fits"
+
+        doFITS.cropFITS(rawCOHRSData, Vrange=cropVrangeCOHRS,  Brange=cropBrangeCOHRS,  Lrange= cropLrangeCOHRS , outFITS=saveCOHRSCO13, overWrite=True)
+        doFITS.getRMSFITS(saveCOHRSCO13, saveCOHRSCO13_RMS)
+
+
+        
+        
+        return #below has been processed
+        
+        
         #mwisp
         rawMWISPData = "/home/qzyan/WORK/diskMWISP/fillingFactorData/data/mimicGRSMWISP.fits"
 
@@ -7195,7 +7263,7 @@ class checkFillingFactor(object):
         doFITS.getRMSFITS(saveMWISPCO13, saveMWISPCO13_RMS)
 
 
-        return #below has been processed
+
         
         
         #CfAdata
@@ -7268,11 +7336,10 @@ class checkFillingFactor(object):
         drawX=np.arange(0.1,max(xRange),0.1)
 
 
-        scaling=1.0
-        drawY=scaling*drawX/(scaling*drawX+5.532)
+        drawY= drawX/( drawX+5.532)
 
         ################# draw  MWISP
-        if 1:
+        if 0:
             self.calCode=self.codeRawLocalCO13
             print self.getBeamSize(),"Beam Size???????"
 
@@ -7291,6 +7358,62 @@ class checkFillingFactor(object):
 
             FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
             axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.5 , fmt='o',  color='gray' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"MWISP local $^{12}$CO clouds" )
+
+
+
+        ############### draw OGSCO12
+        if 1:
+            self.calCode=self.surveyCodeOGSCO12
+            print self.getBeamSize(),"Beam Size???????"
+
+            cfaFFTBFile="pureEdgeInfo_fillingFactor_fluxTB_surveyOGSCO12Q2surveyOGSCO12Q2_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit" ###
+            cfaFFTB= Table.read(cfaFFTBFile) ####
+
+            selectGood = ~np.isinf(  cfaFFTB["cov22"] )
+
+            selectGood  = np.logical_and(selectGood,  cfaFFTB["para_a"]>0   )
+
+            cfaFFTB = cfaFFTB[selectGood]
+            size=self.getCloudSize(cfaFFTB)
+            sizeInBeam=size/self.getBeamSize()
+
+
+
+            FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.2 , fmt='o',  color='red' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"OGS $^{12}$CO clouds",zorder=1 )
+
+
+
+        ############
+
+
+
+
+
+
+        ################# draw MWISP test
+        if 0:
+            self.calCode=self.surveyCodeMWISPCO13
+            print self.getBeamSize(),"Beam Size???????"
+
+            cfaFFTBFile="pureEdgeInfo_fillingFactor_fluxTB_surveyMWISPCO13Q1surveyMWISPCO13Q1_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit" ###
+            cfaFFTB= Table.read(cfaFFTBFile) ####
+
+            selectGood = ~np.isinf(  cfaFFTB["cov22"] )
+
+            selectGood  = np.logical_and(selectGood,  cfaFFTB["para_a"]>0   )
+
+            cfaFFTB = cfaFFTB[selectGood]
+            size=self.getCloudSize(cfaFFTB)
+            sizeInBeam=size/self.getBeamSize()
+
+
+
+            FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=3 , fmt='o',  color='gray' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"MWISP 13CO $^{12}$CO clouds" )
+
+
+
 
 
         ############### draw GRSCO13
@@ -7312,34 +7435,7 @@ class checkFillingFactor(object):
 
 
             FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
-            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize= 1.5  , fmt='o',  color='purple' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"GRS $^{13}$CO clouds" )
-
-
-        ############### draw OGSCO12
-        self.calCode=self.surveyCodeOGSCO12
-        print self.getBeamSize(),"Beam Size???????"
-
-        cfaFFTBFile="pureEdgeInfo_fillingFactor_fluxTB_surveyOGSCO12Q2surveyOGSCO12Q2_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit" ###
-        cfaFFTB= Table.read(cfaFFTBFile) ####
-
-        selectGood = ~np.isinf(  cfaFFTB["cov22"] )
-
-        selectGood  = np.logical_and(selectGood,  cfaFFTB["para_a"]>0   )
-
-        cfaFFTB = cfaFFTB[selectGood]
-        size=self.getCloudSize(cfaFFTB)
-        sizeInBeam=size/self.getBeamSize()
-
-
-
-        FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
-        axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.5 , fmt='o',  color='red' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"OGS $^{12}$CO clouds" )
-
-
-
-        ############
-
-
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize= 1.2  , fmt='o',  color='purple' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"GRS $^{13}$CO clouds",zorder=2 )
 
 
 
@@ -7362,19 +7458,18 @@ class checkFillingFactor(object):
 
 
             FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
-            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=3 , fmt='o',  color='green' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"CfA $^{12}$CO clouds" )
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.2 , fmt='o',  color='green' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"CfA $^{12}$CO clouds" ,zorder=3)
+
+        #plot fff line
+        formulaTex = r"$\mathit f= \frac{{\mathit l}}{{\left(\mathit l+ 5.532  \right) }}$"
+        ####
+        #at = AnchoredText(formulaTex, loc=5, frameon=False)
+        #axBFFSurvey.add_artist(at)
+
+        axBFFSurvey.plot(drawX,drawY,color="black" ,lw=1 ,zorder=4,label=formulaTex)
 
 
-
-
-        axBFFSurvey.plot(drawX,drawY,color="blue" ,lw=1 )
-
-
-
-
-
-
-        axBFFSurvey.legend(loc=4)
+        axBFFSurvey.legend(loc=4 , handlelength=1.2)
         axBFFSurvey.set_ylim(-0.1,1.1)
 
         axBFFSurvey.set_xlim( xRange )
@@ -7388,6 +7483,34 @@ class checkFillingFactor(object):
         plt.savefig(  "BFFsurvey.png", bbox_inches='tight' ,dpi=300)
 
 
+    def getSNRMedian(self):
+        """
+
+        :return:
+        """
+        cloudLabelFITS=self.getSmoothAndNoiseFITSSingle(  smFactor=1.0, noiseFactor=0.0,getCleanFITS=True)
+
+
+
+
+        coFITS=self.getRawCOFITS()
+        rmsFITS=self.getRMSFITS()
+
+
+        dataLabel,headLabel=doFITS.readFITS(cloudLabelFITS)
+        minV=np.min(dataLabel[0])
+        dataCO,headCO=doFITS.readFITS(coFITS  )
+
+        rmsData,rmsHead=doFITS.readFITS(rmsFITS)
+
+
+
+
+        snrData= dataCO/rmsData
+
+        snrArray = snrData[dataLabel > minV]
+
+        print "min,median,max", np.min(snrArray) , np.median(snrArray) , np.max(snrArray )
 
 
     def zzz(self):
