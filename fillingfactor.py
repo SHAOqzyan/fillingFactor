@@ -21,9 +21,12 @@ from scipy import optimize
 from progressbar import *
 from astropy.table import Table,vstack
 import gc
-
+import scipy
 
 from bffLsq import myBffLsq
+
+import matplotlib.cm as cm
+from scipy.stats import norm
 
 
 #sys.path.insert(1, '/home/qzyan/WORK/myDownloads/MWISPcloud')
@@ -37,10 +40,332 @@ doFITS=myFITS() #used to deal fits with myPYTHON
 
 
 ########
+
+def ffFunctionCutDG(x,a ,b ,c ,d  ) :
+    return a*np.exp(-b*x**2 ) +   c*  np.exp(-d *x**2  )
+
+def ffFunctionCutSG(x,a ,b ,c ) :
+    return a*np.exp(-b*(x-c)**2 )
+    #return a*np.exp(-b*(x )**2 )
+
+
+def ffFunctionCutParaBBBB(x, a, b, c, mu):
+    sigma = 15
+    fi = 0.5 * (1 + scipy.special.erf((x - mu) * sigma / np.sqrt(2)))
+    if 1:
+
+        # print a,b,c,mu
+
+        f = - 2 * (mu - b) / ((mu - b) ** 2 + c)
+        d = a * ( (mu - b) ** 2 + c)  # *np.exp(f*mu)
+
+        # f= -   (mu-b) /(   (mu-b)**2 + c  )/mu
+        # d=   a*( (mu-b)**2 +c  ) *np.exp(f*mu**2)
+
+        if type(x) == int or type(x) == float:
+            return a * ((x - b) ** 2 + c)
+
+        return a * ((x - b) ** 2 + c) * (1 - fi) + fi * d * np.exp(-f * (x - mu))
+
+        array1 = x[x <= mu]
+        array2 = x[x > mu]
+
+        y1 = a * ((array1 - b) ** 2 + c)  # a*(array1-b)**2 +c#  a * (array1-b)**2+  c
+        y2 = d * np.exp(-f * (array2 - mu))
+        # y2=   d*np.exp(-f* array2**2 )
+
+        newY = np.concatenate((y1, y2))
+        return newY  # *  moduleGaussion
+def ffFunctionCutPara(x,a,b,c ):
+
+
+
+    return a* x**2+ b*x+c
+
+
+    sigma=15
+    fi =  0.5 * (1 + scipy.special.erf((x - mu) * sigma/np.sqrt(2) )    )
+    if 1:
+
+        d= - 2*a*(mu-b)/f*np.exp(f*mu)
+        c=   -2*(mu-b)/f-(mu-b)**2
+
+        #print a,b,c,mu
+
+        #f= - 2* (mu-b) /(   (mu-b)**2 +c  )
+        #d=   a*( (mu-b)**2 +c  ) #*np.exp(f*mu)
+
+        #f= -   (mu-b) /(   (mu-b)**2 + c  )/mu
+        #d=   a*( (mu-b)**2 +c  ) *np.exp(f*mu**2)
+
+
+
+
+        if type(x)==int or type(x)==float:
+
+            return  a*( (x-b)**2 +c  )
+
+
+
+        return  a*(  (x - b)**2 + c  ) * (1-fi)+ fi*d*np.exp(-f * x )
+
+
+
+        array1 = x[x <= mu]
+        array2 = x[x >  mu]
+
+
+        y1=  a*( (array1-b)**2 +c  )  #a*(array1-b)**2 +c#  a * (array1-b)**2+  c
+        y2=   d*np.exp(-f* (array2-mu) )
+        #y2=   d*np.exp(-f* array2**2 )
+
+        
+        newY=np.concatenate(( y1, y2 ))
+        return  newY   # *  moduleGaussion
+ 
+ 
+def ffFunctionCutTest(x,a ,b,c,  mu,sigma,  ) :
+
+
+
+
+    #return a*np.exp(-b*x) + c*np.exp(-sigma*x)+mu
+    #print a,b,c,mu,sigma
+    #print a,b,c,mu,sigma
+    #newX=b*x
+
+    #return a* x**2+b*x+c
+
+    #return np.sqrt(a*x**4+b*x**3+c*x**)  # a*np.exp(-b*x**2) + c*np.exp(-b*x)   +mu
+    #moduleExp= 1/(1+   np.exp( sigma*(x-mu) )  )
+
+    #return a*np.exp(-b*x**2)+c +mu*np.exp(-sigma*x**2)  #(  mu/(sigma*x**2 +1)  )**2
+    #return     a*(1-   scipy.special.erf( b*(x-mu) )     )
+
+
+    #return   a*(1-  1/( 1 +   np.exp(-b*x)  )  )
+
+    #print   a ,b,c,  mu,sigma
+    #return    a* np.exp(-b*x )+   mu*np.exp(- sigma*x**2)
+    #return    # a*x**3+b*x**2 +mu*x+c
+
+
+
+
+
+    #return   #(a * (x-b)**2+  c)* moduleExp
+
+    #print a,b,c,mu,sigma
+    fi = 0.5 * (1 + scipy.special.erf((x - mu) * sigma/np.sqrt(2) )    )
+    moduleGaussion=  (1 - fi) 
+    #moduleExp= 1- 1/(1+   np.exp(-sigma*(x-mu) )  )
+
+
+    #return
+
+
+    if 0:
+        if type(x)==int:
+
+            return 10
+
+        array1 = x[x <= b]
+        array2 = x[x >  b]
+
+
+        y1=  a* (array1-b)**2+  c #  a * (array1-b)**2+  c
+        y2=  array2*0+c
+        newY=np.concatenate(( y1, y2 ))
+        return  newY   # *  moduleGaussion
+
+
+
+    #return a*np.exp(-b*x)+c
+
+    #return a/( x+   np.exp(b* x  ) )
+
+    #fi = 0.5 * (1 + scipy.special.erf((x - mu) * sigma/np.sqrt(2) )    )
+
+    #return (a * x**2 + b*x+e) * (1 - fi) + (c *x+d) * fi
+
+    #return (a * x**2 - b*x+c) * (1 - fi)  #+ d * fi
+
+    return (a * (x-b)**2+  c) * moduleGaussion  #    moduleGaussion    #+ d * fi
+
+    #return (a * np.exp(-b*x/100)+  c)  #*  moduleExp   #    moduleGaussion    #+ d * fi
+
+
+def ffFunctionCutQua(x,a ,b ,c) :
+    return a*x**2+b*x+c
+
+
+def ffFunctionCutQuaAndFlat(x,a ,b ,c) :
+    if np.isscalar(x):
+        if x < b:
+            return  a*(x-b)**2
+            # return -2*x*a*b*np.exp(-b*c) *(x-c) +a*np.exp( -b*c**2)
+
+        else:
+            return c
+
+    array1 = x[abs(x) < b]
+    array2 = x[abs(x) >= b]
+
+    y1 =   a*(array1-b)**2
+    # y1=  -2* array1* a*b*np.exp(-b*c) *(array1-c) +a*np.exp( -b*c**2 )
+
+    y2 = array2*0+c
+
+    return np.concatenate((y1, y2))
+
+
+def ffFunctionCut(x,a ,b ,c ,d  ) :
+    #return a*x**2- b*x+c
+    #return  a*np.exp(-b*(x-d)**2)   +c
+    #return  a*np.exp(-b*(x+0.3 )**2) +c
+    #return  a*b**x +c
+    #return  a*np.exp(- b*x** 2  ) +c # a*np.sqrt(b+x)+c # a*b**x +c
+    #return  a*x**2/(x +b)**3+c# a*np.sqrt(b+x)+c # a*b**x +c
+    #return  a* (x +b)**2 *np.exp(-c*x)# a*np.sqrt(b+x)+c # a*b**x +c
+    #return   a*np.exp(-b*(x+e )** d) +c  # a*np.sqrt(b+x)+c # a*b**x +c
+    #return  a*(x )**b+c  #a*np.exp(-b*(x+e )** d) +c  # a*np.sqrt(b+x)+c # a*b**x +c
+    #return  a*x* np.exp(-b*x) +c #a*np.exp(-b*(x+e )** d) +c  # a*np.sqrt(b+x)+c # a*b**x +c
+    #return a*(1-scipy.special.erf(b*x)  ) +c
+    #return a*(1-scipy.special.erf(b*x+d)  ) +c
+
+    #return a -a*scipy.special.erf(b*   x     -c)
+
+
+    #return   a* np.exp(-b*(x )**2 )
+    if 0: #tranform from linear to exponentioal
+        fi= 0.5*( 1 + scipy.special.erf( (x-mu)*sigma )  )
+
+        return (a*x+b)* (1-fi) +(c*np.exp(-d*x**2))*fi
+
+    #return  a*(1-x  /(x+b)  )+c
+
+    #return  a*(np.pi/2 - np.arctan( b*x  )   ) +  c
+    #return   a* b**(-x)+c
+    #return  a* np.exp(-b*(x+c)**2 )
+    
+    #return  a*(x+c)**b
+
+    #erfX=   np.sqrt( np.log(b/x) )
+    #return     scipy.special.erf( erfX)   # a*( scipy.special.erf( erfX) - 1) +c
+    #return  # a*  (1- scipy.special.erf(b*  x  )  ) +c
+
+
+    #return  a* np.log(2-c*x/(x+b)) # a*np.log(1+b/np.sqrt(x**2+1)) +c
+    #y=x+c
+    #return   a- b*y *np.arccos(b*y/np.sqrt(1+b**2*y**2 )) -0.5*np.log(1+b**2*y**2)
+
+    #return a*x/(x**2+b) +c
+    #return a*np.exp(-b*x)  +c
+    #return a*np.exp(-b*x) + c*np.exp( d*x )
+    #return a*np.exp(-b*x) + c*np.exp( d*x )
+
+   # return  (a*x+b) *(np.pi/2 - np.arctan( c*x  )   )
+
+    #segment
+
+    #return a*np.exp(-b*x**2)
+
+    #x*np.arccos( x/np.sqrt(1+x**2))  + 0.5* np.log(1+x**2)
+
+
+    #return   a*(1-scipy.special.erf(b*x   )  ) +c #1111111111111111111
+    #return    a*x*np.exp(-b*x)  +c # 22222222222
+    #return    a*x**2+b*x+c
+    #return    a*x**2+b*x+c
+
+    #return a*np.exp(-b*(x-c)**2)  #
+    #double gaussian
+
+
+    #return a*np.exp(-b*x**2)+c
+    #x=a*np.exp(-b*x**2 ) + c*np.exp(-d *x**2 ) #doubale gaussian
+    x=a*np.exp(-b*x**2 ) +   c*np.exp(-d *x**2 )
+
+    #print x
+    return x   #double Gaussian
+    #return a*np.exp(- b*x**2  ) +  c*x**(-d) #  Gaussian + exponential
+    #return a*np.exp(- b*x**2  ) +  c*x**(-d) #  Gaussian + exponential
+    #return a*x**(-b) # +  c*x**(-d) #  Gaussian + exponential
+
+    #return a/ (x**2+1) + c*np.exp(-d*x )
+
+
+    ############## parabolic followd by an exponential tail?
+
+    #return a*x**2+b*x+c
+
+
+    ###########2222222222222222
+    if 1:
+        n=b/(a-b*c)/2/c
+        m=   (a-b*c)/ np.exp(-n*c*c)
+
+
+        if np.isscalar(x):
+            if  x <c:
+                return  -b*x+a
+                #return -2*x*a*b*np.exp(-b*c) *(x-c) +a*np.exp( -b*c**2)
+
+            else:
+                return   m*np.exp(-x**2*n)
+
+        array1=x[abs(x)<c]
+        array2=x[abs(x)>=c]
+
+
+        y1=    -b* array1 +a
+        #y1=  -2* array1* a*b*np.exp(-b*c) *(array1-c) +a*np.exp( -b*c**2 )
+
+        y2=    m*np.exp(-array2**2*n)
+
+
+        return   np.concatenate( (y1,y2)  )
+
+    ###################### 3333333333
+    if 0: #linear with exponential tail
+        if np.isscalar(x):
+            if abs(x)<c:
+                return -a*b*np.exp(-b*c) *(x-c) +a*np.exp( -b*c)
+                #return -2*x*a*b*np.exp(-b*c) *(x-c) +a*np.exp( -b*c**2)
+
+            else:
+                return   a*np.exp(-b* x  )
+
+        array1=x[abs(x)<c]
+        array2=x[abs(x)>=c]
+
+
+        y1=  -a*b*np.exp(-b*c) *(array1-c) +a*np.exp( -b*c)
+        #y1=  -2* array1* a*b*np.exp(-b*c) *(array1-c) +a*np.exp( -b*c**2 )
+
+        y2=   a*np.exp(-b* array2  )
+
+
+        return   np.concatenate( (y1,y2)  )
+
 def ffFunction(x,a, b, c):
+    #return a*(x-b)**2+c
+    #return a*np.exp(-b* (x-c) )
+    #return a*np.exp(- b*x**3 -c*x*2 )
+    #return a*np.exp(- b*x  )
+
+    return a*np.exp(-b* x)  +c
+
+    #return a*x**2+b*x+c
+
+########
+#def ffFunction(x,a, b, c):
     #return a*(x-x0)**2+c
     #print a, b,c
-    return a*np.exp(-b*x)  +c
+    #return a*np.exp(-b*x)  +c
+
+
+
 
 
 def ffFunctionOdr(B,x ):
@@ -72,9 +397,56 @@ def ffAndSizeFunc(B, x ):
     #return 1- 1*np.exp(-B[0]*x)
     a,b=B
     return  a-b/x
-
     #return   np.exp(-a/np.sqrt(x) )
 
+def ffModelPeakSize(X,a,b):
+
+    size,peak=X
+    return (1-np.exp(-a*size) )* (1-np.exp(-b*peak))
+    return size/(size+a)*peak/(peak+b)
+
+def ffModelConvolve(x,a):
+    return x**2/(x**2+a)
+
+
+def ffModelSquare(x,a   ):
+
+    return x**2/(x+a)**2
+
+def ffModelTan(x,a   ):
+
+    #return np.arctan( a*x)*2./np.pi
+
+    #return b*(1-np.exp(-a*x))
+
+
+    #weightAfter= (  1+scipy.special.erf(c*(x-d))  )*0.5
+
+    #return  b*x*(1-weightAfter)+ x/(x+a) * weightAfter
+
+    #return  scipy.special.erf(a*x)
+
+
+
+    #return b*x/(x+a)
+    #return  scipy.special.erf(a*x)
+    #return  scipy.special.erf(a*x)
+
+    #return np.arccos(1/(a*x**2+1))*2/np.pi
+
+    #return  (np.exp(a*x)-np.exp(-a*x))/( np.exp(a*x)+np.exp(-a*x) )
+
+    #return  x **2  / ((x +a)**2+b)
+
+    #return  x **2  /(x +a)**2
+    #return  x **2  / (  x**2+a )
+    #return np.log( x)/(np.log( x)+a)
+
+    return np.arctan( a*x)*2./np.pi
+
+def ffModelTanh(x,a ):
+    #return (np.exp(a*x)-np.exp(-a*x))/( np.exp(a*x)+np.exp(-a*x) )
+    return 0.89*(1-np.exp(-a*x))/( 1+np.exp(-a*x) )
 
 def testffAndSizeFunc(x,  a  ):
     #return  b- b*np.exp(-a*x )
@@ -83,13 +455,17 @@ def testffAndSizeFunc(x,  a  ):
     #return  b- b*np.exp(-a*x )
     #return  a-b/(x-0.564)
     #return  a-b/(x+c)
-    zeroPoint= 0 # 0.564  #0.977
+    #zeroPoint= 0 # 0.564  #0.977
 
     #c=b/a  -zeroPoint
 
     #c=b
-    return x/(x +a)
+    #return (x )**2/(x +a)**2
+    #return  1-np.exp(- a* x  )
 
+
+    return (x  ) /(x  +a)
+    #return (x  ) /(x  +a)
 
 
 def testffAndSizeFunc1(x, a):
@@ -98,11 +474,13 @@ def testffAndSizeFunc1(x, a):
 def testffAndSizeFunc2(x, a,b):
     return a- a*np.exp(-b*x )
 
+
+
 def testffAndSizeFunc3(x, a,b,c):
     return a*np.exp(-b*x)  +c
 
-def testffAndSizeFunc4(x,   b):
-    return 1. - 1 * np.exp(-b * x)
+def testffAndSizeFunc4(x, a,  b):
+    return 1. - 1 * np.exp(-b * x**a)
 
 
 #return   np.exp(-a/np.sqrt(x) )
@@ -282,8 +660,12 @@ class checkFillingFactor(object):
 
 
     noiseFactors =  np.arange(0.0, 2.1, 0.1  ) #  in Kelvin
-    cutoffFactors =  np.arange(2.0,10.5,0.5  ) #  in Kelvin
+    #cutoffFactors =  np.arange(2.0,10.5,0.5  ) #   from 2 sigma to 10 simg
 
+
+
+    #cutoffFactors =  np.arange(2.0,20.5,0.5  ) #   from 2 sigma to 10 simg
+    #cutoffFactors =  np.arange(2.0,15.5,0.5  ) #   from 2 sigma to 10 simg
 
     #just for test
     #smoothFactors = np.arange(1.0, 2,   0.5)  # compared to beam size, this is also the distance factor, that push cloud away by this factor
@@ -346,6 +728,12 @@ class checkFillingFactor(object):
     ffCfACol="fillingFactorCfa"
     ffCfAErrorCol="fillingFactorErrorCfa"
 
+    ffPeakMWISPCol="ffPeakMWISP" #do not record the parameters of fitting with peak, fit if needed
+    ffPeakMWISPErrorCol="ffPeakMWISPError"
+
+
+
+
     aCol="para_a"
     bCol="para_b"
     cCol="para_c"
@@ -374,6 +762,14 @@ class checkFillingFactor(object):
     cutFFbErrorCol = "cutFFerror_b"
     cutFFcErrorCol = "cutFFerror_c"
 
+    cutFFmuCol= "cutFFpara_mu" #mean of Gausian
+    cutFFmuErrorCol= "cutFFerror_mu" #mean of Gausian
+
+    cutFFsigmaCol= "cutFFpara_sigma" #sigma of Gausian
+    cutFFsigmaErrorCol= "cutFFerror_sigma" #sigma of Gausian
+
+
+
     cov00Col="cov00"
     cov01Col="cov01"
     cov02Col="cov02"
@@ -385,6 +781,42 @@ class checkFillingFactor(object):
     cov20Col="cov20"
     cov21Col="cov21"
     cov22Col="cov22"
+    #####################cutcov
+    covCut00Col="covCut00"
+    covCut01Col="covCut01"
+    covCut02Col="covCut02"
+    covCut03Col="covCut03"
+    covCut04Col="covCut04"
+
+
+    covCut10Col="covCut10"
+    covCut11Col="covCut11"
+    covCut12Col="covCut12"
+    covCut13Col="covCut13"
+    covCut14Col="covCut14"
+
+
+    covCut20Col="covCut20"
+    covCut21Col="covCut21"
+    covCut22Col="covCut22"
+    covCut23Col="covCut23"
+    covCut24Col="covCut24"
+
+
+    covCut30Col="covCut30"
+    covCut31Col="covCut31"
+    covCut32Col="covCut32"
+    covCut33Col="covCut33"
+    covCut34Col="covCut34"
+
+    covCut40Col="covCut40"
+    covCut41Col="covCut41"
+    covCut42Col="covCut42"
+    covCut43Col="covCut43"
+    covCut44Col="covCut44"
+
+
+
 
     #################################
     touchLedgeCol= "touchLedge"
@@ -449,7 +881,7 @@ class checkFillingFactor(object):
     surveyMeanRMSDict = {surveyCodeCfACO12: 0.1 , surveyCodeGRSCO13: 0.1 ,  surveyCodeOGSCO12: 0.6 , surveyCodeMWISPCO13:MWISPrmsCO13 , surveyCodeCOHRSCO32: 0.4  }
     surveyVelResDict = {surveyCodeCfACO12: 1.3 , surveyCodeGRSCO13:  0.2 ,  surveyCodeOGSCO12: 0.8 , surveyCodeMWISPCO13:MWISPrmsCO13 ,  surveyCodeCOHRSCO32: 1. }
 
-    surveyCodeList=[ surveyCodeCfACO12, surveyCodeGRSCO13, surveyCodeOGSCO12   ]
+    surveyCodeList=[ surveyCodeCfACO12, surveyCodeGRSCO13, surveyCodeOGSCO12  , surveyCodeCOHRSCO32  ]
 
     smoothTag="_SmFactor_"
 
@@ -477,9 +909,31 @@ class checkFillingFactor(object):
     drawCodeOverallFF ="overallFF"
 
     sizeInBeamCol="sizeInBeamCol"
+    peakSigma="peakSigma"
 
 
     surveys="survey"
+
+    meanSNRcol="meanSNR"
+    peakSNRcol="peakSNR"
+    bffFluxCutSigma= 3.  #will it be the same for sigma cut of 3? simply use 3 sigma cutoff ...
+
+
+
+    #cutoffFactors =  np.arange(2.0, 20.2 , 0.2 ) #   from 2 sigma to 10 simg
+    #cutoffFactors =  np.arange(2.0, 20.5 , 0.5 ) #   from 2 sigma to 10 simg
+    #cutoffFactors =  np.arange(2.0, 20.2 , 0.2 ) #   from 2 sigma to 10 simg
+    cutoffFactors =  np.arange(2.0, 20.2 , 0.2 ) #   from 2 sigma to 10 simg
+
+
+
+    #from 2.0 sigma to peak sigma, by a ratio? what kind of ratio 0.1 percent?
+
+    #extract flux by ratio to the peak
+    #cutoffFactors= np.arange(0.1, 1.2, 0.1 )  #step is 0.1 percent of the peak #the minimum  stars from the peak and keep the lowest cutoff,
+    #cutoffFactors= np.arange(0.05, 1.1, 0.05 )  #step is 0.1 percent of the peak #the minimum  stars from the peak and keep the lowest cutoff,
+
+
 
     def __init__(self):
         pass
@@ -764,8 +1218,8 @@ class checkFillingFactor(object):
             else:
                 #produce the rms fits with the out arm file
                 #aaaaaaaa
-
-                print "Out arm fits found, producing a rms fits accordingly."
+    
+                print "Out arm fits found, producing a rms fits accordingly.",smFileOut
                 return  self.getSmoothRMS(smFileOut)
         else:
             print "The corresponding rms fits file produce with out arm fits found!"
@@ -1001,7 +1455,7 @@ class checkFillingFactor(object):
 
         fig = plt.figure(figsize=(10, 8))
         rc('text', usetex=True)
-        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+        rc('font', **{'family': 'sans-serif', 'size': 22, 'serif': ['Helvetica']})
         mpl.rcParams['text.latex.preamble'] = [
             r'\usepackage{tgheros}',  # helvetica font
             r'\usepackage{sansmath}',  # math-font matching  helvetica
@@ -1049,7 +1503,7 @@ class checkFillingFactor(object):
 
         #self.drawColorBarNoiseFactor(axBeam)
         axBeam.axvline(x=0, ls="--", color='black')
-        axBeam.legend(loc=1)
+        axBeam.legend(loc=1,fontsize=18)
 
         axBeam.set_xlim( -0.5, 9)
 
@@ -1153,7 +1607,12 @@ class checkFillingFactor(object):
 
         return tuple([cZ0, cY0, cX0])
 
+    def cleanCutoffTB(self,ffTB):
+        ffTB = ffTB[ffTB[self.cutFFffMWISPCol] >= 0]
+        ffTB = ffTB[ffTB[self.cutFFffMWISPCol] <= 1]
 
+        ffTB=ffTB[ ffTB[self.cutFFffMWISPErrorCol]>0]
+        return ffTB
 
     def addFFValues(self,fillingTB):
         """
@@ -1176,8 +1635,31 @@ class checkFillingFactor(object):
 
         return ffTB
 
+    def getPeakSigma(self,TB):
+        """
+        TB is not a file but
+        :param TB:
+        :return:
+        """
 
-    def fittingAngularSizeFF(self,fillingTB,showSizeRange=[0,40],saveTag="" ,useODR=False, useBeamFactorUnit=False):
+
+        rmsData,rmsHead=doFITS.readFITS( self.getRMSFITS() )
+
+        peakL=map(int, TB["peakL"] )
+        peakB= map(int , TB["peakB"] )
+
+        peakIndex=tuple([peakB,peakL])
+
+
+        peakSigmas=rmsData[peakIndex]
+        return TB["peak"]/peakSigmas
+
+
+
+
+
+
+    def fittingAngularSizeFF(self,fillingTB,showSizeRange=[0,40],saveTag="" ,useODR=False, useBeamFactorUnit=False,showColor="velocity",drawCutOff=False ):
         """
 
         :return:
@@ -1189,8 +1671,13 @@ class checkFillingFactor(object):
         drawCode = self.drawCodeSize
 
         #remove bad clouds
+        if   drawCutOff:
+            
+            ffTB=self.cleanCutoffTB(fillingTB)
 
-        ffTB= self.addFFValues(fillingTB)
+        else:
+            ffTB= self.addFFValues(fillingTB)
+
 
         if 0: #do not use error control
             errorControl=ffTB[self.ffMWISPErrorCol]/ffTB[self.ffMWISPCol ]
@@ -1224,7 +1711,7 @@ class checkFillingFactor(object):
             r'\sisetup{detect-all}',  # force siunitx to use the fonts
         ]
 
-        
+
         minVel = np.min(ffTB["v_cen"])
         maxVel = np.max(ffTB["v_cen"])
 
@@ -1240,15 +1727,49 @@ class checkFillingFactor(object):
         #use all clouds
         ################################################# fitting data
         useTB= ffTB
-        
-        drawX = self.getCloudSize(useTB)
-        if useBeamFactorUnit:
-            drawX= useTB[self.sizeInBeamCol]
 
-        drawY = useTB[self.ffMWISPCol]
-        yError= useTB[self.ffMWISPErrorCol]
-        Vs = useTB["v_cen"]
 
+
+        if drawCutOff: #replace  the data with cutoff
+
+
+
+            drawX =   useTB["peak"]  #self.getCloudSize(useTB)
+
+
+            drawY = useTB[ self.cutFFffMWISPCol ]
+            yError = useTB[ self.cutFFffMWISPErrorCol ]
+
+        else:
+
+            drawX = self.getCloudSize(useTB)
+            if useBeamFactorUnit:
+                drawX = useTB[self.sizeInBeamCol]
+
+            drawY = useTB[self.ffMWISPCol]
+            yError = useTB[self.ffMWISPErrorCol]
+
+        #Vs = useTB["v_cen"]
+        peakSigma=None
+        if self.peakSigma in useTB.colnames:
+            #Vs = useTB[self.peakSigma] #useTB["peak"]
+            peakSigma = useTB[self.peakSigma] #useTB["peak"] 
+        else:
+            #Vs=useTB["peak"]/self.getMeanRMS()
+            #peakSigma = useTB["peak"]/self.getMeanRMS()
+
+            peakSigma=self.getPeakSigma(useTB)
+            Vs=peakSigma
+
+        averageSNR=  useTB["sum"]/ useTB["pixN"]/self.getMeanRMS()
+
+        if showColor=="peak":
+            Vs=peakSigma
+
+            Vs=averageSNR #use average snr
+
+        else:
+            Vs=useTB["v_cen"]
         #radius= drawX/2
         #perimeterPixN=2*np.pi*radius/0.5
 
@@ -1261,11 +1782,16 @@ class checkFillingFactor(object):
         cmap = plt.cm.jet
         # norm = matplotlib.colors.BoundaryNorm(np.arange(0,30,0.1), cmap.N)
         #normV = mpl.colors.Normalize(vmin=np.min(Vs), vmax=np.max(Vs))
-        normV = mpl.colors.Normalize(vmin=np.min(Vs), vmax=np.max(Vs) )
+        if showColor=="peak":
+            normV = mpl.colors.Normalize(vmin=np.min(2), vmax=np.max(10) )
+
+        else:
+            
+            normV = mpl.colors.Normalize(vmin=np.min(Vs), vmax=np.max(Vs) )
 
         m = plt.cm.ScalarMappable(norm=normV, cmap=cmap)
-        v_color = np.array([(m.to_rgba(v)) for v in Vs])
-
+        #v_color = m.to_rgba(Vs) # np.array([() for v in Vs])
+ 
 
         #draw fffactor with velocity colors
         #######################################################################################################
@@ -1274,27 +1800,47 @@ class checkFillingFactor(object):
         #sc = self.drawErrorBar(axFFvel, noClipTB, drawCode=drawCode, markerSize=markerSize, color='gray', markerType=".",   elinewidth=elinewidth, label="Complete in PPV space", showYError=False)
         # self.drawErrorBar(axFF,pureVclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='b',markerType="D",elinewidth=elinewidth,label="Incomplete in v space" ,showYError=False)
         # self.drawErrorBar(axFF,pureLBclipTB, drawCode =drawCode, markerSize=markerSize+0.8,color='r',markerType="^",elinewidth=elinewidth,label="Incomplete in l-b space" ,showYError=False)
-        sc = axFFvel.scatter(drawX, drawY, c=Vs, cmap=cmap, norm=normV, s=3, facecolors='none', lw=0.5, marker="o", label="")
+
+
+
+        #for i in range(len(drawY)):
+        #axFFvel.errorbar(drawX[i], drawY[i], yerr=yError[i], markersize=1.0, fmt='o', color=  v_color[i], capsize=0.1,   elinewidth=0.5, lw=1, alpha=0.8, label="", zorder=0)
+
+        aa,bb,cc=axFFvel.errorbar(drawX, drawY, yerr=yError, markersize=0.0, fmt='o',     capsize=0.0,   elinewidth=0.7, lw=0.5, alpha=0.8, label="",  zorder=1)
+        cc[0].set_color(  m.to_rgba(Vs) )
+
+        #sc = axFFvel.scatter(goodX, goodY, c=VsGood, cmap=cmap, norm=normV, s=2.5, facecolors='none', lw=0.5, marker="o", label="")
+        #aa,bb,cc=axFFvel.errorbar(drawX, drawY, yerr=yError, markersize=0.5, fmt='o',    mec= 'none' , capsize=0.1,   elinewidth=0.5, lw=1, alpha=0.8, label="",  zorder=0)
+        #cc[0].set_color( m.to_rgba(Vs))
+        #bb[0].set_mfc(m.to_rgba(Vs) )
+
+        #print dir(aa)
+        #  edgecolors = m.to_rgba(Vs), 
+        #axFFvel.scatter(drawX, drawY, c=Vs, cmap=cmap, norm=normV, s=1, facecolors='none', lw=0.5, marker="o", label="")
+        axFFvel.scatter(drawX, drawY, edgecolors = m.to_rgba(Vs),  s= 2, facecolors='none',  lw=0.5, marker="o", label="",zorder=0,alpha=0.8)
+
+        #axFFvel.plot(drawX, drawY, "|", color = m.to_rgba(Vs),   ms=1 ,   lw=0.5,   label="")
+
 
         axFFvel.set_xlim( showSizeRange )
 
-        if 1:
+        if 1: #colorbar
             from mpl_toolkits.axes_grid1 import make_axes_locatable
             divider = make_axes_locatable(axFFvel)
             cax1 = divider.append_axes("right", size="3%", pad=0.05)
-            cb = fig.colorbar(sc, cax=cax1)
-            cax1.set_ylabel(r"$V_{\rm LSR}$ ($\rm km\ s^{-1}$)")
-        ###########################################################################################################
-        if 0:
-            axFF = fig.add_subplot(1, 2, 2,sharex=axFFvel,sharey=axFFvel)
+            cb = mpl.colorbar.ColorbarBase(cax1, norm=normV, cmap=cmap)
 
-                # c =Vs, cmap=cmap,norm=normV,
-                # ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= v_color ,     marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
-                # ax.errorbar(drawX,   drawY , yerr= yerr ,    markersize=markerSize , linestyle='none', c= Vs ,  cmap=cmap,norm=normV,   marker= markerType , capsize=0,  elinewidth=elinewidth , lw=1, label= label )
-                #sc = ax.scatter(drawX, drawY, c='gray', cmap=cmap, norm=normV, s=3, facecolors='none', lw=0.5, marker="o",  label="")
-            #axFF.scatter(drawX, drawY, c="gray", cmap=cmap,   s=3, facecolors='none', lw=0.5, marker="o",label="")
-            #axFF.errorbar(drawX,   drawY , xerr=errorSize, yerr= yError ,    markersize=1 , fmt='o',  color='gray' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="" )
-            axFF.errorbar(drawX,   drawY ,  yerr= yError ,    markersize=1 , fmt='o',  color='gray' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="" )
+            #cb = fig.colorbar(sc, cax=cax1)
+            #cax1.set_ylabel(r"$V_{\rm LSR}$ ($\rm km\ s^{-1}$)")
+
+            if showColor == "peak":
+                cax1.set_ylabel(r"Mean SNR ($\sigma$)")
+            else:
+                cax1.set_ylabel(r"$V_\mathrm{LSR}$ ($\rm km\ s^{-1}$)")
+
+
+
+
 
         angularSize1 = 10.5
         #axFF.axvline(x=angularSize1, ls="--", color='black')
@@ -1318,7 +1864,7 @@ class checkFillingFactor(object):
 
         armStr=self.getArmStr()
         lineStr=self.getLineStr()
-        fillingWMISP = r"BFFs of {} of the {} arm".format(lineStr, armStr )
+        fillingWMISP = r"Beam filling factors of {} molecular clouds in the {} arm".format(lineStr, armStr )
 
 
         axFFvel.set_ylabel("The beam filling factor")
@@ -1336,90 +1882,146 @@ class checkFillingFactor(object):
         ###################################################
         #print errorSize
 
-        para,paraError=self.fittingFFAndSize(testffAndSizeFunc, drawX,drawY, yError,sizeError=errorSize,  useODR=useODR)
-        #para,paraError=self.fittingFFAndSize(ffFunction , drawX,drawY,  yError)
 
-        #para,paraError=self.ffOdr( drawX,drawY,yError, xError=None )
-        #para,paraError=self.ffOdr( drawX,drawY,yError, xError=errorSize )
+        useFunction= ffModelSquare
 
-        #para,paraError=self.fittingFFSizeRelationOdr(  drawX, drawY, None, yError)
-        #para,paraError=self.fittingFFSizeRelationOdr(  drawX, drawY, errorSize, yError)
+        #para,paraError=self.fittingFFAndSize(useFunction, drawX,drawY, yError,sizeError=errorSize,  useODR=useODR)
+        #para,paraError=self.fittingFFAndSize(useFunction, drawX,drawY, yError,sizeError=errorSize,  useODR=useODR)
 
-
-        #using MCMC, looks like very little difference with
-        #from MCMCfunctionFitting import fittingFFMCMC
-        #doFFmcmc=fittingFFMCMC()
-        #para,paraError=doFFmcmc.getParameters(  drawX,drawY,  yError)
-
-
-
+        para,paraError=self.fittingFFAndSize(useFunction, drawX,drawY, yError,sizeError=None,  useODR=useODR)
 
 
         print "The fitting result is "
 
         print para
         print paraError
-        if len(para)==2:
-            a,b=para
+        #calculate weighted rms
 
-            x=np.arange(-0.1,showSizeRange[1],0.01)
-            formulaTex=r"$\mathit f={:.3f}-\frac{{{:.3f}}}{{\mathit l+{:.3f}}}$".format(a,b,b/a)
-            axFF.plot(x, testffAndSizeFunc(x,a,b),  "b-",lw=1,label= formulaTex )
+        residual= useFunction(drawX,*para)-drawY
 
-            #add formula in the figure
-            axFF.legend(loc=4)
+        weights= 1./yError**2
+        weights=weights/np.sum(weights)
 
-            zeroPoint = 0 #0.564  # 0.977
+        #rms= np.sqrt( np.mean( residual**2  ) )
+        rms= np.sqrt( np.sum( residual**2*weights  ) )
 
-            #c = b / a - zeroPoint
+        print "The weighted rms is ",rms
 
 
-            axFF.axvline(x=zeroPoint,ls="--",color='black',lw=0.8)
 
-        if  len(para)==3:
-            a,b,c=para
-            x=np.arange(-0.1,showSizeRange[1],0.01)
-            formulaTex=r"$\mathit f={:.3f}-\frac{{{:.3f}}}{{\mathit l+{:.3f}}}$".format(a,b,c)
-            axFF.plot(x, testffAndSizeFunc(x,a,b,c),  "b-",lw=1,label= formulaTex )
 
-            #add formula in the figure
-            axFF.legend(loc=4)
-            print "ZeropPoint???????????????????????/",b/a-c
 
-        if  len(para)==1 and 1==0:
-            a =para[0]
-            x=np.arange(-0.1,showSizeRange[1],0.01)
-            formulaTex=r"$\mathit f= \frac{{\mathit l}}{{\mathit l+{:.3f}}}$".format(a )
-            axFF.plot(x, testffAndSizeFunc(x,a  ),  "b-",lw=1,label= formulaTex )
 
-            #add formula in the figure
-            axFF.legend(loc=5)
+        x = np.arange(-0.1, showSizeRange[1], 0.01)
 
-            axFF.axvline(x=0,ls="--",color='black',lw=0.8)
+        if useFunction==ffModelSquare:
+            formulaTex = r"$\eta_{{\mathrm{{res}}}}= \frac{{\mathit l^2 }}{{ \left(\mathit l+{:.3f}\right)^2}}$".format(  para[0] )
 
-        if len(para) == 1 :
-            a = para[0]
-            x = np.arange(-0.1, showSizeRange[1], 0.01)
-            formulaTex = r"$\mathit f= \frac{{\mathit l}}{{\mathit l+{:.3f}}}$".format(a)
-            axFFvel.plot(x, testffAndSizeFunc(x, a),  "-", color='black',  lw=1, label=formulaTex)
+        else:
+            formulaTex = r"$\eta_{{\mathrm{{res}}}}= \frac{{\mathit l }}{{\mathit l+{:.3f}}}$".format(  para[0] )
 
-            # add formula in the figure
-            axFFvel.legend(loc=5 ,  handlelength =1.2)
 
-            axFFvel.axvline(x=0, ls="--", color='black', lw=0.8)
-            axFFvel.axhline(y=0,ls="--",color='black',lw=0.8)
-
+        #formulaTex = r"$\mathit f=  \frac{{2}}{{\pi}}\mathrm{{arctan}} \left({:.3f}\mathit l\right)$".format(  para[0] )
  
+        axFFvel.plot(x, useFunction(x, *para),  "-", color='black',  lw=1, label=formulaTex,zorder=2)
+        
+        #paraFrac,paraErrorFrac=self.fittingFFAndSize(testffAndSizeFunc, drawX,drawY, yError,sizeError=errorSize,  useODR=useODR)
 
 
+        #axFFvel.plot(x, testffAndSizeFunc(x, *paraFrac),  "--", color='black',  lw=1, label=formulaTexFrac,zorder=2)
+
+        
+        #axFFvel.plot(x, testffAndSizeFunc1(x, 6.29),  "--", color='black',  lw=1, label=formulaTex)
+
+
+        # add formula in the figure
+        axFFvel.legend(loc=5 ,  handlelength =1.0)
+
+        axFFvel.axvline(x=0, ls="--", color='black', lw=0.8)
+        axFFvel.axhline(y=0,ls="--",color='black',lw=0.8)
+
+        ##############plot derivitive
+
+        #XXavg,YYavg=self.getAverageFF(drawX,drawY,yError)
+
+        #XXavg=  ( XXavg[1:] + XXavg[:-1] )/2.
+
+        #YYavg=    YYavg[1:] - YYavg[:-1]
+        #axFFvel.plot(XXavg,YYavg)
+
+
+
+        #axPeak.scatter(peakSigma,drawY  ,edgecolors = m.to_rgba(drawX),  s= 2, facecolors='none' )
+
+        #paraPeak, paraErrorPeak = self.fittingFFAndSize(useFunction, peakSigma,drawY, yError,sizeError=errorSize,  useODR=False)
+        #axPeak.plot(x, useFunction(x, *paraPeak),  "-", color='red',  lw=1, label=formulaTex,zorder=2)
+        #axPeak.set_xlim(showSizeRange )
+        ####################################
+        if 0:
+            ###
+            axPeak = fig.add_subplot(1, 2, 2)
+
+            cmap = plt.cm.jet
+            normV = mpl.colors.Normalize(vmin=np.min(2), vmax=np.max(40))
+
+            m = plt.cm.ScalarMappable(norm=normV, cmap=cmap)
+
+            params, paramas_covariance = optimize.curve_fit( ffModelPeakSize ,  (drawX,peakSigma),  drawY, sigma= yError,   absolute_sigma=True, p0=[  0.5, 0.5])
+
+            print params
+            print   np.sqrt(np.diag(paramas_covariance))
+
+            axPeak.scatter( drawY,ffModelPeakSize(( drawX,peakSigma),*params) -drawY ,s=10 )
+            ##########
 
 
         plt.subplots_adjust(wspace=0.3)
         axFFvel.set_xlim(showSizeRange )
         plt.savefig(self.paperFigurePath+"{}FittingAngularSizeRelation.png".format(saveTag), bbox_inches='tight', dpi=300)
-        plt.savefig(self.paperFigurePath+"{}FittingAngularSizeRelation.pdf".format(saveTag), bbox_inches='tight' )
+        plt.savefig(self.paperFigurePath+"{}FittingAngularSizeRelation.pdf".format(saveTag), bbox_inches='tight',dpi= 100 )
+
+
+
 
         return para,paraError
+
+    def getAverageFF(self, drawX,ffArray,ffArrayError):
+
+        bins=np.arange(  0,max(drawX),0.5)
+        meanList=[]
+        centerList=[]
+        centerS= ( bins[1:]+bins[:-1] )/2.
+        for i in range(len(bins)-1):
+
+
+            leftSize=bins[i]
+
+            rightSize=bins[i+1]
+
+            selectionCriteria= np.logical_and( drawX> leftSize, drawX<=rightSize  )
+
+            ffSubList=ffArray[selectionCriteria]
+
+            ffSubError=ffArrayError[selectionCriteria]
+
+            if len(ffSubList)==0:
+                continue
+                #meanList.append(0)
+                #centerList.append(centerS[i] )
+
+                #continue
+
+            mean,std= doFITS.weighted_avg_and_std(ffSubList,1/ffSubError**2)
+
+            centerList.append(centerS[i])
+
+            meanList.append(mean)
+
+
+
+        return  np.asarray(centerList)  ,np.asarray(meanList)
+
+
 
     def testDistanceLayers(self, ):
         """
@@ -2436,8 +3038,8 @@ class checkFillingFactor(object):
         doMWdbscan.getCatFromLabelArray(doClean=True)
 
         #only produce clean fits for smFactor 1.0
-        if smFactor==1.0:
-            doMWdbscan.produceCleanFITS()
+        #if smFactor==1.0:
+        doMWdbscan.produceCleanFITS()
 
 
 
@@ -2594,10 +3196,11 @@ class checkFillingFactor(object):
 
         beamTarget = radio_beam.Beam(major=targetBeam * u.arcmin, minor= targetBeam * u.arcmin, pa=0 * u.deg)
 
+        paraConvolve=  {"allow_huge": True}
 
         new_cube = processCube.convolve_to(beamTarget )
 
-        new_cube.write(saveName,overwrite=True)
+        new_cube.write(saveName, overwrite=True)
 
         doFITS.converto32bit(saveName,saveName)
 
@@ -2722,6 +3325,9 @@ class checkFillingFactor(object):
         doFITS.converto32bit(saveName,saveName)
 
         return saveName
+
+
+
 
     def getSmFITSFileList(self,calCode=None):
 
@@ -3145,6 +3751,28 @@ class checkFillingFactor(object):
 
 
 
+    def testCloudVoxelRatio(self):
+        """
+
+        :return: the ratio of voxel that belong to DBSCAN clouds
+        """
+        cleanFITSFileSm1=self.getSmoothAndNoiseFITSSingle(getCleanFITS=True)
+
+        dataLabel,headLabel=doFITS.readFITS(cleanFITSFileSm1)
+
+        minV = np.min( dataLabel[0] )
+
+        Nz,Ny,Nx=dataLabel.shape
+        totalN=Nz*Ny*Nx
+
+        cloudIndex=np.where( dataLabel > minV   )
+
+        cloudN=len(cloudIndex[0])
+
+
+        print "The ratio is ",cloudN/1./totalN, self.calCode
+
+
     def testEqualCutOff(self):
         """
         Find the equivalent cut off, that would yield a equal flux with the cloud flux
@@ -3164,25 +3792,29 @@ class checkFillingFactor(object):
         ceanTBFiless = self.getSmoothListFixNoise(getCleanTBFile=True)
 
         cleanFITSFileSm1=self.getSmoothAndNoiseFITSSingle(getCleanFITS=True)
-
+        rmsFITS=self.getRMSFITS()
 
         eqSigmaList = []
 
         for i in range(len(smFiles)):
+
+            if i<10:
+                continue
+
             fitsName = smFiles[i]
             tbFileName = ceanTBFiless[i]
 
             print fitsName
             print tbFileName
 
-            eqDownToSigma = self.getEqualCutOff(fitsName, tbFileName, cleanFITSFileSm1 ) / self.getMeanRMS()
-            print eqDownToSigma
+            eqDownToSigma = self.getEqualCutOff(fitsName, tbFileName, cleanFITSFileSm1,rmsFITS )
+            print eqDownToSigma,"Equal sigma??"
             eqSigmaList.append(eqDownToSigma)
 
         print eqSigmaList
         print  "the equal sigma list is ", np.mean(eqSigmaList)
 
-    def getEqualCutOff(self,fitsFile,TBFile,cleaFITSFileSm1):
+    def getEqualCutOff(self,fitsFile,TBFile,cleaFITSFileSm1,rmsFITS):
 
         """
         get the equivalent cutoff of fitsFile to get the equivalent flux with DBSCAN catalg
@@ -3198,23 +3830,35 @@ class checkFillingFactor(object):
         print "Total dbscanFlux",dbscanFlux
         precision=0.0001 #percent
 
-        downToKUp = 3. #upper, the lower is 3 K
-        downToKLow =0.01 #upper, the lower is 1 K
+        downToKUp = 4. #upper, the lower is 4 sigma
+        downToKLow =1 #upper, the lower is   1 sigma
 
 
         data, head = myFITS.readFITS(fitsFile)
         #self.maskNoiseEdge(data)
+        rmsData,rmsHead=doFITS.readFITS( rmsFITS )
 
         dataCluster,headCluster=myFITS.readFITS(cleaFITSFileSm1)
 
+
+
+
         data[ dataCluster==0 ]=0 #mask the data area
-        print   np.nansum(data[data >0]) *self.getVelResolution()
+        sigmaData=data/rmsData
+
+
+
+        coValues=data[dataCluster>0 ]
+        coSigmas=sigmaData[dataCluster>0 ]
+
+
+        print   np.nansum( coValues ,dtype=np.float64) *self.getVelResolution(),"all sigma values"
         while 1:
             #calcualate cutoff rms
             downToKTry = (downToKUp + downToKLow) / 2.
             #print "Trying downToK, ", downToKTry
-            sumV = np.nansum(data[data >= downToKTry]) *self.getVelResolution()
-            print downToKTry,"cutoff flux ",sumV
+            sumV = np.nansum(coValues[coSigmas >= downToKTry],dtype=np.float64) *self.getVelResolution()
+            print downToKTry,"sigma cutoff flux ",sumV
             ###
             diff= abs( sumV-dbscanFlux)/dbscanFlux
             #print diff
@@ -3284,12 +3928,16 @@ class checkFillingFactor(object):
 
             if parametersN == 3:
                 #params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[  0.5, 1])
+
+
                 params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[  1, 0.5])
 
 
             if parametersN == 2:
-                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[ 4])
+                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,    absolute_sigma=True, p0=[ 0.5])
 
+            if parametersN==5:
+                params, paramas_covariance = optimize.curve_fit(useFunction, sizeArray, ffArray, sigma=ffError,   absolute_sigma=True, p0=[1, 1, 1,8])
 
 
         #fitting a function that describe the
@@ -3364,9 +4012,274 @@ class checkFillingFactor(object):
         return   myOutPut.beta,  myOutPut.sd_beta
 
 
+    def fittingCutOFF(self , beamList,fluxList,fluxError ,dim=5 ,threshRatio=1./3. ):
+        x=np.asarray( beamList )
+        y = np.asarray( fluxList )
+        yError= np.asarray( fluxError )
+
+        #only use half
+        if dim==3:
+            threshFlux=np.max( y )* threshRatio
+
+            #find the closest index,
+
+            idx = np.abs(y - threshFlux).argmin()
+
+            if y[idx ]<  threshFlux:
+                idx=idx-1
+
+            if idx<=4:
+                idx= 5
+
+            #print idx,"???????????????????"
 
 
-    def getFillingFactorAndDraw(self,beamList,fluxList,fluxError,calID,drawFigure=False,drawCode="",testPoly=False,individuals=False,testMCMC=False   ):
+            x=x[0:idx+1]
+            yError=yError[0:idx+1]
+            y=y[0:idx+1]
+
+        fitData= [x,y,yError ]
+
+        ### test parameter
+        if  dim==3:# x,a,b,c,mu,sigma,d,e ): polynomial
+            #testP0 = [ 10,  np.max(y),   np.max(y)/10 ,    np.max(y)]  # gaussian model
+
+
+
+
+            #testP0 = [  np.mean(y)     ,  12 ,   10  , 10  ]  # gaussian model
+            #testP0 = [  np.mean(y)    ,  14  ,   10  ,   10, 1,np.mean(y),0.5  ]  # gaussian model
+
+
+            testP0 = [  np.max(y)     ,  -np.max(y)  ,   np.max(y)  ]  # gaussian model
+
+            try:
+
+                params1, paramas_covariance1 = optimize.curve_fit(ffFunctionCutPara, x, y, sigma=yError,  absolute_sigma=True, p0=testP0)
+            except:
+                pass
+                #params1, paramas_covariance1 = optimize.curve_fit(ffFunctionCutPara, x, y, sigma=yError,  absolute_sigma=True, p0=testP0)
+
+            return params1, paramas_covariance1 , ffFunctionCutPara,fitData
+
+
+        if dim==5: #use quadrati and gauss tail
+            #selectPositive= y>0
+            #x = x[selectPositive ]
+            #y = y[selectPositive ]
+            #yError = yError[selectPositive ]
+
+
+            #y= y [2:   ]
+            #x   =   x[ 2:     ]  #( x[0:-1] +  x[1: ] )/2.
+            #yError =  yError[ 2:     ]
+            #print np.max(y)
+
+            #half
+
+
+            testP0=[np.max(y)/10    , 8, np.max(y)   , 10 , 5 ] # gaussian model
+
+            #testP0=[np.max(y)   , 0.1,  100   , np.max(y)  , 0.1  ] # double exponential
+
+            #testP0=[ np.max(y) ,  2 , np.max(y) /10 ,   4 ,  10   ]
+
+            try:
+
+                params1, paramas_covariance1 = optimize.curve_fit( ffFunctionCutTest , x, y, sigma=yError, absolute_sigma=True, p0=  testP0       )
+            except:
+                #params1, paramas_covariance1 = optimize.curve_fit( ffFunctionCutTest , x, y, sigma=yError, absolute_sigma=True, p0=  testP0 ,         )
+
+                return   [0, 0, 0, 0, 0],  np.asarray(  [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]), ffFunctionCutTest,fitData
+
+            return params1, paramas_covariance1, ffFunctionCutTest, fitData
+        #
+
+        #try both single and doulbe Gaussian curve
+        params1, paramas_covariance1 = optimize.curve_fit( ffFunctionCutSG, x, y, sigma=yError, absolute_sigma=True, p0=         [  np.max(y) * 2  ,  1  ,1  ]  )
+
+        #params2, paramas_covariance2 = optimize.curve_fit( ffFunctionCutDG, x, y, sigma=yError, absolute_sigma=True, p0=  [  np.max(y)   ,  1 ,np.max(y) /2   ,  2   ]  )
+
+        #reject double Gaussian, use
+
+        #if params2[0] <0 or params2[2] <0  :
+
+        return params1, paramas_covariance1, ffFunctionCutSG, fitData #using single  Gaussian
+
+
+
+        return params2, paramas_covariance2,ffFunctionCutDG
+
+
+    def getFillingFactorAndDrawCutoff(self,beamList,fluxList,fluxError,calID,drawFigure=False,drawCode="",testPoly=False,individuals=False, dim=5  ):
+        """
+        dim=3, meaning
+        :param beamList:
+        :param fluxList:
+        :return:
+        """
+        x = np.asarray(beamList)
+
+        y = np.asarray(fluxList)
+
+        yError = np.asarray(fluxError)
+
+        #yError=yError/np.max(y)
+        #y=y/np.max(y)
+
+        try:
+
+            params, paramas_covariance, useFunction,fitData = self.fittingCutOFF(x, y, yError, dim=dim)
+
+            #print calID,params
+
+            errors = np.sqrt(np.diag(paramas_covariance))
+
+        except:
+
+            # params, paramas_covariance = optimize.curve_fit(useFunction, x, y, sigma=yError, absolute_sigma=True,
+            # p0=p0My)
+
+            return 0, 0, [[0, 0, 0,0,0], [0, 0, 0,0,0]], np.asarray([[0, 0, 0,0,0], [0, 0, 0,0,0], [0, 0, 0,0,0], [0, 0, 0,0,0], [0, 0, 0,0,0]])
+
+
+
+        # errors = np.sqrt(np.diag(paramas_covariance))
+
+        fittingParaAndError = [params, errors]
+
+        # for i in range(len(params)):
+        # print params[i], errors[i],"Error in percentage", errors[i]/params[i]
+        #cfaBeam = 8.5
+        #cfaFilling,cfaFillingError = self.getFFandErrorCutoff(tar) #(cfaBeam, *params) / useFunction(0, *params)
+
+        # wmsipFilling = useFunction(self.getBeamSize( ), params[0], params[1], params[2]) / useFunction(0, params[0], params[1],   params[2])
+
+        # print paraMCMC,paraErrorMCMC
+        # print params, errors
+
+        mwispFF, mwispFFError = self.getFFandErrorCutoff( params, paramas_covariance,  targetSNR=2 ,dimension= len(params)   )
+
+        # print mwispFF,wmsipFilling,"Equal??Equal??Equal??Equal??Equal??Equal??"
+
+        if not drawFigure:
+            return mwispFF, 0, fittingParaAndError, paramas_covariance
+
+        # drawTheFigure
+        fig = plt.figure(figsize=(10, 8))
+        rc('text', usetex=True)
+        rc('font', **{'family': 'sans-serif', 'size': 22, 'serif': ['Helvetica']})
+
+        if 1:
+            mpl.rcParams['text.latex.preamble'] = [
+                r'\usepackage{tgheros}',  # helvetica font
+                r'\usepackage{sansmath}',  # math-font matching  helvetica
+                r'\sansmath',  # actually tell tex to use it!
+                r'\usepackage{siunitx}',  # micro symbols
+                r'\sisetup{detect-all}',  # force siunitx to use the fonts
+            ]
+
+        axFitting = fig.add_subplot(1, 1, 1)
+        # axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
+        # axFitting.scatter(x, x*y, s=15, color='red', label="The noise RMS is 0.5 K")
+        # axFitting.scatter(  x  ,  y , s=15,  color='red'   ) #
+        axFitting.errorbar(x, y, yerr=yError, markersize=2, fmt='o', c='red', capsize=0.5, elinewidth=1, lw=1)
+
+        fittingX = np.arange(0, np.max(fitData[0]), 0.01)
+        # axFitting.plot( fittingX  ,  useFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
+        # if useCutoff:
+        # fittingX = np.arange( - np.max(x), np.max(x), 0.01)
+
+
+
+        # print formulaFunction
+
+
+        if np.isnan(mwispFFError) or np.isinf(mwispFFError):
+            mwispFFError=999
+
+        label= "$\eta_{{\\rm sns}}={:.3f}\pm{:.3f}$".format(mwispFF ,mwispFFError  ) ##"Quadratic with Gaussian CDF "
+
+        if 0:
+             # with astropy
+            fitter = modeling.fitting.LevMarLSQFitter()
+            model1 = modeling.models.Gaussian1D(amplitude=np.mean(y), mean=0, stddev=5)
+            model1.mean.fixed = True
+
+            model2 = modeling.models.Gaussian1D(amplitude=np.mean(y) / 2, mean=0, stddev=3)
+            model2.mean.fixed = True
+
+            gInit = model1   + model2
+
+            fitted_model = fitter(gInit, x, y, weights=1. / yError)
+            # fitted_model = fitter(gInit, x, y)
+            # print gInit.mean.value , gInit.stddev.value ,gInit.amplitude.value
+
+            # print fitted_model.mean_0.value,  fitted_model.stddev_0.value, fitted_model.amplitude_0.value
+            # print fitted_model.mean_1.value,  fitted_model.stddev_1.value, fitted_model.amplitude_1.value
+            # print model2.mean.value ,model2.stddev.value ,model2.amplitude.value
+
+            ffs = axFitting.plot(fittingX, fitted_model(fittingX), color='blue', lw=1.0  )
+        else:
+
+
+            ffs = axFitting.plot(fittingX, useFunction(fittingX, *params), color='blue', lw=1.0 ,label=label     )
+
+
+        axFitting.axvline(x=0, ls="--", color='black', lw=1)
+
+
+
+        #axFitting.set_yscale('log')
+        #axFitting.set_xscale('log')
+
+
+
+        #axFitting.axvline(x=3, ls="--", color='black', lw=1, alpha=0.8)
+
+        axFitting.legend(loc=1, handlelength=0.8, fontsize=20)
+
+        axFitting.set_xlabel(r"Cutoff ($\sigma$)")
+        # axFitting.set_ylabel("Flux (arcmin)")
+        axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
+        ###########################
+        saveTagFigue = "{}_factorFitting_ID{}{}".format(self.calCode, calID, drawCode)
+
+
+
+
+        if calID != 0:
+
+            if individuals and not testPoly:
+                saveTagFigue = saveTagFigue + "_indivi"
+                plt.savefig(self.figurePath + "{}.pdf".format(saveTagFigue), bbox_inches='tight')
+
+            # if calID!=102:
+
+            # plt.savefig(self.figurePath+"{}.png".format( saveTagFigue ), bbox_inches='tight', dpi=100)
+            # plt.savefig(self.figurePath+"{}.pdf".format( saveTagFigue ), bbox_inches='tight' )
+            if testPoly:
+                saveTagFigue = saveTagFigue + "_indivi"
+                plt.savefig(self.figurePath + "{}Poly.pdf".format(saveTagFigue), bbox_inches='tight')
+
+            if not testPoly and not individuals:
+                plt.savefig(self.figurePath + "{}.png".format(saveTagFigue), bbox_inches='tight', dpi=100)
+
+
+
+        else:
+            plt.savefig(self.paperFigurePath + "{}.png".format(saveTagFigue), bbox_inches='tight', dpi=100)
+            plt.savefig(self.paperFigurePath + "{}.pdf".format(saveTagFigue), bbox_inches='tight')
+
+        plt.close(fig)
+        gc.collect()
+
+        return mwispFF, 0, fittingParaAndError, paramas_covariance
+
+
+
+
+    def getFillingFactorAndDraw(self,beamList,fluxList,fluxError,calID,drawFigure=False,drawCode="",testPoly=False,individuals=False,testMCMC=False ,useCutoff=False   ):
         """
 
         :param beamList:
@@ -3374,43 +4287,110 @@ class checkFillingFactor(object):
         :return:
         """
 
+
+
+
+
+
         x=np.asarray( beamList )
 
         y = np.asarray( fluxList )
 
+        yError= np.asarray( fluxError )
+        p0My  = [np.mean(y), 0.5, np.mean(y)]
+        useFunction= ffFunction
+        if useCutoff: #only use positive values
+            #selectPositive= y>0
+            #x = x[selectPositive ]
+            #y = y[selectPositive ]
+            #yError = yError[selectPositive ]
+
+
+
+
+            #get difference
+            #y=y [0:-1] -  y[1: ]
+            #x   =   x[0:-1]  #( x[0:-1] +  x[1: ] )/2.
+            #yError = np.sqrt(  yError[0:-1]**2 +  yError[1: ]**2   )
+
+
+
+
+
+            # use data larget than 3.5 sigma
+            #y= y [2:  ]
+            #x   =   x[2:    ]  #( x[0:-1] +  x[1: ] )/2.
+            #yError =  yError[2:   ]
+            if 0:
+                y= np.concatenate ( (y,y )  )
+                x =  np.concatenate ( (x,-x )  )
+                yError =  np.concatenate ( (yError, yError )  )
+            if 0:
+                yError =   yError/np.max(y)
+
+                y=  y/np.max(y)
+                 
+            #p0My =    [  np.mean(y)   ,  0.5  ,  np.min(y)  , np.min(y),  5 , 1 ] #two lines
+            #p0My =    [  np.max(y) *2  ,  0.5 , 1 ] #doulbe gaussian
+            #p0My =    [  np.max(y) * 2  ,  1   ] #doulbe gaussian
+
+            #p0My =    [  np.max(y) * 2  ,  1,1   ] #doulbe gaussian
+
+            
+            #p0My =    [  np.mean(y)   ,  0.5 , np.max(y),  1 ]    # [ np.max(y),    np.mean(y)  ,   5 ,10   ]   # [np.mean(y),  0.5 ,     1     ]   #  [np.max(y), 1 ,     1   ]   #  [np.mean(y), 0.5,   0.5, -1 ]  # [  y[-1]/x[-1]**2 ,   np.mean(y),  np.max(y) ]
+            #useFunction= ffFunctionCutSG
+
+
+
+ 
         #print x
         #print y
         try:
 
             if fluxError is not None:
 
-                fluxError = np.asarray(fluxError)
+                #fluxError = np.asarray(fluxError)
 
-                params, paramas_covariance = optimize.curve_fit(ffFunction, x , y , sigma=fluxError , absolute_sigma=True,  p0=[np.mean(y), 0.5, np.mean(y)])
+
+                if useCutoff:
+                    params, paramas_covariance, useFunction = self.fittingCutOFF(x,y,yError )
+
+                else:
+
+                    #params, paramas_covariance = optimize.curve_fit(useFunction, x , y , sigma=fluxError , absolute_sigma=True,  p0=p0My )
+                    params, paramas_covariance = optimize.curve_fit(useFunction, x , y , sigma=yError , absolute_sigma=True,  p0= p0My )
+
 
             else:
 
-
-
-                params, paramas_covariance = optimize.curve_fit(ffFunction, x, y,   p0=[np.mean(y), 0.5, np.mean(y)])
+                params, paramas_covariance = optimize.curve_fit(useFunction, x, y,   p0= p0My )
 
 
             errors = np.sqrt(np.diag(paramas_covariance))
+            print calID, params
+            print calID, errors
+
 
             #params,errors=self.ffOdr(x,y,fluxError) #dot no use Odr for filing factor fitting, fore there is no error in axis
 
 
         except:
 
+            #params, paramas_covariance = optimize.curve_fit(useFunction, x, y, sigma=yError, absolute_sigma=True,
+                                                            #p0=p0My)
+
             return 0, 0, [[0,0,0],[0,0,0]] ,  np.asarray ( [[0,0,0],[0,0,0],[0,0,0]] )
 
         #mcmc is not good
+
+
+
 
         if testMCMC:
             print "Tesing mcmc...."
             from MCMCfunctionFitting import fittingFFMCMC
             doFFmcmc=fittingFFMCMC()
-            paraMCMC,paraErrorMCMC=doFFmcmc.getParameters(  beamList, fluxList ,  fluxError)
+            paraMCMC,paraErrorMCMC=doFFmcmc.getParameters(  beamList, fluxList ,  yError)
 
             print "MCMC Parameters and errors"
             print  paraMCMC
@@ -3425,11 +4405,11 @@ class checkFillingFactor(object):
         # for i in range(len(params)):
         # print params[i], errors[i],"Error in percentage", errors[i]/params[i]
         cfaBeam=8.5
-        cfaFilling =        ffFunction(cfaBeam, params[0], params[1], params[2]) / ffFunction(0, params[0], params[1], params[2])
+        cfaFilling =        useFunction(cfaBeam, *params ) / useFunction(0, *params )
 
 
 
-        #wmsipFilling = ffFunction(self.getBeamSize( ), params[0], params[1], params[2]) / ffFunction(0, params[0], params[1],   params[2])
+        #wmsipFilling = useFunction(self.getBeamSize( ), params[0], params[1], params[2]) / useFunction(0, params[0], params[1],   params[2])
 
         #print paraMCMC,paraErrorMCMC
         #print params, errors
@@ -3447,7 +4427,7 @@ class checkFillingFactor(object):
         #drawTheFigure
         fig = plt.figure(figsize=(10, 8))
         rc('text', usetex=True)
-        rc('font', **{'family': 'sans-serif', 'size': 17, 'serif': ['Helvetica']})
+        rc('font', **{'family': 'sans-serif', 'size': 22, 'serif': ['Helvetica']})
 
         if 1:
             mpl.rcParams['text.latex.preamble'] = [
@@ -3462,19 +4442,33 @@ class checkFillingFactor(object):
         #axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
         #axFitting.scatter(x, x*y, s=15, color='red', label="The noise RMS is 0.5 K")
         #axFitting.scatter(  x  ,  y , s=15,  color='red'   ) #
-        axFitting.errorbar(x,   y , yerr= fluxError ,    markersize=2 , fmt='o', c= 'red' ,     capsize=0.5,  elinewidth=1 , lw=1 )
+        axFitting.errorbar(x,   y , yerr= yError ,    markersize=2 , fmt='o', c= 'red' ,     capsize=0.5,  elinewidth=1 , lw=1 )
+
+
 
         fittingX = np.arange(0, np.max(x), 0.01)
-        # axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
+        # axFitting.plot( fittingX  ,  useFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
+        #if useCutoff:
+            #fittingX = np.arange( - np.max(x), np.max(x), 0.01)
 
         aDig,aPower=self.getScitificNotition(params[0])
+        #if len(params )>2:
         cDig,cPower=self.getScitificNotition(params[2])
+
+
+            
         armStr=self.getArmStr()
         lineStr=self.getLineStr()
+
+        showMCarm= r"{} in the {} arm".format(lineStr,armStr)
+        at = AnchoredText( showMCarm , loc=3, frameon=False)
+        #axFitting.add_artist(at)
         if not individuals:
-            fillingWMISP = r"The BFF of {} of the {} arm is  {:.3f}$\pm${:.3f}".format(lineStr,armStr, mwispFF, mwispFFError)
+            #fillingWMISP = r"The beam filling factor of {} in the {} arm is  {:.3f}$\pm${:.3f}".format(lineStr,armStr, mwispFF, mwispFFError)
+            fillingWMISP = r"{} in the {} arm ($\eta_{{\mathrm{{res}}}} = {:.3f}\pm{:.3f}$)".format(lineStr,armStr, mwispFF, mwispFFError)
+
         else:
-            fillingWMISP = r"The BFF is {:.3f}$\pm${:.3f}".format(mwispFF ,  mwispFFError  )
+            fillingWMISP = r"$\eta_{{\mathrm{{bf}}}} = {:.3f} \pm {:.3f}$".format(mwispFF ,  mwispFFError  )
 
         signStr="+"
 
@@ -3482,51 +4476,84 @@ class checkFillingFactor(object):
             signStr = ""
 
 
-        formulaFunction=r"$\mathit y={}\times10^{{ {} }}\exp\left(-{:.3f}\mathit \theta\right){}{}\times10^{{{}}}$   ".format(aDig, aPower,params[1], signStr,cDig, cPower   )
+        formulaFunction=r"$\mathit y={}\times10^{{ {} }}\exp\left(-{:.3f}\mathrm \Theta\right){}{}\times10^{{{}}}$   ".format(aDig, aPower,params[1], signStr,cDig, cPower   )
 
         if aPower==0 and cPower==0:
-            formulaFunction = r"$\mathit y={}\exp\left(-{:.3f}\mathit \theta\right){}{}$   ".format(  aDig,    params[1],signStr, cDig  )
+            formulaFunction = r"$\mathit y={}\exp\left(-{:.3f}\mathrm  \Theta\right){}{}$   ".format(  aDig,    params[1],signStr, cDig  )
 
         if aPower==0 and cPower!=0:
-            formulaFunction = r"$\mathit y={}\exp\left(-{:.3f}\mathit \theta\right){}{}\times10^{{{}}}$   ".format(  aDig,   params[1],signStr, cDig, cPower)
+            formulaFunction = r"$\mathit y={}\exp\left(-{:.3f} \mathrm \Theta\right){}{}\times10^{{{}}}$   ".format(  aDig,   params[1],signStr, cDig, cPower)
 
         if aPower!=0 and cPower==0:
-            formulaFunction = r"$\mathit y={}\times10^{{{}}}\exp\left(-{:.3f}\mathit \theta\right){}{}$   ".format(  aDig, aPower, params[1],signStr, cDig )
+            formulaFunction = r"$\mathit y={}\times10^{{{}}}\exp\left(-{:.3f}\mathrm  \Theta\right){}{}$   ".format(  aDig, aPower, params[1],signStr, cDig )
 
 
 
         #print formulaFunction
 
-        ffs=axFitting.plot(fittingX, ffFunction(fittingX, *params), color='blue', lw=1.0,label=formulaFunction)
+
+
+
+        if 0: ################################### astropyastropyastropyastropyastropyastropyastropyastropyastropyastropy
+            # with astropy
+            fitter = modeling.fitting.LevMarLSQFitter()
+            model1 = modeling.models.Gaussian1D(amplitude=np.mean(y), mean=0, stddev=  5  )
+            model1.mean.fixed = True
+
+
+            model2 = modeling.models.Gaussian1D(amplitude=np.mean(y)/2, mean=0, stddev=3)
+            model2.mean.fixed = True
+
+            gInit = model1  #   + model2
+
+            fitted_model = fitter(gInit, x, y, weights=1. / yError  )
+            #fitted_model = fitter(gInit, x, y)
+            #print gInit.mean.value , gInit.stddev.value ,gInit.amplitude.value
+
+            #print fitted_model.mean_0.value,  fitted_model.stddev_0.value, fitted_model.amplitude_0.value
+            #print fitted_model.mean_1.value,  fitted_model.stddev_1.value, fitted_model.amplitude_1.value
+            #print model2.mean.value ,model2.stddev.value ,model2.amplitude.value
+
+            ffs=axFitting.plot(fittingX,  fitted_model(fittingX), color='blue', lw=1.0,label=formulaFunction)
+
+        else:
+            ffs=axFitting.plot(fittingX, useFunction(fittingX, *params), color='blue', lw=1.0,label=formulaFunction)
+
         if testMCMC:
-            axFitting.plot(fittingX, ffFunction(fittingX, *paraMCMC), color='green', lw=1.0, label="MCMCfitting ")
-        #aa=axFitting.plot(fittingX, ffFunction(fittingX, *paraMCMC), color='green', lw=1.0,label="MCMC ")
+            axFitting.plot(fittingX, useFunction(fittingX, *paraMCMC), color='green', lw=1.0, label="MCMCfitting ")
+        #aa=axFitting.plot(fittingX, useFunction(fittingX, *paraMCMC), color='green', lw=1.0,label="MCMC ")
 
         #calcuate weighted rms
 
-        #residual= fluxList- ffFunction(beamList, *params)
-        #print  "Residual RMS" ,self.weightedRMSPure(residual,fluxError)
+        #residual= fluxList- useFunction(beamList, *params)
+        #print  "Residual RMS" ,self.weightedRMSPure(residual,yError)
 
         #polynomical fit and residual
 
         if testPoly:
-            for i in [ 3 ,5, 7 ]:
+            colors=["purple","green","black"]
+            degrees=[3,5,7]
+
+            for i, color in zip(  degrees, colors ):
+            #for i in [ 3 ,5, 7 ]:
                 degree=i
                 #print fluxError,"Error?"
 
-                w=1/fluxError
+                w=1/yError
                 p0=np.polyfit(beamList ,fluxList ,degree,w=w)
                 p1=np.poly1d(p0)
                 residual= fluxList- p1(beamList )
-                print  "Residual RMS (polyfit {})".format(degree) ,self.weightedRMSPure(residual,fluxError)
-
-                axFitting.plot(fittingX, p1(fittingX),  lw=1.0,label="Polynomial with degree {}".format(degree) )
+                print  "Residual RMS (polyfit {})".format(degree) ,self.weightedRMSPure(residual,yError)
+                if i ==3:
+                    axFitting.plot(fittingX, p1(fittingX),   "b--",  lw=1.0, label="Polynomial with degree {}".format(degree) , color= color)
+                else:
+                    axFitting.plot(fittingX, p1(fittingX),  "b-",  lw=1.0, label="Polynomial with degree {}".format(degree) , color= color  )
 
 
 
         #fillingCfA = "The filling factor ({}) of CfA is: {:.3f}".format(self.calCode, cfaFilling)
         if not testPoly:
-            ffs2=axFitting.plot(fittingX, ffFunction(fittingX, *params), color='white',alpha=0, lw=1.0,label=fillingWMISP)
+            ffs2=axFitting.plot(fittingX, useFunction(fittingX, *params), color='white',alpha=0, lw=1.0,label=fillingWMISP)
 
         #three paramters
 
@@ -3543,44 +4570,60 @@ class checkFillingFactor(object):
         #axFitting.add_artist(at)
         ###
 
-        axFitting.axvline(x=0, ls="--", color='black')
+        axFitting.axvline(x=0, ls="--", color='black',lw=1)
         if self.surveys in self.calCode:
             pass
         else:
-            axFitting.set_xlim(-0.5,9 )
+
+            if not useCutoff:
+
+                axFitting.set_xlim(-0.2, 9.2 )
+            else:
+                pass
+                #axFitting.set_xlim( 0 ,  20 )
 
         # draw CfA resolution
         #axFitting.axvline(x=cfaBeam, ymax=0.2, ls="--", color='green', label="CfA resolutuion (8.5 arcmin)")
 
         #manual legend
 
+        if useCutoff:
+            axFitting.axvline(x=3, ls="--", color='black', lw=1, alpha=0.8)
+        plt.ticklabel_format(axis='y',style="sci",scilimits=(0,1) )
 
-
-
-        axFitting.legend( loc=1)
+        axFitting.legend( loc=1,handlelength=1,fontsize=19)
 
         axFitting.set_xlabel("Beam size (arcmin)")
         #axFitting.set_ylabel("Flux (arcmin)")
         axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
         ###########################
-        saveTag= "{}_factorFitting_ID{}{}".format(self.calCode,calID,drawCode)
+        saveTagFigue = "{}_factorFitting_ID{}{}".format(self.calCode,calID,drawCode)
         if calID!=0:
 
 
-            if individuals:
-                saveTag=saveTag+"_indivi"
-                plt.savefig(self.figurePath + "{}.pdf".format(saveTag), bbox_inches='tight' )
+            if individuals and not testPoly:
+                saveTagFigue=saveTagFigue+"_indivi"
+                plt.savefig(self.figurePath + "{}.pdf".format(saveTagFigue), bbox_inches='tight' )
 
-            plt.savefig(self.figurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=100)
-            #plt.savefig(self.figurePath+"{}.pdf".format( saveTag ), bbox_inches='tight' )
+            #if calID!=102:
+
+                #plt.savefig(self.figurePath+"{}.png".format( saveTagFigue ), bbox_inches='tight', dpi=100)
+            #plt.savefig(self.figurePath+"{}.pdf".format( saveTagFigue ), bbox_inches='tight' )
             if testPoly:
-                plt.savefig(self.figurePath + "{}.pdf".format(saveTag), bbox_inches='tight' )
+                saveTagFigue = saveTagFigue +"_indivi"
+                plt.savefig(self.figurePath + "{}Poly.pdf".format( saveTagFigue ), bbox_inches='tight' )
+
+            if not testPoly and not individuals:
+                plt.savefig(self.figurePath+"{}.png".format( saveTagFigue ), bbox_inches='tight', dpi=100)
+
+
 
         else:
-            plt.savefig(self.paperFigurePath+"{}.png".format( saveTag ), bbox_inches='tight', dpi=100)
-            plt.savefig(self.paperFigurePath+"{}.pdf".format( saveTag ), bbox_inches='tight' )
 
-            
+
+            plt.savefig(self.paperFigurePath+"{}.png".format( saveTagFigue  ), bbox_inches='tight', dpi=100)
+            plt.savefig(self.paperFigurePath+"{}.pdf".format( saveTagFigue  ), bbox_inches='tight' )
+
 
         plt.close(fig )
         gc.collect()
@@ -3923,6 +4966,8 @@ class checkFillingFactor(object):
                 cStr=  self.getScitificStr(para[2], paraError[2])
 
 
+
+
             #print lineStr,armStr, "?????????????????????????"
 
             if lineStr==self.lineStrList[-1] and armStr==self.allArmList[-1]:
@@ -3936,7 +4981,7 @@ class checkFillingFactor(object):
                 if i % 3 != 1:
                     armStr = ""
                     #nStr=""
-                lintStr="{} & {} & {} & {} & {} & {} & {}  \\\\".format( armStr , lineStr , nStr, factorStr, fhalfStr,  aStr, bStr, cStr   )
+                lintStr="{} & {} & {} & {} & {} & {} & {} & {}  \\\\".format( armStr , lineStr , nStr, factorStr, fhalfStr,  aStr, bStr, cStr   )
 
 
 
@@ -4633,17 +5678,75 @@ class checkFillingFactor(object):
         ffTB[self.cutFFaCol] = cleanTB["peak"] * 0
         ffTB[self.cutFFaCol].unit=""
 
+
+        ffTB[self.cutFFmuCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFmuCol].unit=""
+
+        ffTB[self.cutFFmuErrorCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFmuErrorCol].unit=""
+
+
+
+        ffTB[self.cutFFsigmaCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFsigmaCol].unit=""
+
+        ffTB[self.cutFFsigmaErrorCol] = cleanTB["peak"] * 0
+        ffTB[self.cutFFsigmaErrorCol].unit = ""
+
+        ###############################
+
+
         ffTB[self.cutFFbCol] = cleanTB["peak"] * 0
         ffTB[self.cutFFcCol] = cleanTB["peak"] * 0
         ffTB[self.cutFFaErrorCol] = cleanTB["peak"] * 0
         ffTB[self.cutFFbErrorCol] = cleanTB["peak"] * 0
         ffTB[self.cutFFcErrorCol] = cleanTB["peak"] * 0
 
+
+
+
+
         ffTB[self.cutFFbCol].unit=""
         ffTB[self.cutFFcCol].unit=""
         ffTB[self.cutFFaErrorCol].unit=""
         ffTB[self.cutFFbErrorCol].unit=""
         ffTB[self.cutFFcErrorCol].unit=""
+
+        #############
+        ffTB[self.covCut00Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut01Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut02Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut03Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut04Col]= cleanTB["peak"] * 0
+
+
+
+
+        ffTB[self.covCut10Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut11Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut12Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut13Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut14Col]= cleanTB["peak"] * 0
+
+
+        ffTB[self.covCut20Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut21Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut22Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut23Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut24Col]= cleanTB["peak"] * 0
+
+        ffTB[self.covCut30Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut31Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut32Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut33Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut34Col]= cleanTB["peak"] * 0
+
+
+        ffTB[self.covCut40Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut41Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut42Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut43Col]= cleanTB["peak"] * 0
+        ffTB[self.covCut44Col]= cleanTB["peak"] * 0
 
 
         return ffTB
@@ -4825,6 +5928,13 @@ class checkFillingFactor(object):
         return TB[indexID]
 
 
+    def getPeakColName(self,smFactor):
+        """
+        add a column to save the change of peak values
+        :param smFactor:
+        :return:
+        """
+        return "peakTMP{:.1f}".format( smFactor )
 
 
     def getFluxColName(self,smFactor):
@@ -4863,7 +5973,7 @@ class checkFillingFactor(object):
 
 
 
-    def getSmoothFluxCol(self,smFITS, TB,  labelSets, sigmaCut=2.6 ):
+    def getSmoothFluxCol(self,smFITS, TB,  labelSets  ):
         """
         :return:
         """
@@ -4871,7 +5981,11 @@ class checkFillingFactor(object):
         ####
         print "Extracting flux from ", smFITS
         dataSm,headSm= doFITS.readFITS(smFITS)
+        rmsFITS=self.getRMSFITS()
 
+        dataRMS,headRMS=doFITS.readFITS(rmsFITS)
+
+        dataSigma=dataSm/dataRMS
 
         #calculate the angular size of eachClouds
 
@@ -4879,14 +5993,16 @@ class checkFillingFactor(object):
 
         dl= abs( headSm["CDELT1"] ) * 60
 
-        omega=db*dl/0.25 #convert to MWISP unite #do not multiply omega, because a common factor on flux and error, does not change the filling factor
+        #omega=  db*dl/0.25 #convert to MWISP unite #do not multiply omega, because a common factor on flux and error, does not change the filling factor
 
 
         smFactor = self.getSmoothFactor(smFITS)
         colName,colPixName=self.getFluxColName(smFactor)
+        colPeakName=self.getPeakColName(smFactor)
 
-        TB[colName]=TB["peak"]*0
-        TB[colPixName]=TB["peak"]*0
+        TB[colName] = TB["peak"]*0
+        TB[colPixName] = TB["peak"]*0
+        TB[colPeakName] = TB["peak"]*0
 
         widgets = ['Extracting flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
                    FileTransferSpeed()]  # see docs for other options
@@ -4894,8 +6010,12 @@ class checkFillingFactor(object):
         pbar.start()
 
 
+
         i=0
         noise=self.getMeanRMS()
+
+        #do not use commont noise, use the rms fits
+
         for eachRow in TB:
             i=i+1
             #gc.collect()
@@ -4903,12 +6023,21 @@ class checkFillingFactor(object):
             ID = eachRow["_idx"]
 
             cloudIndex = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
+
+            peakL,peakB,peakV= eachRow["peakL"],  eachRow["peakB"],  eachRow["peakV"]
+            peakL, peakB, peakV=map(int, [peakL,peakB,peakV] )
+            peakValue= dataSm[peakV,peakB,peakL]
+
+
             coValues=   dataSm[cloudIndex]
-            coValues= coValues[coValues>=sigmaCut* noise ]
+            sigmaValues=dataSigma[cloudIndex]
+            
+            coValues= coValues[sigmaValues>=self.bffFluxCutSigma  ] #accurate sigma cut to each spectral and use 3sigma cut
             fluxID=np.sum(coValues,dtype=float)*self.getVelResolution()
 
             eachRow[colName] = fluxID
             eachRow[colPixName] =  len(coValues)
+            eachRow[colPeakName] =   peakValue #peak temperature
 
             pbar.update(i)
 
@@ -4961,6 +6090,34 @@ class checkFillingFactor(object):
 
 
 
+    def getPeakList(self,row):
+        """
+        get the peak list and error
+        :param row:
+        :return:
+        """
+
+        fluxList = []
+        fluxErrorList = []
+
+        rmsData,rmsHead = doFITS.readFITS( self.getRMSFITS() )
+
+        for eachCutoff in self.smoothFactors:
+            colName  = self.getPeakColName(eachCutoff)
+            fluxList.append(row[colName])  # the flux is already K km/s
+
+            peakB,peakL = row["peakB"] , row["peakL"]
+            peakB, peakL = map(int, [peakB,peakL] )
+            rmsPeak=rmsData[peakB,peakL]
+            fluxErrorList.append(rmsPeak)
+
+
+
+        return np.asarray(fluxList), np.asarray(fluxErrorList)
+
+
+
+
 
 
     def getFluxList(self,row, useCutoff=False ):
@@ -4977,21 +6134,49 @@ class checkFillingFactor(object):
             fluxErrorList = []
 
             meanRMS = self.getMeanRMS()
-            
-            
+
+
+
+            firstValue=None
             
             for eachCutoff in self.cutoffFactors :
+
+
+
+
                 colName, colPixName = self.getFluxColNameCutoff(eachCutoff)
                 fluxList.append(row[colName])  # the flux is already K km/s
+
                 totalVox = row[colPixName]
 
                 totalVox = max([1, totalVox])  # assign 1 pixel error to 0 flux
 
                 eRRor = np.sqrt(totalVox) * meanRMS * self.getVelResolution()
 
+
                 fluxErrorList.append(eRRor)
 
-            return np.asarray(fluxList),  np.asarray(fluxErrorList) 
+
+
+            #removing repeating fluxes
+
+            #for i in range(  len( fluxList ) ):
+
+
+                #if fluxList[i] !=  fluxList[i+1]:
+
+                    #print i,"what does it return?", fluxList[i] !=  fluxList[i+1],  fluxList[i] , fluxList[i+1] , "????????????????"
+
+                    #print self.cutoffFactors
+                    #print fluxList # np.asarray(fluxList[i+1:] )
+                    #print aaaaa
+                    #return self.cutoffFactors[i+1:] ,np.asarray(fluxList[i+1:] ),  np.asarray(fluxErrorList[i+1:] )
+
+
+            #selectCriteria= np.asarray(fluxList)>0
+            #return    self.cutoffFactors[selectCriteria], np.asarray(fluxList)[selectCriteria],  np.asarray(fluxErrorList)[selectCriteria]
+
+            return    self.cutoffFactors, np.asarray(fluxList),  np.asarray(fluxErrorList)
 
 
         #lse
@@ -5042,31 +6227,36 @@ class checkFillingFactor(object):
         wmsipFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamArray, fluxList, calID=ID,   drawFigure=drawFigure)
         return wmsipFilling
 
-
-    def calculateFillingFactorCutoff(self,TB,drawFigure=False,inputID=None):
+    def calculateFillingFactorPeak(self,TB,drawFigure=False,inputID=None):
 
         """
-        :param TB:
+        Use the change of cloud peak as indicator of beam filling factor, return a column of filling factors and errors
+        :param TB
         :return:
         """
         #TB=Table.read(TBFile)
         #saveName="cutFF_"+TBFile
 
-        TB=self.addCutFFColnames(TB)
+        #TB=self.addCutFFColnames(TB)
 
-        cutoffArray= self.cutoffFactors* self.getMeanRMS()
+        #cutoffArray= self.cutoffFactors* self.getMeanRMS()
 
         #add progress bar
-        widgets = ['Calculating cutoff filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+        widgets = ['Calculating peak filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
                    FileTransferSpeed()]  # see docs for other options
         pbar = ProgressBar(widgets=widgets, maxval=len(TB))
         pbar.start()
 
         i=0
+
+        ffPeakList=[]
+        ffPeakErrorList=[] # to record the error of beam filling factors
+
+        beamArray=self.smoothFactors*self.getBeamSize()
         for eachRow in TB:
             i=i+1
             pbar.update(i)
-            fluxList,fluxError = self.getFluxList(eachRow,useCutoff=True)
+            fluxList,fluxError = self.getPeakList(eachRow )
 
 
             ID=eachRow[ self.idCol ]
@@ -5074,7 +6264,7 @@ class checkFillingFactor(object):
 
 
 
-                wmsipFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(cutoffArray, fluxList,   fluxError, calID=ID,   drawFigure=True)
+                wmsipFilling, cfaFilling, fittingParaAndError, pcov = self.getFillingFactorAndDraw(beamArray, fluxList,   fluxError, calID=ID,   drawFigure=True)
                 print "filling factor", wmsipFilling
                 print "Parameters", fittingParaAndError[0]
                 print "Para error", fittingParaAndError[1]
@@ -5084,23 +6274,122 @@ class checkFillingFactor(object):
             #crop
 
 
-            wmsipFilling, cfaFilling,  fittingParaAndError=self.getFillingFactorAndDraw(cutoffArray,fluxList,fluxError,calID=ID,drawFigure=drawFigure)
+            wmsipFilling, cfaFilling,  fittingParaAndError, pcov =self.getFillingFactorAndDraw(beamArray,fluxList,fluxError,calID=ID,drawFigure=drawFigure)
 
             para, paraError = fittingParaAndError
-            eachRow[self.cutFFffMWISPCol]=wmsipFilling
-            eachRow[self.cutFFffCfACol]=cfaFilling
+
+
+            #print para,pcov
+            #eachRow[self.cutFFffMWISPCol]=wmsipFilling
+            ff,ffError=self.getFFandError(para,pcov,self.getBeamSize() )
+
+
+
+
+
+
+            ffPeakList.append(ff)
+
+            ffPeakErrorList.append(ffError)
+
+
+        pbar.finish()
+        #TB.write( saveName , overwrite=True )
+        return  np.asarray(ffPeakList) , np.asarray(ffPeakErrorList)
+
+
+
+    def calculateFillingFactorCutoff(self,TB,drawFigure=False,inputID=None,saveTag="cutoffBFF", dim=5):
+
+        """
+        :param TB:
+        :return:
+        """
+        #TB=Table.read(TBFile)
+        #saveName="cutFF_"+TBFile
+
+        TB=self.addCutFFColnames(TB)
+        cutoffArray= self.cutoffFactors #* self.getMeanRMS()
+
+
+
+        #add progress bar
+        widgets = ['Calculating cutoff filling factors: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+        i=0
+
+
+        if inputID!=None: #replace TB
+
+            #select TB by ID
+            TB=TB[  TB[self.idCol]==inputID  ]
+
+
+
+
+        for eachRow in TB:
+            i=i+1
+            pbar.update(i)
+            cutoffArray,fluxList,fluxError = self.getFluxList(eachRow,useCutoff=True)
+
+            #only use position values for cutoff
+
+            #print cutoffArray
+            #print fluxList
+            #print fluxError
+
+
+
+
+            ID=eachRow[ self.idCol ]
+            if inputID!=None and ID==inputID: #for debug
+
+                wmsipFilling, cfaFilling, fittingParaAndError,pcov = self.getFillingFactorAndDrawCutoff(cutoffArray, fluxList,   fluxError, calID=ID,   drawFigure=True,drawCode = saveTag, individuals= True,   dim= dim )
+                print "filling factor", wmsipFilling
+                print "Parameters", fittingParaAndError[0]
+                print "Para error", fittingParaAndError[1]
+
+                return
+
+            #crop
+
+
+
+            wmsipFilling, cfaFilling,  fittingParaAndError ,pcov =self.getFillingFactorAndDrawCutoff(cutoffArray,fluxList,fluxError,calID=ID,drawFigure=drawFigure, drawCode =saveTag, individuals= False  ,dim= dim )
+
+
+
+
+            para, paraError = fittingParaAndError
+            eachRow[self.cutFFffMWISPCol]=wmsipFilling #will be recalculate
+            eachRow[self.cutFFffCfACol]=cfaFilling #0
+
+
 
             eachRow[self.cutFFaCol]=para[0]
             eachRow[self.cutFFbCol]=para[1]
-            eachRow[self.cutFFcCol]=para[2]
+            eachRow[self.cutFFcCol] = para[2]
+
 
 
             eachRow[self.cutFFaErrorCol]=paraError[0]
             eachRow[self.cutFFbErrorCol]=paraError[1]
             eachRow[self.cutFFcErrorCol]=paraError[2]
 
+            if len(para)>=4:
+                eachRow[self.cutFFmuCol] = para[3]
+                eachRow[self.cutFFmuErrorCol]=paraError[3]
+
+            if len(para)>=5:
+                eachRow[self.cutFFsigmaErrorCol ]=paraError[4]
+                eachRow[self.cutFFsigmaCol] = para[4]
 
 
+
+            self.savePcovCutoff(eachRow,pcov )
 
 
 
@@ -5146,7 +6435,7 @@ class checkFillingFactor(object):
 
 
 
-            wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDraw(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,testMCMC=True)
+            wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDraw(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,testMCMC=False)
             print "filling factor", wmsipFilling
             print "Parameters", fittingParaAndError[0]
             print "Para error", fittingParaAndError[1]
@@ -5168,7 +6457,8 @@ class checkFillingFactor(object):
             ID=eachRow[ self.idCol ]
 
             ##for debug
-
+            if ID ==107:
+                continue
 
             wmsipFilling, cfaFilling,  fittingParaAndError,pcov=self.getFillingFactorAndDraw(beamArray,fluxList,fluxError,calID=ID,drawFigure=drawFigure)
 
@@ -5197,7 +6487,60 @@ class checkFillingFactor(object):
         TB.write( saveName , overwrite=True )
         return saveName
 
-    def savePcov(self,eachRow,pcov):
+
+    def savePcovCutoff(self,eachRow,pcov):
+
+
+        #with three or five
+
+
+        eachRow[self.covCut00Col] = pcov[0, 0]
+        eachRow[self.covCut01Col] = pcov[0, 1]
+        eachRow[self.covCut02Col] = pcov[0, 2]
+
+        eachRow[self.covCut10Col] = pcov[1, 0]
+        eachRow[self.covCut11Col] = pcov[1, 1]
+        eachRow[self.covCut12Col] = pcov[1, 2]
+
+
+        eachRow[self.covCut20Col] = pcov[2, 0]
+        eachRow[self.covCut21Col] = pcov[2, 1]
+        eachRow[self.covCut22Col] = pcov[2, 2]
+
+
+
+
+        if pcov.shape[0]==5: #for five paramters
+
+
+            eachRow[self.covCut03Col] = pcov[0, 3]
+            eachRow[self.covCut04Col] = pcov[0, 4]
+
+
+            eachRow[self.covCut13Col] = pcov[1, 3]
+            eachRow[self.covCut14Col] = pcov[1, 4]
+
+
+            eachRow[self.covCut23Col] = pcov[2, 3]
+            eachRow[self.covCut24Col] = pcov[2, 4]
+            ###########
+
+            eachRow[self.covCut30Col] = pcov[3, 0]
+            eachRow[self.covCut31Col] = pcov[3, 1]
+            eachRow[self.covCut32Col] = pcov[3, 2]
+            eachRow[self.covCut33Col] = pcov[3, 3]
+            eachRow[self.covCut34Col] = pcov[3, 4]
+
+
+            #################
+            eachRow[self.covCut40Col] = pcov[4, 0]
+            eachRow[self.covCut41Col] = pcov[4, 1]
+            eachRow[self.covCut42Col] = pcov[4, 2]
+            eachRow[self.covCut43Col] = pcov[4, 3]
+            eachRow[self.covCut44Col] = pcov[4, 4]
+
+
+    def savePcov(self,eachRow,pcov  ,useCutoff=False  ):
         """
 
         :param eachRow:
@@ -5205,43 +6548,128 @@ class checkFillingFactor(object):
         :return:
         """
 
-
-        eachRow[self.cov00Col]=pcov[0,0]
-        eachRow[self.cov01Col]=pcov[0,1]
-        eachRow[self.cov02Col]=pcov[0,2]
+        if useCutoff:
+            aaaaaaaaaaaaaaaaaa
 
 
-        eachRow[self.cov10Col]=pcov[1,0]
-        eachRow[self.cov11Col]=pcov[1,1]
-        eachRow[self.cov12Col]=pcov[1,2]
 
 
-        eachRow[self.cov20Col]=pcov[2,0]
-        eachRow[self.cov21Col]=pcov[2,1]
-        eachRow[self.cov22Col]=pcov[2,2]
+        else:
 
 
-    def getPcov(self,eachRow  ):
+            eachRow[self.cov00Col]=pcov[0,0]
+            eachRow[self.cov01Col]=pcov[0,1]
+            eachRow[self.cov02Col]=pcov[0,2]
+
+
+            eachRow[self.cov10Col]=pcov[1,0]
+            eachRow[self.cov11Col]=pcov[1,1]
+            eachRow[self.cov12Col]=pcov[1,2]
+
+
+            eachRow[self.cov20Col]=pcov[2,0]
+            eachRow[self.cov21Col]=pcov[2,1]
+            eachRow[self.cov22Col]=pcov[2,2]
+
+
+    def getPcovCutOff(self,eachRow, dimension=5):
+        """
+
+        :param eachRow:
+        :param dimension:
+        :return:
+        """
+        pcov=np.zeros( (dimension,dimension) )
+
+        ###
+
+        pcov[0, 0] = eachRow[self.covCut00Col]
+        pcov[0, 1] = eachRow[self.covCut01Col]
+        pcov[0, 2] = eachRow[self.covCut02Col]
+
+        pcov[1, 0] = eachRow[self.covCut10Col]
+        pcov[1, 1] = eachRow[self.covCut11Col]
+        pcov[1, 2] = eachRow[self.covCut12Col]
+
+        pcov[2, 0] = eachRow[self.covCut20Col]
+        pcov[2, 1] = eachRow[self.covCut21Col]
+        pcov[2, 2] = eachRow[self.covCut22Col]
+
+        if dimension==3:
+            return pcov
+
+
+        if dimension!=5:
+            return None
+
+        pcov[0, 3] = eachRow[self.covCut03Col]
+        pcov[0, 4] = eachRow[self.covCut04Col]
+
+        pcov[1, 3] = eachRow[self.covCut13Col]
+        pcov[1, 4] = eachRow[self.covCut14Col]
+
+        pcov[2, 3] = eachRow[self.covCut23Col]
+        pcov[2, 4] = eachRow[self.covCut24Col]
+
+
+
+        pcov[3, 0] = eachRow[self.covCut30Col]
+        pcov[3, 1] = eachRow[self.covCut31Col]
+        pcov[3, 2] = eachRow[self.covCut32Col]
+        pcov[3, 3] = eachRow[self.covCut33Col]
+        pcov[3, 4] = eachRow[self.covCut34Col]
+
+
+        pcov[4, 0] = eachRow[self.covCut40Col]
+        pcov[4, 1] = eachRow[self.covCut41Col]
+        pcov[4, 2] = eachRow[self.covCut42Col]
+        pcov[4, 3] = eachRow[self.covCut43Col]
+        pcov[4, 4] = eachRow[self.covCut44Col]
+
+        return pcov
+
+    def getPcov(self,eachRow  ,useCutoff=False):
 
         pcov=np.zeros( (3,3) )
 
-        pcov[0,0] = eachRow[self.cov00Col]
-        pcov[0,1] = eachRow[self.cov01Col]
-        pcov[0,2] = eachRow[self.cov02Col]
+        if useCutoff:
+
+            pcov[0, 0] = eachRow[self.covCut00Col]
+            pcov[0, 1] = eachRow[self.covCut01Col]
+            pcov[0, 2] = eachRow[self.covCut02Col]
+
+            pcov[1, 0] = eachRow[self.covCut10Col]
+            pcov[1, 1] = eachRow[self.covCut11Col]
+            pcov[1, 2] = eachRow[self.covCut12Col]
+
+            pcov[2, 0] = eachRow[self.covCut20Col]
+            pcov[2, 1] = eachRow[self.covCut21Col]
+            pcov[2, 2] = eachRow[self.covCut22Col]
+
+            return pcov
 
 
-        pcov[1,0] = eachRow[self.cov10Col]
-        pcov[1,1] = eachRow[self.cov11Col]
-        pcov[1,2] = eachRow[self.cov12Col]
+
+        else:
 
 
-        pcov[2,0] = eachRow[self.cov20Col]
-        pcov[2,1] = eachRow[self.cov21Col]
-        pcov[2,2] = eachRow[self.cov22Col]
+            pcov[0,0] = eachRow[self.cov00Col]
+            pcov[0,1] = eachRow[self.cov01Col]
+            pcov[0,2] = eachRow[self.cov02Col]
+
+
+            pcov[1,0] = eachRow[self.cov10Col]
+            pcov[1,1] = eachRow[self.cov11Col]
+            pcov[1,2] = eachRow[self.cov12Col]
+
+
+            pcov[2,0] = eachRow[self.cov20Col]
+            pcov[2,1] = eachRow[self.cov21Col]
+            pcov[2,2] = eachRow[self.cov22Col]
 
 
 
-        return pcov
+            return pcov
 
 
 
@@ -5372,6 +6800,8 @@ class checkFillingFactor(object):
         #the next step is to extract flux
 
         allSmoothFiles = self.getSmoothListFixNoise(noiseFactor=0.)
+
+
 
         for eachSmFile in allSmoothFiles:
 
@@ -5633,34 +7063,62 @@ class checkFillingFactor(object):
 
         return areaCenters
 
-    def getFillingErrorAndError(self, beamSize , ffTB, useCutoff=False ):
+
+
+
+    def getFillingAndErrorCutoffByTB(self,  ffTB, targetSNR=2 ,dim=3 ):
 
         """
-
         :param ffTB:
         :return:
         """
 
-        if useCutoff:
-            x = beamSize  # arcmin
-            a = ffTB[self.cutFFaCol]
-            b = ffTB[self.cutFFbCol]
-            c = ffTB[self.cutFFcCol]
 
-            stdA = ffTB[self.cutFFaErrorCol]
-            stdB = ffTB[self.cutFFbErrorCol]
-            stdC = ffTB[self.cutFFcErrorCol]
+        ffList = []
+        ffListError = []
 
-            fx = ffFunction(x, a, b, c)
+        for eachRow in ffTB:
 
-            f0 = ffFunction(0, a, b, c)
-            varX = stdA ** 2 * (dya(x, a, b, c)) ** 2 + stdB ** 2 * (dyb(x, a, b, c)) ** 2 + stdC ** 2
+            # first care dimensioan 5, with quadratic
+            x=  targetSNR #arcmin
+            a=eachRow[self.cutFFaCol]
+            b=eachRow[self.cutFFbCol]
+            c=eachRow[self.cutFFcCol]
 
-            var0 = stdA ** 2 * (dya(0, a, b, c)) ** 2 + stdB ** 2 * (dyb(0, a, b, c)) ** 2 + stdC ** 2
+            para = np.asarray([a, b, c ])
 
-            varFF = varX / f0 ** 2 + (-fx / f0 ** 2) ** 2 * var0
+            if dim==5:
 
-            return fx / f0, np.sqrt(varFF)
+                mu=eachRow[self.cutFFmuCol]
+                sigma=eachRow[self.cutFFsigmaCol ]
+
+
+                para=np.asarray( [a,b,c,mu,sigma] )
+
+
+            pcov=self.getPcovCutOff(eachRow, dimension=dim)
+
+            f,fe=self.getFFandErrorCutoff(para,pcov,x,dimension= len(para) )
+
+
+
+
+
+            ffList.append( f )
+
+            ffListError.append( fe )
+
+
+        return np.asarray(ffList),np.asarray( ffListError )
+
+
+    def getFillingAndError(self, beamSize , ffTB, useCutoff=False ):
+
+        """
+        :param ffTB:
+        :return:
+        """
+
 
 
 
@@ -5670,15 +7128,13 @@ class checkFillingFactor(object):
         for eachRow in ffTB:
 
 
-
-
             x=  beamSize #arcmin
             a=eachRow[self.aCol]
             b=eachRow[self.bCol]
             c=eachRow[self.cCol]
 
             para=np.asarray( [a,b,c] )
-            pcov=self.getPcov(eachRow)
+            pcov=self.getPcov(eachRow,useCutoff=useCutoff)
 
             f,fe=self.getFFandError(para,pcov,x)
 
@@ -5689,6 +7145,139 @@ class checkFillingFactor(object):
 
 
         return np.asarray(ffList),np.asarray( ffListError )
+
+
+    def quadraticDy(self,x,para):
+
+
+
+        a, b, c, mu, sigma = para
+        fi = 0.5 * (1 + scipy.special.erf((x - mu) * sigma / np.sqrt(2)))
+
+        dya = (1-fi) * (  x-b  )**2
+
+        dyb = (1-fi) * ( 2*a*(b-x)  )
+        dyc = (1-fi) 
+        dymu = -(a*(x-b)**2 + c )*1./np.sqrt(np.pi) *np.exp( -(x-mu)**2 *sigma**2/2.  )*sigma/np.sqrt(2)*(-1)
+
+        dysigma = -(a*(x-b)**2 + c )*1./np.sqrt(np.pi) *np.exp( -(x-mu)**2 *sigma**2/2.   )*(x-mu)/np.sqrt(2)
+
+
+        return np.asarray( [dya, dyb, dyc, dymu, dysigma ]  )
+
+
+    def SGDy(self,x,para):
+        """
+        deriviate of gaussian
+        :param x:
+        :param para:
+        :return:
+        """
+        
+        dya = x**2
+        dyb = x 
+        dyc = 1
+
+        return np.asarray( [dya, dyb, dyc ]  )
+
+        
+        
+        a, b, c  = para
+        
+        
+        # a*np.exp(-b*(x-c)**2 ) 
+        dya=  np.exp(-b*(x-c)**2 ) 
+        dyb=  a*np.exp(-b*(x-c)**2 )  * (-(x-c)**2 )
+        dyc=  np.exp(-b*(x-c)**2 )*(-2*b*(c-x) )
+
+        return np.asarray( [dya, dyb, dyc  ]  )
+
+
+
+
+
+    def getFFandErrorCutoff(self,  para,pcov,targetSNR=2,dimension=5):
+        """
+        get the flux at SNR 2
+        :param para:
+        :param pcov:
+        :param targetSNR:
+        :return:
+        """
+        if len(para) ==4: #consider quadratic function
+
+            return None,None
+            a,b,c,mu =para
+
+            fx = ffFunctionCutPara(targetSNR,*para)
+            f0 =  ffFunctionCutPara(0,*para)
+
+            dfx=self.quadraticDy(targetSNR,para)
+            df0= self.quadraticDy(0,para)
+
+            varX = np.matmul(dfx, pcov)
+            varX = np.matmul(varX, dfx)
+
+            var0 = np.matmul(df0, pcov)
+            var0 = np.matmul(var0, df0)
+
+            varFF = varX / f0 ** 2 + (-fx / f0 ** 2) ** 2 * var0
+
+
+            return fx / f0, np.sqrt(varFF)
+        if len(para) ==5: #consider quadratic function
+
+            a,b,c,mu,sigma=para
+
+            fx = ffFunctionCutTest(targetSNR,*para)
+            f0 =  ffFunctionCutTest(0,*para)
+
+            dfx=self.quadraticDy(targetSNR,para)
+            df0= self.quadraticDy(0,para)
+
+
+
+            varX = np.matmul(dfx, pcov)
+            varX = np.matmul(varX, dfx)
+
+            var0 = np.matmul(df0, pcov)
+            var0 = np.matmul(var0, df0)
+
+            varFF = varX / f0 ** 2 + (-fx / f0 ** 2) ** 2 * var0
+
+
+
+
+
+            return fx / f0, np.sqrt(varFF)
+
+
+        if len(para) == 3:#Gaussian model
+            a,b,c=para
+            maxPoint=  0
+
+            fx =  ffFunctionCutPara(targetSNR,*para)
+            f0 =   ffFunctionCutPara(maxPoint,*para)
+
+            dfx=self.SGDy(targetSNR,para)
+
+
+            df0= self.SGDy(maxPoint,para)
+
+            varX = np.matmul(dfx, pcov)
+            varX = np.matmul(varX, dfx)
+
+            var0 = np.matmul(df0, pcov)
+            var0 = np.matmul(var0, df0)
+
+            varFF = varX / f0 ** 2 + (-fx / f0 ** 2) ** 2 * var0
+
+
+            #print pcov.shape,"ddddddddddddddd"
+
+            #print fx / f0, np.sqrt(varFF), "???????????????????"
+            return fx / f0, np.sqrt(varFF)
+
 
 
 
@@ -5704,7 +7293,6 @@ class checkFillingFactor(object):
 
 
         """
-
 
 
         x=targetBeam #the 
@@ -5749,7 +7337,7 @@ class checkFillingFactor(object):
         #TB=TB[TB[self.ffMWISPCol]>0]
         #print len(TB)
 
-        mwispFF,mwispFFError= self.getFillingErrorAndError(self.getBeamSize(), TB   )
+        mwispFF,mwispFFError= self.getFillingAndError(self.getBeamSize(), TB   )
 
 
         #relativeError= mwispFFError/mwispFF
@@ -5764,14 +7352,15 @@ class checkFillingFactor(object):
         return TB
 
 
-    def addMWISPFFerrorCutoff(self, TB  ):
+    def addMWISPFFerrorCutoff(self, TB ,dim=3 ):
         """
 
         :return:
         """
 
-        mwispFF,mwispFFError= self.getFillingErrorAndError(self.getBeamSize(), TB  ,useCutoff=True )
+        mwispFF,mwispFFError= self.getFillingAndErrorCutoffByTB(  TB  , targetSNR=2,dim= dim )
 
+        TB[self.cutFFffMWISPCol] = mwispFF
 
         TB[self.cutFFffMWISPErrorCol] = mwispFFError
 
@@ -5785,7 +7374,7 @@ class checkFillingFactor(object):
         """
 
 
-        cfaFF, cfaFFError= self.getFillingErrorAndError(8.5, TB   )
+        cfaFF, cfaFFError= self.getFillingAndError(8.5, TB   )
 
 
         TB[self.ffCfAErrorCol] = cfaFFError
@@ -6327,9 +7916,11 @@ class checkFillingFactor(object):
 
 
 
-    def getCloudSize(self,TB):
+    def getCloudSize(self,TB ):
 
-        return np.sqrt(   TB["area_exact"]/np.pi )*2
+        beamSize=self.getBeamSize()
+
+        return np.sqrt(   4*TB["area_exact"]/np.pi  - beamSize**2 )
 
     def drawErrorBar(self,ax, TB,drawCode="area", showYError=False, color="gray", markerType='.', markerSize=2,elinewidth=0.6,label=""):
 
@@ -6350,8 +7941,8 @@ class checkFillingFactor(object):
 
         #
         drawY=  TB[self.ffMWISPCol]
-        #drawY1,error1=self.getFillingErrorAndError(5,TB)
-        #drawY2,error2=self.getFillingErrorAndError(1,TB)
+        #drawY1,error1=self.getFillingAndError(5,TB)
+        #drawY2,error2=self.getFillingAndError(1,TB)
         #drawY= drawY1/drawY2
 
         yerr=  TB[self.ffMWISPErrorCol]
@@ -6909,7 +8500,7 @@ class checkFillingFactor(object):
 
         return  labelSets
 
-    def getSmoothFluxColCutoff(self, rawCOFITS, labelFITS, rmsFITS,TBFile ):
+    def getSmoothFluxColCutoff(self, rawCOFITS, labelFITS, rmsFITS,TBFile ,drawFigure=False, cutByPeak=False ,dim=5 ):
         """
         get the change of flux according to the cutoff sigmas, remember, this has to be cut according to the rmsData
         :return:
@@ -6924,11 +8515,10 @@ class checkFillingFactor(object):
 
         TB=Table.read(TBFile)
         self.addCutOffFluxColnames(TB)
-
+        TB[ self.meanSNRcol ] = TB["peak"]*0
+        TB[ self.peakSNRcol ] = TB["peak"]*0
 
         labelSets= self.getLabelSet(dataLabel) #[Z0, Y0, X0, clusterValue1D ]
-
-
 
         #colName,colPixName=self.getFluxColNameNoiseChange(cutoffFactor)
 
@@ -6949,29 +8539,47 @@ class checkFillingFactor(object):
             cloudIndex,cloudIndex2D = self.getIndices(labelSets, ID,return2D=True)  # np.where( cleanDataSM1==ID )
             coValues=   dataRaw[cloudIndex]
             rmsValues= rmsData[cloudIndex2D]
-
-
+            SNRValues=  coValues/rmsValues
+            peakSNR=  np.max(  SNRValues )
             for eachCutoff in self.cutoffFactors:
 
-                selectCoValues= coValues[ coValues>=rmsValues*eachCutoff ]
+                if cutByPeak:
+                    selectByPeak=  SNRValues>=peakSNR*eachCutoff   #coValues>=rmsValues*eachCutoff
+                    selectCoValues= coValues[  selectByPeak ]
+                    
+                    
+                else: #cutbySNR
+                    selectByCut=  SNRValues>=eachCutoff   #coValues>=rmsValues*eachCutoff
+                    selectCoValues= coValues[  selectByCut ]
+
 
                 #print selectCoValues
 
                 colName, colPixName = self.getFluxColNameCutoff(eachCutoff)
 
                 eachRow[colName]= np.sum( selectCoValues ,dtype=float )*self.getVelResolution()
-                eachRow[colPixName]= len(selectCoValues)
+                eachRow[colPixName] = len(selectCoValues)
+                #print ID,  eachRow[colPixName] ,  eachRow[colName]
 
+            eachRow[self.peakSNRcol]= peakSNR
 
+            eachRow[self.meanSNRcol]= np.mean(  SNRValues  )
             pbar.update(i)
 
         pbar.finish()
-        TB.write("cutoffFlux_"+TBFile , overwrite=True)
+        TB.write("cutoffFlux_"  +TBFile , overwrite=True)
 
-        TB=self.calculateFillingFactorCutoff(TB)
-        TB.write("cutoffFF_"+TBFile , overwrite=True)
 
-        print TB
+
+
+        TB3=self.calculateFillingFactorCutoff( TB,  drawFigure= drawFigure ,dim= 3 )
+        self.addMWISPFFerrorCutoff(TB3,dim= 3 )
+        TB3.write("cutoffFF_{}".format(3) + TBFile , overwrite=True)
+
+        TB5=self.calculateFillingFactorCutoff( TB,  drawFigure= drawFigure ,dim= 5 )
+        self.addMWISPFFerrorCutoff(TB5,dim= 5 )
+        TB5.write("cutoffFF_{}".format(5) + TBFile , overwrite=True)
+
         #now TB contains all  cutOffFlux Info to calculate fifling factors
 
     def getSubDataAndRms(self):
@@ -7124,7 +8732,7 @@ class checkFillingFactor(object):
 
 
 
-    def drawBFFDiscuss(self,        xRange=[-31,60], dx=5 , lHalf=5.532):
+    def drawBFFDiscuss(self,    xRange=[-32,60], dx=5 , lHalf= 2.573):
         """
         draw a figure to give a concept of BFF for a gallery of typical observations
         :return:
@@ -7147,7 +8755,8 @@ class checkFillingFactor(object):
 
         fittingX = np.arange(0,  max(xRange), 0.01)
         # axFitting.plot( fittingX  ,  ffFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
-        axBFFcon.plot(fittingX, testffAndSizeFunc1(fittingX, lHalf ), color='black', lw=1.5 )
+        #axBFFcon.plot(fittingX, testffAndSizeFunc1(fittingX, lHalf ), color='black', lw=1.5 )
+        axBFFcon.plot(fittingX, ffModelSquare(fittingX,  2.573 ), color='black', lw=1.5 )
 
 
         axBFFcon.axvline(x=0, ymax=0.18 , ls="--", color='black' , lw=0.8 ,alpha=0.8 )
@@ -7160,8 +8769,8 @@ class checkFillingFactor(object):
 
         self.drawAnObservationBFF(axBFFcon,lHalf=lHalf,minX=min(xRange) ,angularSizeRange=[2,3])
         #GMC in milky way GMC, 50-100 pc
-        self.drawAnObservationBFF(axBFFcon,lHalf=lHalf,minX=min(xRange) ,  angularSizeRange=[4.6, 9 ], color='green',observeTag="GMC in the Milky Way (5 kpc) with CfA 1.2-m")
-        self.drawAnObservationBFF(axBFFcon,lHalf=lHalf,minX=min(xRange) ,  angularSizeRange=[40, 60 ], color='purple',observeTag="GMC in the Milky Way (5 kpc) with PMO 13.7-m")
+        self.drawAnObservationBFF(axBFFcon,lHalf=lHalf,minX=min(xRange) ,  angularSizeRange=[4.6, 9 ], color='green',observeTag="GMCs in the Milky Way (5 kpc) with CfA 1.2-m")
+        self.drawAnObservationBFF(axBFFcon,lHalf=lHalf,minX=min(xRange) ,  angularSizeRange=[40, 60 ], color='purple',observeTag="GMCs in the Milky Way (5 kpc) with PMO 13.7-m")
 
         self.drawAnObservationBFF(axBFFcon,lHalf=lHalf,minX=min(xRange) ,  angularSizeRange=[1, 2 ], color='red',observeTag="Dense cores in Orion with PMO 13.7-m")
 
@@ -7190,7 +8799,7 @@ class checkFillingFactor(object):
             arrayList.append("{:.1f}".format(eachN))
         return arrayList
 
-    def drawAnObservationBFF(self,axBFFcon,angularSizeRange=[2,3],observeTag="GMC in local group galaxies with ALMA" ,color="blue",lHalf=5.532,minX=-15 ):
+    def drawAnObservationBFF(self,axBFFcon,angularSizeRange=[2,3],observeTag="GMCs in local group galaxies with ALMA" ,color="blue",lHalf=5.532,minX=-15 ):
         """
 
         :param axBFFcon:
@@ -7201,7 +8810,8 @@ class checkFillingFactor(object):
 
         angularSizeRange=np.asarray( angularSizeRange )
 
-        BFFrange=  testffAndSizeFunc1(angularSizeRange, lHalf )
+        #BFFrange=  testffAndSizeFunc1(angularSizeRange, lHalf )
+        BFFrange=  ffModelSquare(angularSizeRange, lHalf )
 
         fillXrange=[minX,min(angularSizeRange), min(angularSizeRange), max(angularSizeRange) ]
         y1=[max(BFFrange), max(BFFrange), max(BFFrange),  max(BFFrange) ]
@@ -7307,16 +8917,34 @@ class checkFillingFactor(object):
 
 
 
+    def cleanBFF(self,cfaFFTB,errorThreshold ):
+
+        """
+        remove bad values
+        :param ffTB:
+        :return:
+        """
+
+        selectGood = ~np.isinf(cfaFFTB["cov22"])
+
+        selectGood = np.logical_and(selectGood, cfaFFTB["para_a"] > 0)
+
+        FF0, ffError0 = self.getFillingAndError(self.getBeamSize(), cfaFFTB)
+        selectGood = np.logical_and(selectGood, ffError0 / FF0 <= errorThreshold)
+
+        selectGood = np.logical_and(selectGood,   FF0 <=  1)
+        selectGood = np.logical_and(selectGood,   FF0 >= 0 )
 
 
+        return cfaFFTB[selectGood]
 
 
-    def drawSurveyBFF(self,xRange=[0,100]):
+    def drawSurveyBFF(self,xRange=[0,100],bffFitting= 2.573):
         """
         compare BFF results with the BFF line, derived with MWISP
         :return:
         """
-
+        bffFitting = 2.573
 
         plt.clf()
         fig = plt.figure(figsize=(10, 8))
@@ -7333,10 +8961,16 @@ class checkFillingFactor(object):
         axBFFSurvey = plt.subplot(111)
 
 
+         
+
         drawX=np.arange(0.1,max(xRange),0.1)
 
+        #drawY= drawX/( drawX+  bffFitting )
+        #drawY=  ffModelTan(drawX, 2.55181076, 2.02532043 )
+        drawY=  ffModelSquare(drawX,  2.573 )
 
-        drawY= drawX/( drawX+5.532)
+
+        errorThreshold=0.2 #
 
         ################# draw  MWISP
         if 0:
@@ -7356,31 +8990,48 @@ class checkFillingFactor(object):
 
 
 
-            FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
+            FF,ffError=self.getFillingAndError(self.getBeamSize(),cfaFFTB)
             axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.5 , fmt='o',  color='gray' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"MWISP local $^{12}$CO clouds" )
 
+
+        ############### draw drawCOHRS
+        if 1:
+            self.calCode=self.surveyCodeCOHRSCO32
+            print self.getBeamSize(),"Beam Size???????",self.calCode
+
+            cfaFFTBFile="pureEdgeInfo_fillingFactor_fluxTB_surveyCOHRSCO32Q1surveyCOHRSCO32Q1_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit" ###
+            cfaFFTB= Table.read(cfaFFTBFile) ####
+
+            cfaFFTB = self.cleanBFF(cfaFFTB,errorThreshold)
+
+
+            size=self.getCloudSize(cfaFFTB)
+            sizeInBeam=size/self.getBeamSize()
+
+            sizeInBeam=np.sqrt( sizeInBeam**2-1**2) 
+
+            FF,ffError=self.getFillingAndError(self.getBeamSize(),cfaFFTB)
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.2 , fmt='o',  color='blue' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"COHRS $^{12}\mathrm{CO}\left(J=3\rightarrow2\right)$",zorder=0 )
 
 
         ############### draw OGSCO12
         if 1:
             self.calCode=self.surveyCodeOGSCO12
-            print self.getBeamSize(),"Beam Size???????"
+            print self.getBeamSize(),"Beam Size???????",self.calCode
 
             cfaFFTBFile="pureEdgeInfo_fillingFactor_fluxTB_surveyOGSCO12Q2surveyOGSCO12Q2_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit" ###
             cfaFFTB= Table.read(cfaFFTBFile) ####
 
-            selectGood = ~np.isinf(  cfaFFTB["cov22"] )
+            cfaFFTB = self.cleanBFF(cfaFFTB,errorThreshold)
 
-            selectGood  = np.logical_and(selectGood,  cfaFFTB["para_a"]>0   )
-
-            cfaFFTB = cfaFFTB[selectGood]
             size=self.getCloudSize(cfaFFTB)
             sizeInBeam=size/self.getBeamSize()
 
+            sizeInBeam=np.sqrt( sizeInBeam**2-1**2) 
 
 
-            FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
-            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.2 , fmt='o',  color='red' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"OGS $^{12}$CO clouds",zorder=1 )
+            FF,ffError=self.getFillingAndError(self.getBeamSize(),cfaFFTB)
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.0 , fmt='o',  color='red' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"OGS $^{12}\mathrm{CO}\left(J=1\rightarrow0\right)$",zorder=1 )
 
 
 
@@ -7389,6 +9040,9 @@ class checkFillingFactor(object):
 
 
 
+
+
+        ############
 
 
         ################# draw MWISP test
@@ -7409,7 +9063,7 @@ class checkFillingFactor(object):
 
 
 
-            FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
+            FF,ffError=self.getFillingAndError(self.getBeamSize(),cfaFFTB)
             axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=3 , fmt='o',  color='gray' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"MWISP 13CO $^{12}$CO clouds" )
 
 
@@ -7419,58 +9073,58 @@ class checkFillingFactor(object):
         ############### draw GRSCO13
         if 1:
             self.calCode=self.surveyCodeGRSCO13
-            print self.getBeamSize(),"Beam Size???????"
+            print self.getBeamSize(),"Beam Size???????",self.calCode
 
             cfaFFTBFile="pureEdgeInfo_fillingFactor_fluxTB_surveyGRSCO13Q1surveyGRSCO13Q1_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit" ###
             cfaFFTB= Table.read(cfaFFTBFile) ####
 
-            selectGood = ~np.isinf(  cfaFFTB["cov22"] )
+            cfaFFTB = self.cleanBFF(cfaFFTB,errorThreshold)
 
-            selectGood  = np.logical_and(selectGood,  cfaFFTB["para_a"]>0   )
-
-            cfaFFTB = cfaFFTB[selectGood]
             size=self.getCloudSize(cfaFFTB)
             sizeInBeam=size/self.getBeamSize()
+            sizeInBeam=np.sqrt( sizeInBeam**2-1**2) 
 
 
 
-            FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
-            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize= 1.2  , fmt='o',  color='purple' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"GRS $^{13}$CO clouds",zorder=2 )
+            FF,ffError=self.getFillingAndError(self.getBeamSize(),cfaFFTB)
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize= 1.0  , fmt='o',  color='purple' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label=r"GRS $^{13}\mathrm{CO}\left(J=1\rightarrow0\right)$",zorder=2 )
 
 
 
         ################# draw CfA
         if 1:
             self.calCode=self.surveyCodeCfACO12
-            print self.getBeamSize(),"Beam Size???????"
+            print self.getBeamSize(),"Beam Size???????",self.calCode
 
             cfaFFTBFile="pureEdgeInfo_fillingFactor_fluxTB_surveyCfACO12Q2surveyCfACO12Q2_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit" ###
             cfaFFTB= Table.read(cfaFFTBFile) ####
 
-            selectGood = ~np.isinf(  cfaFFTB["cov22"] )
+            cfaFFTB = self.cleanBFF(cfaFFTB,errorThreshold)
 
-            selectGood  = np.logical_and(selectGood,  cfaFFTB["para_a"]>0   )
 
-            cfaFFTB = cfaFFTB[selectGood]
+
             size=self.getCloudSize(cfaFFTB)
             sizeInBeam=size/self.getBeamSize()
+            sizeInBeam=np.sqrt( sizeInBeam**2-1**2) 
+
+            FF,ffError=self.getFillingAndError(self.getBeamSize(),cfaFFTB)
 
 
 
-            FF,ffError=self.getFillingErrorAndError(self.getBeamSize(),cfaFFTB)
-            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.2 , fmt='o',  color='green' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"CfA $^{12}$CO clouds" ,zorder=3)
+            axBFFSurvey.errorbar(sizeInBeam,   FF ,  yerr= ffError ,    markersize=1.0 , fmt='o',  color='green' , capsize=0.2,  elinewidth=0.6 , lw=1 ,alpha=0.8  ,label=r"CfA 1.2-m  $^{12}\mathrm{CO}\left(J=1\rightarrow0\right)$" ,zorder=3)
 
         #plot fff line
-        formulaTex = r"$\mathit f= \frac{{\mathit l}}{{\left(\mathit l+ 5.532  \right) }}$"
+        formulaTex = r"$ \eta_{{\mathrm{{res}}}} = \frac{{\mathit l^2}}{{\left(\mathit l+ {:.3f}  \right)^2 }}$".format(bffFitting)
         ####
         #at = AnchoredText(formulaTex, loc=5, frameon=False)
         #axBFFSurvey.add_artist(at)
 
         axBFFSurvey.plot(drawX,drawY,color="black" ,lw=1 ,zorder=4,label=formulaTex)
+        axBFFSurvey.axhline(y=0, ls="--", color='black',lw=1)
 
 
-        axBFFSurvey.legend(loc=4 , handlelength=1.2)
-        axBFFSurvey.set_ylim(-0.1,1.1)
+        axBFFSurvey.legend(loc=5 , handlelength=1.0)
+        axBFFSurvey.set_ylim(-0.05,1.01)
 
         axBFFSurvey.set_xlim( xRange )
 
@@ -7481,6 +9135,7 @@ class checkFillingFactor(object):
 
         plt.savefig(  "BFFsurvey.pdf", bbox_inches='tight' )
         plt.savefig(  "BFFsurvey.png", bbox_inches='tight' ,dpi=300)
+
 
 
     def getSNRMedian(self):
@@ -7510,7 +9165,7 @@ class checkFillingFactor(object):
 
         snrArray = snrData[dataLabel > minV]
 
-        print "min,median,max", np.min(snrArray) , np.median(snrArray) , np.max(snrArray )
+        print "min,median,max", np.min(snrArray) , np.median(snrArray) , np.max(snrArray ),self.calCode
 
 
     def zzz(self):
