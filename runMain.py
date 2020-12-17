@@ -148,7 +148,7 @@ class fillingMain(object):
         doFF.calCode=calCode
         smTBFile = doFF.getSmoothAndNoiseFITSSingle(getCleanTBFile=True)
 
-        return "pureEdgeInfo_fillingFactor_fluxTB_"+ os.path.basename( smTBFile )
+        return "cutoffFF_5pureEdgeInfo_fillingFactor_fluxTB_"+ os.path.basename( smTBFile )
 
     def getcutOFFFluxTB(self,calCode):
 
@@ -270,6 +270,8 @@ class fillingMain(object):
         plt.savefig(   "fftTest{}.png".format(drawChannel) , bbox_inches='tight', dpi=600)
 
 
+
+
     def getCombinCutoffTable(self):
         combineTB=None
 
@@ -289,6 +291,64 @@ class fillingMain(object):
                 combineTB=vstack([combineTB,testTB])
 
         return combineTB
+
+    def getCombinCutoffTableCO12(self):
+        combineTB=None
+
+        tableList=[ "rawLocalCO12BFFclean.fit" , "rawSgrCO12BFFclean.fit", "rawOutCO12BFFclean.fit",  "rawScuCO12BFFclean.fit" ]
+
+
+        for eachTB in tableList:
+
+            testTB=Table.read(eachTB)
+
+            if combineTB is None:
+                    combineTB=testTB
+
+            else:
+                combineTB=vstack([combineTB,testTB])
+
+        return combineTB
+
+
+    def getCombinCutoffTableCO18(self):
+        combineTB=None
+
+        tableList=[  "rawLocalCO18BFFclean.fit"  ,"rawSgrCO18BFFclean.fit",  "rawScuCO18BFFclean.fit" ]
+
+
+        for eachTB in tableList:
+
+            testTB=Table.read(eachTB)
+
+            if combineTB is None:
+                    combineTB=testTB
+
+            else:
+                combineTB=vstack([combineTB,testTB])
+
+        return combineTB
+    def getCombinCutoffTableCO13(self):
+        combineTB=None
+
+        tableList=[  "rawOutCO13BFFclean.fit","rawScuCO13BFFclean.fit", "rawLocalCO13BFFclean.fit",  "rawSgrCO13BFFclean.fit"]
+
+
+        for eachTB in tableList:
+
+            testTB=Table.read(eachTB)
+
+            if combineTB is None:
+                    combineTB=testTB
+
+            else:
+                combineTB=vstack([combineTB,testTB])
+
+        return combineTB
+
+
+
+
 
 
     def getCombinCutoffTableSurvey(self):
@@ -436,7 +496,7 @@ class fillingMain(object):
 
 
 
-            if eachEcut==0.5:
+            if eachEcut== 1.0 :
                 trainHalfErrorCut = trainingTB
                 testHalfErrorCut = testTB
                 ###############################
@@ -454,9 +514,9 @@ class fillingMain(object):
 
         #draw three functions
         plt.clf()
-        fig = plt.figure(figsize=(16, 7))
+        fig = plt.figure(figsize=(13, 7.2 ))
         rc('text', usetex=True)
-        rc('font', **{'family': 'sans-serif', 'size': 17, 'serif': ['Helvetica']})
+        rc('font', **{'family': 'sans-serif', 'size': 25, 'serif': ['Helvetica']})
         mpl.rcParams['text.latex.preamble'] = [
             r'\usepackage{tgheros}',  # helvetica font
             r'\usepackage{sansmath}',  # math-font matching  helvetica
@@ -479,51 +539,52 @@ class fillingMain(object):
         drawYTrain = trainHalfErrorCut[doFF.ffMWISPCol]
         yErrorTrain = trainHalfErrorCut[doFF.ffMWISPErrorCol]
 
-        axFF.errorbar(drawXTrain,   drawYTrain ,  yerr= yErrorTrain ,    markersize=1 , fmt='o',  color='gray' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="Training data (50\% maximum relative BFF errors)",zorder=1 )
+        axFF.errorbar(drawXTrain,   drawYTrain ,  yerr= yErrorTrain ,    markersize= 3 , fmt='o',  color='gray' , capsize=0.2,  elinewidth=0.8 , lw=1 ,alpha=0.8  ,label="Training data",zorder=1 )
 
 
         drawXTest = doFF.getCloudSize(testHalfErrorCut)
         drawYTest = testHalfErrorCut[doFF.ffMWISPCol]
         yErrorTest = testHalfErrorCut[doFF.ffMWISPErrorCol]
 
-        axFF.errorbar(drawXTest,   drawYTest ,  yerr= yErrorTest ,    markersize=1 , fmt='o',  color='black' , capsize=0.1,  elinewidth=0.5 , lw=1 ,alpha=0.8  ,label="Validation data (50\% maximum relative BFF errors)" ,zorder=2 )
+        axFF.errorbar(drawXTest,   drawYTest ,  yerr= yErrorTest ,    markersize= 3 , fmt='o',  color='black' , capsize=0.2 ,  elinewidth=0.8 , lw=1 ,alpha=0.8  ,label="Validation data" ,zorder=2 )
 
 
 
-        showSizeRange=[-1,100]
-        axFF.set_ylim([-0.01, 1.1])
+        showSizeRange=[0,50]
+        axFF.set_ylim([0,1])
         axFF.set_xlim( showSizeRange )
 
-        axFF.legend(loc= 4 ,fontsize=14)
+        axFF.legend(loc= 4 ,fontsize= 21 )
 
         #draw four lines
         x = np.arange(-0.1, showSizeRange[1], 0.01)
 
         print paraHalfErrorCutff1,"blueline parameter"
-        axFF.plot(x, testFunction1(x, *paraHalfErrorCutff1 ), "b-", lw=1 ,zorder=3)
+        axFF.plot(x, testFunction1(x, *paraHalfErrorCutff1 ), "b-", lw=1.5 ,zorder=3)
         #axFF.plot(x, testFunction1(x,  40 ), "b-", lw=1 ,zorder=3)
 
-        axFF.plot(x, testFunction2(x, *paraHalfErrorCutff2 ), "g--", lw=1 ,zorder=3)
-        axFF.plot(x, testFunction3(x, *paraHalfErrorCutff3 ), "r-", lw=1 ,zorder=3,alpha=0.8)
+        axFF.plot(x, testFunction2(x, *paraHalfErrorCutff2 ), "g--", lw= 1.5 ,zorder=3)
+        axFF.plot(x, testFunction3(x, *paraHalfErrorCutff3 ), "r-", lw= 1.5  ,zorder=3,alpha=0.8)
+        axFF.set_xticks([0,10,20,30,40,50])
 
-        axFF.axvline(x=0, ls="--", color='black', lw=0.8)
-        axFF.axhline(y=0,ls="--",color='black',lw=0.8)
+        #axFF.axvline(x=0, ls="--", color='black', lw=0.8)
+        #axFF.axhline(y=0,ls="--",color='black',lw=0.8)
 
 
 
         axTest = plt.subplot(122 )
 
-        axTest.plot(  errorCutList, chiSquareList1,'.-',color='blue', markersize=7,lw=1,label=r"$\eta_{\mathrm{bf}} =\mathit l^2/\left(\mathit l^2+ a\right)$" )
-        axTest.plot(  errorCutList, chiSquareList2,'.--',color='green', markersize=7,lw=1,label=r"$\eta_{\mathrm{bf}}= \mathit l^2/\left(\mathit l+ a\right)^2$" )
+        axTest.plot(  errorCutList, chiSquareList1,'.-',color='blue', markersize=8,lw=1.2, label=r"$\eta_{\mathrm{res}} =\mathit l^2/\left(\mathit l^2+ a\right)$" )
+        axTest.plot(  errorCutList, chiSquareList2,'.--',color='green', markersize=8,lw=1.2,label=r"$\eta_{\mathrm{res}}= \mathit l^2/\left(\mathit l+ a\right)^2$" )
 
         #axTest.plot(  errorCutList, chiSquareList2,'.--',color='green', markersize=7,lw=1,label=r"$\mathit f=a\left(1-\exp\left(-b\mathit l\right)\right)$" )
         #axTest.plot(  errorCutList, chiSquareList3,'.-',color='red', markersize=7,lw=1,label=r"$\mathit f=  \frac{{2}}{{\pi}}\mathrm{{arctan}}\left(a \mathit l\right)$" ,alpha=0.8)
-        axTest.plot(  errorCutList, chiSquareList3,'.-',color='red', markersize=7,lw=1,label=r"$\eta_{\mathrm{bf}} =a\left(1-\exp\left(-b\mathit l\right)\right)$" ,alpha=0.8)
+        axTest.plot(  errorCutList, chiSquareList3,'.-',color='red', markersize=8,lw=1.2,label=r"$\eta_{\mathrm{res}} =a\left(1-\exp\left(-b\mathit l\right)\right)$" ,alpha=0.8)
 
-        axTest.legend(loc=4)
+        axTest.legend(loc=4 , fontsize=21 )
         axTest.set_ylim(-0.02,0.12 )
 
-        axTest.set_xlabel("Maximum relative error of filling factors")
+        axTest.set_xlabel(r"Maximum relative error of $\eta_{\rm res}$")
         #axTest.set_ylabel("Chi-Square")
         axTest.set_ylabel("Weighted residual rms of test data")
 
@@ -535,9 +596,10 @@ class fillingMain(object):
 
         axFF.set_xlabel("Angular size (arcmin)")
         #axTest.set_ylabel("Chi-Square")
-        axFF.set_ylabel("The beam filling factor")
+        #axFF.set_ylabel("The beam filling factor")
+        axFF.set_ylabel(r"$\eta_{\rm res}$")
 
-
+        fig.tight_layout()
         plt.savefig(   saveTag+".png"  , bbox_inches='tight', dpi=600)
         plt.savefig(   saveTag+".pdf"  , bbox_inches='tight' )
 
@@ -555,7 +617,7 @@ class fillingMain(object):
         labelFITS= doFF.getSmoothAndNoiseFITSSingle( smFactor=1.0,  noiseFactor=0.0 , getCleanFITS=True)
         TBFile=self.getFFTB(calCode)
         rmsFITS=doFF.getRMSFITS()
-        doFF.getSmoothFluxColCutoff(rawCOFITS,labelFITS,rmsFITS, TBFile ,drawFigure=drawFigure,cutByPeak= cutByPeak ,dim=dim   )
+        doFF.getSmoothFluxColCutoff(rawCOFITS,labelFITS,rmsFITS, TBFile ,drawFigure=drawFigure,cutByPeak= cutByPeak ,dim=dim    )
 
 
 
@@ -838,7 +900,7 @@ class fillingMain(object):
         bff,bffError=doFF.getFFandError( (a,b,c),pcov ,doFF.getBeamSize() )
 
 
-        axBFFCloud1.plot(fittingX, ffFunction(fittingX, a,b,c), color='blue', lw=1.0 ,label=  " $\eta_{{\mathrm{{bf}}}} = {:.3f}\pm{:.3f}$".format( bff, bffError ) )
+        axBFFCloud1.plot(fittingX, ffFunction(fittingX, a,b,c), color='blue', lw=1.0 ,label=  " $\eta_{{\mathrm{{res}}}} = {:.3f}\pm{:.3f}$".format( bff, bffError ) )
         at = AnchoredText( cloudName  , loc=3, frameon=False, prop={"color":"black"} )
         axBFFCloud1.add_artist(at)
 
@@ -847,7 +909,7 @@ class fillingMain(object):
 
         sizeF1=  int(  (cloudRow["size"] -sizeInt )*10   )
 
-        at = AnchoredText( r"{:.1f}$\sigma$ mean SNR ($\mathit l$ =  {}$.\mkern-4mu^\prime${})".format(cloudRow["meanSNR"],sizeInt, sizeF1)  , loc=5, frameon=False, prop={"color":"black"} )
+        at = AnchoredText( r"{:.1f}$\sigma$ mean voxel SNR ($\mathit l$ =  {}$.\mkern-4mu^\prime${})".format(cloudRow["meanSNR"],sizeInt, sizeF1)  , loc=5, frameon=False, prop={"color":"black"} )
         axBFFCloud1.add_artist(at)
 
 
@@ -976,9 +1038,9 @@ class fillingMain(object):
         drawTB = drawTB[drawTB["cutFFfillingFactorMWISPError"] > 0]
         drawTB = drawTB[drawTB["cutFFpara_a"] > 0]
         drawTB = drawTB[drawTB["cutFFpara_sigma"] > 0]
-        drawTB = drawTB[drawTB["cutFFpara_mu"] > 0]
+        #drawTB = drawTB[drawTB["cutFFpara_mu"] > 0]
         drawTB = drawTB[drawTB["cutFFpara_b"] > 0]
-        drawTB = drawTB[drawTB["cutFFpara_c"] > 0]
+        #drawTB = drawTB[drawTB["cutFFpara_c"] > 0]
 
         print len(drawTB), "after"
 
@@ -989,7 +1051,7 @@ class fillingMain(object):
 
         fig = plt.figure(figsize=(10, 8))
         rc('text', usetex=True)
-        rc('font', **{'family': 'sans-serif', 'size': 22, 'serif': ['Helvetica']})
+        rc('font', **{'family': 'sans-serif', 'size': 25, 'serif': ['Helvetica']})
 
         mpl.rcParams['text.latex.preamble'] = [
             r'\usepackage{tgheros}',  # helvetica font
@@ -1057,32 +1119,19 @@ class fillingMain(object):
         #tableList=[ "surveyCfACO12Q2BFFclean.fit" ,"surveyGRSCO13Q1BFFclean.fit","surveyOGSCO12Q2BFFclean.fit","surveyCOHRSCO32Q1BFFclean.fit" ]
 
 
-        ################# draw  COHRS
+        ################# draw CfA
         if 1:
 
-            cfaFFTBFile="surveyCOHRSCO32Q1BFFclean.fit" ###
+            cfaFFTBFile="surveyCfACO12Q2BFFclean.fit" ###
             cfaFFTB= Table.read(cfaFFTBFile) ####
             cfaFFTB = cfaFFTB[  cfaFFTB["cutFFfillingFactorMWISPError"] / cfaFFTB["cutFFfillingFactorMWISP"] < errorThresh]
 
             drawX = cfaFFTB[doFF.meanSNRcol]  # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
             drawY = cfaFFTB[doFF.cutFFffMWISPCol]
+            yError= cfaFFTB[doFF.cutFFffMWISPErrorCol]
 
-            axFFvel.scatter(drawX, drawY, edgecolors="blue", s=2.2, facecolors='none', lw=0.6, marker="o",     alpha=0.8, label=r"COHRS $^{12}\mathrm{CO}\left(J=3\rightarrow2\right)$",zorder=0 )
-
-
-
-        ################# draw  OGSCO12
-        if 1:
-
-            cfaFFTBFile="surveyOGSCO12Q2BFFclean.fit" ###
-            cfaFFTB= Table.read(cfaFFTBFile) ####
-            cfaFFTB = cfaFFTB[  cfaFFTB["cutFFfillingFactorMWISPError"] / cfaFFTB["cutFFfillingFactorMWISP"] < errorThresh]
-
-            drawX = cfaFFTB[doFF.meanSNRcol]  # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
-            drawY = cfaFFTB[doFF.cutFFffMWISPCol]
-
-            axFFvel.scatter(drawX, drawY, edgecolors="red", s=2.2, facecolors='none', lw=0.6, marker="o",     alpha=0.8,label=r"OGS $^{12}\mathrm{CO}\left(J=1\rightarrow0\right)$"  ,zorder=1)
-
+            #axFFvel.scatter(drawX, drawY, edgecolors="green", s=2.2, facecolors='none', lw=0.6 , marker="o",     alpha=0.8,label=r"CfA 1.2-m  $^{12}\mathrm{CO}\left(J=1\rightarrow0\right)$" ,zorder=3)
+            aa,bb,cc=axFFvel.errorbar(  drawX,drawY, yerr=yError  , markersize= 2.5  , fmt='o',  color="green" ,   capsize=0.0,   elinewidth=0.6, lw=0.6, alpha=0.7, label=r"CfA 1.2-m  $^{12}\mathrm{CO}\left(\mathit J=1\rightarrow0\right)$" ,zorder=3)
 
 
         ################# draw  GRS
@@ -1094,23 +1143,45 @@ class fillingMain(object):
 
             drawX = cfaFFTB[doFF.meanSNRcol]  # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
             drawY = cfaFFTB[doFF.cutFFffMWISPCol]
+            yError= cfaFFTB[doFF.cutFFffMWISPErrorCol]
 
-            axFFvel.scatter(drawX, drawY, edgecolors="purple", s=2.2, facecolors='none', lw=0.6, marker="o",     alpha=0.8,label=r"GRS $^{13}\mathrm{CO}\left(J=1\rightarrow0\right)$" ,zorder=2)
+            #axFFvel.scatter(drawX, drawY, edgecolors="purple", s=2.2, facecolors='none', lw=0.6, marker="o",     alpha=0.8,label=r"GRS $^{13}\mathrm{CO}\left(J=1\rightarrow0\right)$" ,zorder=2)
+            aa,bb,cc=axFFvel.errorbar(  drawX,drawY, yerr=yError  , markersize= 2.5  , fmt='o',  color="purple" ,   capsize=0.0,   elinewidth=0.6, lw=0.6, alpha=0.7, label=r"GRS $^{13}\mathrm{CO}\left(\mathit J=1\rightarrow0\right)$" ,zorder=2)
 
 
-
-        ################# draw CfA
+        ################# draw  OGSCO12
         if 1:
 
-            cfaFFTBFile="surveyCfACO12Q2BFFclean.fit" ###
+            cfaFFTBFile="surveyOGSCO12Q2BFFclean.fit" ###
+            cfaFFTB= Table.read(cfaFFTBFile) ####
+            cfaFFTB = cfaFFTB[  cfaFFTB["cutFFfillingFactorMWISPError"] / cfaFFTB["cutFFfillingFactorMWISP"] < errorThresh]
+
+            drawX = cfaFFTB[doFF.meanSNRcol]  # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
+            drawY = cfaFFTB[doFF.cutFFffMWISPCol]
+            yError= cfaFFTB[doFF.cutFFffMWISPErrorCol]
+
+            #axFFvel.scatter(drawX, drawY, edgecolors="red", s=2.2, facecolors='none', lw=0.6, marker="o",     alpha=0.8,label=r"OGS $^{12}\mathrm{CO}\left(J=1\rightarrow0\right)$"  ,zorder=1)
+            aa,bb,cc=axFFvel.errorbar(  drawX,drawY, yerr=yError  , markersize= 2.5 , fmt='o',  color="red" ,   capsize=0.0,   elinewidth=0.6, lw=0.6, alpha=0.7, label=r"OGS $^{12}\mathrm{CO}\left(\mathit J=1\rightarrow0\right)$"  ,zorder=1)
+
+
+
+
+
+        ################# draw  COHRS
+        if 1:
+
+            cfaFFTBFile="surveyCOHRSCO32Q1BFFclean.fit" ###
             cfaFFTB= Table.read(cfaFFTBFile) ####
             cfaFFTB = cfaFFTB[  cfaFFTB["cutFFfillingFactorMWISPError"] / cfaFFTB["cutFFfillingFactorMWISP"] < errorThresh]
 
             drawX = cfaFFTB[doFF.meanSNRcol]  # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
             drawY = cfaFFTB[doFF.cutFFffMWISPCol]
 
-            axFFvel.scatter(drawX, drawY, edgecolors="green", s=2.2, facecolors='none', lw=0.6 , marker="o",     alpha=0.8,label=r"CfA 1.2-m  $^{12}\mathrm{CO}\left(J=1\rightarrow0\right)$" ,zorder=3)
+            yError= cfaFFTB[doFF.cutFFffMWISPErrorCol]
+            #use errorbar
+            #axFFvel.scatter(drawX, drawY, edgecolors="blue", s=2.2, facecolors='none', lw=0.6, marker="o",     alpha=0.8, label=r"COHRS $^{12}\mathrm{CO}\left(J=3\rightarrow2\right)$",zorder=0 )
 
+            aa,bb,cc=axFFvel.errorbar(  drawX,drawY, yerr=yError  , markersize=2.5 , fmt='o',  color="blue" ,   capsize=0.0,   elinewidth=0.6, lw=0.6, alpha=0.7, label=r"COHRS $^{12}\mathrm{CO}\left(\mathit J=3\rightarrow2\right)$",zorder=0 )
 
 
 
@@ -1119,18 +1190,22 @@ class fillingMain(object):
 
         axFFvel.set_xlim(showSizeRange)
         axFFvel.set_ylim(0, 1)
+        axFFvel.set_xlim(3, 10)
 
-        axFFvel.set_ylabel(r"$\mathit f$")  # ("The beam filling factor")
+        axFFvel.set_ylabel(r"$\eta_{\rm sen}$")  # ("The beam filling factor")
         # axFF.set_xlabel("Angular size (arcmin)")
         # axFFvel.set_xlabel("Angular size (arcmin)")
         #axFFvel.set_xlabel(r"Mean SNR ($\sigma$)")
         #axFFvel.set_xlabel(r"Mean SNR ($\sigma$)")
-        axFFvel.set_xlabel(r"Mean SNR ($\sigma$)")
+        axFFvel.set_xlabel(r"Mean voxel SNR ($\sigma$)")
 
         
 
         ########
-        para= [0.423, 2.329 ]
+        #para= [0.423, 2.329 ]
+
+        para= [0.648,  3.398 ]
+
         # x = np.arange( 2.1875, showSizeRange[1], 0.01)
         if len(para) == 2:
             x = np.linspace(para[-1], showSizeRange[1], 1000)
@@ -1139,214 +1214,19 @@ class fillingMain(object):
             x = np.linspace(2.1875, showSizeRange[1], 1000)
 
         a, b = para
-        formulaTex = r"$\mathit f = \frac{{ \left( \mathit x - {:.3f} \right) ^2}}{{\left( \left( \mathit x  - {:.3f} \right)+ {:.3f}  \right)^2 }}$".format(
+        formulaTex = r"$\eta_{{\rm sen}} = \frac{{ \left( \mathit x - {:.3f} \right) ^2}}{{\left( \left( \mathit x  - {:.3f} \right)+ {:.3f}  \right)^2 }}$".format(
             b, b, a)
 
-        axFFvel.plot(x, ffModelCutoff(x, *para), "-", color='black', lw=1, zorder=2, label=formulaTex)
+        axFFvel.plot(x, ffModelCutoff(x, *para), "-", color='black', lw=1, zorder=5, label=formulaTex)
         ##########
         #if showLegend:
-        axFFvel.legend(loc=5 , handlelength= 0.6,fontsize=18)
+        axFFvel.legend(loc= 4  , handlelength= 0.6,fontsize=20)
 
         plt.savefig(doFF.paperFigurePath + "{}FittingSNRAndBFF{}.png".format(calCode, saveTag), bbox_inches='tight',
                     dpi=300)
         plt.savefig(doFF.paperFigurePath + "{}FittingSNRAndBFF{}.pdf".format(calCode, saveTag), bbox_inches='tight')
 
     ##############
-
-    def drawCutoffBFF(self,calCode ,saveTag="",showSizeRange=[2,10] ,inputTB=None,errorThresh=None, showLegend=True, cloudSource=None ,dim=5 ,showX2=False):
-        """
-        draw beam filling factor  caused by cutoff
-        :return:
-        """
-
-        ffTB=self.getFFTB(calCode)
-
-        doFF.calCode = calCode
-        if inputTB is None:
-            drawTB=Table.read("cutoffFF_{}".format(dim)+  ffTB ) #pureEdgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit")
-        else:
-            drawTB =  inputTB #pureEdgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit")
-
-
-        #BFFF,BffERROR= doFF.getFillingAndError(  doFF.getBeamSize() , drawTB, useCutoff=False  )
-
-        #remove bad data
-
-
-        print len(drawTB),"before?"
-        drawTB= drawTB [ drawTB["cutFFfillingFactorMWISP"] >0 ]
-
-        drawTB= drawTB [ drawTB["cutFFfillingFactorMWISP"] <=1 ]
-
-        drawTB= drawTB [ drawTB["cutFFfillingFactorMWISPError"] >0 ]
-
-        #if dim==3:
-
-        drawTB= drawTB [ drawTB["cutFFpara_a"] >0 ]
-
-        if dim==5:
-
-            drawTB= drawTB [ drawTB["cutFFpara_sigma"] >0 ]
-            #drawTB= drawTB [ drawTB["cutFFpara_mu"] >0 ]
-            drawTB= drawTB [ drawTB["cutFFpara_b"] >0 ]
-            #drawTB= drawTB [ drawTB["cutFFpara_c"] >0 ]
-
-        #what about relative error lesst than 20%
- 
-
-        
-
-
-
-        print len(drawTB),"after"
-
-
-        if errorThresh is not None:
-
-            drawTBGood = drawTB[drawTB["cutFFfillingFactorMWISPError"] /drawTB["cutFFfillingFactorMWISP"] <errorThresh ]
-            drawTB=drawTBGood
-            print len(drawTBGood),"after error threshold"
-
-        fig = plt.figure(figsize=(10, 8)  )
-        rc('text', usetex=True)
-        rc('font', **{'family': 'sans-serif', 'size':  22 , 'serif': ['Helvetica']})
-
-        mpl.rcParams['text.latex.preamble'] = [
-            r'\usepackage{tgheros}',  # helvetica font
-            r'\usepackage{sansmath}',  # math-font matching  helvetica
-            r'\sansmath'  # actually tell tex to use it!
-            r'\usepackage{siunitx}',  # micro symbols
-            r'\sisetup{detect-all}',  # force siunitx to use the fonts
-        ]
-
-        ffTB = doFF.cleanCutoffTB( drawTB )
-
-
-        axFFvel =  fig.add_subplot(1, 1, 1 )
-        ax2 = axFFvel.twiny()
-        if 1:
-            drawX =  ffTB[doFF.meanSNRcol] # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
-            #drawX =   doFF.getCloudSize( ffTB  ) #ffTB["peak"]  # self.getCloudSize(useTB)
-            #drawX = ffTB["pixN"]
-
-            #drawX =  ffTB["sum"] # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
-
-            drawY = ffTB[doFF.cutFFffMWISPCol]
-            yError = ffTB[doFF.cutFFffMWISPErrorCol]
-
-
-
-
-            para,paraError=doFF.fittingFFAndSize( ffModelCutoff , drawX,drawY, yError,sizeError=None,  useODR=False )
-            #a,b=para
-            print para ,"(a,b) parameters and errors  of ", calCode
-            print paraError
-        else:
-
-            drawX =   doFF.getCloudSize( ffTB  ) #ffTB["peak"]  # self.getCloudSize(useTB)
-            doFF.addMWISPFFerror(ffTB )
-
-            drawY = ffTB[doFF.ffMWISPCol]/  ffTB[doFF.cutFFffMWISPCol]
-            yError = ffTB[doFF.ffMWISPErrorCol]
-
-
-        #only draw good clouds
-        if errorThresh is not None:
-            drawX = drawTBGood[doFF.meanSNRcol]  # ffTB["sum"]/ffTB["pixN"]   # ffTB["peak"]  # self.getCloudSize(useTB)
-            drawY = drawTBGood[doFF.cutFFffMWISPCol]
-            yError = drawTBGood[doFF.cutFFffMWISPErrorCol]
-
-            ffTB=drawTBGood
-
-        #curve fitting
-        if inputTB is None:
-            ffTB.write(calCode+"BFFclean.fit",overwrite=True)
-        ####get color bar
-        Vs=ffTB["v_cen"]
-        normV = mpl.colors.Normalize(vmin=np.min(Vs), vmax=np.max(Vs) )
-        cmap = plt.cm.jet
-        m = plt.cm.ScalarMappable(norm=normV, cmap=cmap)
-        axFFvel.scatter(drawX, drawY, edgecolors =  "blue",  s= 2,    facecolors='none',  lw=0.5, marker="o", label="",zorder=0,alpha=0.8)
-        #aa,bb,cc=axFFvel.errorbar(drawX, drawY, yerr=yError, markersize=0.0, fmt='o',  color="blue" ,   capsize=0.0,   elinewidth=0.7, lw=0.5, alpha=0.8, label="",  zorder=1)
-        #cc[0].set_color(  m.to_rgba(Vs) )
-
-
-
-
-
-        axFFvel.set_xlim(  showSizeRange  )
-        axFFvel.set_ylim( 0,1 )
-
-        axFFvel.set_ylabel(r"$\eta_{{\rm sns}}$") #("The beam filling factor")
-        #axFF.set_xlabel("Angular size (arcmin)")
-        #axFFvel.set_xlabel("Angular size (arcmin)")
-        axFFvel.set_xlabel(r"Mean SNR ($\sigma$)")
-
-        armStr=doFF.getArmStr()
-        lineStr=doFF.getLineStr()
-        fillingWMISP = r"{} molecular clouds in the {} arm".format(lineStr, armStr )
-
-
-        if cloudSource is None:
-
-            at = AnchoredText(fillingWMISP, loc=4, frameon=False)
-            axFFvel.add_artist(at)
-            
-        else:
-            at = AnchoredText(cloudSource , loc=4, frameon=False)
-            axFFvel.add_artist(at)
-
-
-        ########
-
-        #x = np.arange( 2.1875, showSizeRange[1], 0.01)
-        if len(para)==2:
-            x = np.linspace(para[-1], showSizeRange[1],1000)
-            a,b=para
-        else:
-            x = np.linspace( 2.1875, showSizeRange[1],1000)
-            a =para[0]
-
-            b=2.1875
-        formulaTex = r"$\eta_{{\rm sns}} = \frac{{ \left( \mathit x - {:.3f} \right) ^2}}{{\left( \left( \mathit x  - {:.3f} \right)+ {:.3f}  \right)^2 }}$".format(b,b,a   )
-
-        axFFvel.plot(x,  ffModelCutoff(x, *para), "-", color='black', lw=1,   zorder=2,label=formulaTex)
-        ##########
-        if showLegend:
-            axFFvel.legend(loc=5 , handlelength=1.0)
-
-
-        if showX2:
-            ax2.set_xlim( showSizeRange )
-            rangeofTemperature = np.asarray(showSizeRange)*doFF.getMeanRMS()
-
-            minTem = int( min(rangeofTemperature) )   -1
-            maxTem = int( max(rangeofTemperature) )+2
-            dT = 0.2
-
-            if "12" in calCode:
-                dT=0.5
-
-            tmpList= np.arange( minTem, maxTem+ dT, dT  )
-            showSNR= tmpList /doFF.getMeanRMS()
-            new_tick_locations= showSNR
-
-            #get ticklabes
-
-
-            print new_tick_locations,"?????????????????"
-
-            ax2.set_xticks(new_tick_locations)
-            ax2.set_xticklabels( self.getStr(tmpList)  )
-            ax2.set_xlabel(r"Mean brightness temperature (K)")
-            #secax = axFFvel.secondary_xaxis('top', functions=(forward, inverse ) )
-            #secax.set_xlabel('Kelvin (K)')
-
-            ax2.set_xlim( showSizeRange )
-        plt.savefig(doFF.paperFigurePath+"{}FittingSNRAndBFF{}_dim{}.png".format(calCode,saveTag,dim), bbox_inches='tight', dpi=300)
-        plt.savefig(doFF.paperFigurePath+"{}FittingSNRAndBFF{}_dim{}.pdf".format(calCode,saveTag,dim), bbox_inches='tight'  )
-
-
 
         #print   drawTB[doFF.cov00Col]
 
@@ -1366,9 +1246,9 @@ class fillingMain(object):
         :return:
         """
 
-        fig = plt.figure(figsize=(10, 8))
+        fig = plt.figure(figsize=(9, 7.2))
         rc('text', usetex=True)
-        rc('font', **{'family': 'sans-serif', 'size': 18, 'serif': ['Helvetica']})
+        rc('font', **{'family': 'sans-serif', 'size': 26, 'serif': ['Helvetica']})
 
         mpl.rcParams['text.latex.preamble'] = [
             r'\usepackage{tgheros}',  # helvetica font
@@ -1393,22 +1273,56 @@ class fillingMain(object):
         eta=drawTB["fillingFactorMWISP"]
         etaError=drawTB["fillingFactorMWISPError"]
 
-
-
         f=drawTB["cutFFfillingFactorMWISP"]
         fError=drawTB["cutFFfillingFactorMWISPError"]
 
         #aa,bb,cc=axFFvel.errorbar(eta, f, yerr=fError,xerr=etaError, markersize=0.5 , fmt='o',  color="blue" ,   capsize=0.0,   elinewidth=0.7, lw=0.5, alpha=0.8, label="",  zorder=1)
-        aa,bb,cc=axFFvel.errorbar(  f,eta, yerr=etaError ,xerr=fError, markersize=0.5 , fmt='o',  color="blue" ,   capsize=0.0,   elinewidth=0.7, lw=0.5, alpha=0.8, label="",  zorder=1)
+
+        #aa,bb,cc=axFFvel.errorbar(  f,eta, yerr=etaError ,xerr=fError, markersize=0.5 , fmt='o',  color="blue" ,   capsize=0.0,   elinewidth=0.7, lw=0.5, alpha=0.8, label="",  zorder=1)
         #axFFvel.scatter(f, eta, edgecolors =  "blue",  s= 2,    facecolors='none',  lw=0.5, marker="o", label="",zorder=0,alpha=0.8)
+        allCO12=self.getCombinCutoffTableCO12()
+        allCO13=self.getCombinCutoffTableCO13()
+        allCO18=self.getCombinCutoffTableCO18()
 
-        axFFvel.set_xlabel(r"$\mathit f$")
-        axFFvel.set_ylabel(r"$\mathit \eta_{{\mathrm{{bf}}}}$")
+        self.drawErrorByTBForCompareBFF(axFFvel,allCO12,colorCode='green',label=  r"$^{12}\mathrm{CO}\left(\mathit J=1\rightarrow0\right)$" )
+        self.drawErrorByTBForCompareBFF(axFFvel,allCO13,colorCode='blue',label=  r"$^{13}\mathrm{CO}\left(\mathit J=1\rightarrow0\right)$" )
+        # r"$\mathrm{C}^{18}\mathrm{O}(J=1\rightarrow0)$"
 
-        axFFvel.set_xlim(0,1)
-        axFFvel.set_ylim(0,1)
+        self.drawErrorByTBForCompareBFF(axFFvel,allCO18,colorCode='red',label=   r"$\mathrm{C}^{18}\mathrm{O}(\mathit J=1\rightarrow0)$"  )
+
+
+        #axFFvel.set_xlabel(r"$\mathit f$")
+        axFFvel.set_ylabel(r"$\mathit \eta_{{\mathrm{{res}}}}$")
+        axFFvel.set_xlabel(r"$\mathit \eta_{{\mathrm{{sen}}}}$")
+
+        axFFvel.plot([0 ,1],[0 ,1], lw=1.5,color='black',label="1:1 line")
+        axFFvel.legend(loc=4, handlelength=0.5 , fontsize= 20)
+        axFFvel.set_xlim(0 ,1)
+        axFFvel.set_ylim(0 ,1)
 
         plt.savefig(doFF.paperFigurePath+"{}compareBFFs.pdf".format(doFF.codeRawLocalCO12 ), bbox_inches='tight'  )
+
+
+    def drawErrorByTBForCompareBFF(self,axFFvel, drawTB,colorCode="blue" ,label="" ):
+
+        doFF.addMWISPFFerror(drawTB)
+
+        drawTB=doFF.cleanCutoffTB(drawTB,dim=5,errorThresh=0.2)
+        drawTB=drawTB[ drawTB["fillingFactorMWISPError"] / drawTB["fillingFactorMWISP"]  <=0.2   ]
+        drawTB=drawTB[ drawTB["fillingFactorMWISP"]>0  ]
+        drawTB=drawTB[ drawTB["fillingFactorMWISP"]<1   ]
+
+
+
+        eta=drawTB["fillingFactorMWISP"]
+        etaError=drawTB["fillingFactorMWISPError"]
+
+        f=drawTB["cutFFfillingFactorMWISP"]
+        fError=drawTB["cutFFfillingFactorMWISPError"]
+        aa,bb,cc=axFFvel.errorbar(  f,eta, yerr=etaError ,xerr=fError, markersize= 2.5 , fmt='o',  color=colorCode ,   capsize=0.0,   elinewidth=0.8, lw=0.8, alpha=0.7, label=label,  zorder=1)
+
+
+
 
 
     def reLabelData(self,dataLabel,TB):
@@ -1437,259 +1351,7 @@ class fillingMain(object):
 
 
 
-    def getCuoffListAndError(self,calCode, rawCOFITS,labelCOFITS,rmsFITS,saveTag="", reCalculate=True ):
 
-        """
-
-        :param rawCOFITS:
-        :param labelCOFITS:
-        :return:
-        """
-        xSave=  self.saveOverallCutoff+saveTag+"xCutoff"
-        ySave=  self.saveOverallCutoff+saveTag+"yCutoff"
-        yErrSave=  self.saveOverallCutoff+saveTag+"yErrCutoff"
-
-        #need to remove bad channels
-
-
-
-
-        if not reCalculate and  os.path.isfile(xSave+".npy") and  os.path.isfile(ySave+".npy") and  os.path.isfile(yErrSave+".npy"):
-            x = np.load(xSave + ".npy" )
-            yList = np.load(ySave + ".npy" )
-            yErrList = np.load(yErrSave + ".npy" )
-
-            #print x
-            #print yList
-            #print yErrList , "???????????????????????"
-            #return x,yList, None
-
-            return x,yList, yErrList
-
-
-        FFTB=self.getFFTB(calCode)
-
-        TB=Table.read( FFTB )
-        dataCO,headCO=myFITS.readFITS(rawCOFITS)
-        labelCO,_ = myFITS.readFITS( labelCOFITS )
-
-        rmsData,rmsHead = myFITS.readFITS(rmsFITS)
-
-        x =  doFF.cutoffFactors
-
-        #need to remove bad channels
-
-
-        labelCO=self.reLabelData( labelCO,TB  )
-
-
-
-        coValues=dataCO[labelCO>0]
-        tmbInRMS = dataCO/rmsData
-
-        rmsValue=tmbInRMS[labelCO>0]
-
- 
-        yList=[]
-
-        yErrList = []
-
-
-
-        for eachX  in x:
-            subCO= coValues[rmsValue>=eachX ]
-
-            y=np.sum(subCO)*doFF.getVelResolution()
-            yErr= np.sqrt(  len(subCO) )*doFF.getMeanRMS()* doFF.getVelResolution()
-            if yErr==0:
-                yErr=   doFF.getMeanRMS()* doFF.getVelResolution()
-
-            yErrList.append(  yErr )
-
-            yList.append(y)
-
-
-
-
-        np.save(xSave,x)
-        np.save(ySave,yList)
-        np.save(yErrSave,yErrList)
-
-
-        
-        return x,yList, yErrList
-
-
-
-
-    def getOverallCutoff(self,calCode,calID=0,reCalculate=False,dim=5):
-        """
-
-        :param calCode:
-        :return:
-        """
-
-        #getRaw
-        doFF.calCode=calCode
-
-        rawCO=doFF.getRawCOFITS()
-        labelFITS= doFF.getSmoothAndNoiseFITSSingle( smFactor=1.0,  noiseFactor=0.0 , getCleanFITS=True)
-        rmsFITS=doFF.getRMSFITS()
-
-
-        #need to remove bad sources
-
-
-
-        x,y,yError= self.getCuoffListAndError(calCode, rawCO,labelFITS,rmsFITS,saveTag=calCode,reCalculate=reCalculate)
-
-
-        # drawTheFigure
-        fig = plt.figure(figsize=(10, 8))
-        rc('text', usetex=True)
-        rc('font', **{'family': 'sans-serif', 'size': 22, 'serif': ['Helvetica']})
-
-        if 1:
-            mpl.rcParams['text.latex.preamble'] = [
-                r'\usepackage{tgheros}',  # helvetica font
-                r'\usepackage{sansmath}',  # math-font matching  helvetica
-                r'\sansmath',  # actually tell tex to use it!
-                r'\usepackage{siunitx}',  # micro symbols
-                r'\sisetup{detect-all}',  # force siunitx to use the fonts
-            ]
-
-        axFitting = fig.add_subplot(1, 1, 1)
-        # axFitting.scatter(x, y, s=15, color='red', label="The noise RMS is 0.5 K")
-        # axFitting.scatter(x, x*y, s=15, color='red', label="The noise RMS is 0.5 K")
-        # axFitting.scatter(  x  ,  y , s=15,  color='red'   ) #
-        #axFitting.errorbar(x, -y, yerr=yError, markersize=2, fmt='o', c='red', capsize=0.5, elinewidth=1, lw=1)
-
-        axFitting.errorbar(  x,   y ,   markersize=2, fmt='o', c='red', capsize=0.5, elinewidth=1, lw=1)
-
-
-
-
-
-
-
-
-        ##fitting with polynomial
-
-
-        fitingX=x
-
-        fittingy=y
-        fittingYerror = yError
-
-
-
-        #print doFF.fittingCutOFF(fitingX, fittingy, fittingYerror, dim=  dim )
-        params, paramas_covariance, useFunction ,fitData= doFF.fittingCutOFF(fitingX, fittingy, fittingYerror, dim= dim )
-        label = ""
-        if 1:
-            mwispFF, mwispFFError = doFF.getFFandErrorCutoff( params, paramas_covariance,  targetSNR=2 ,dimension= len(params)  )
-            if np.isnan( mwispFF ) or np.isinf(mwispFF):
-                mwispFF=0
-                mwispFFError=0
-
-
-            label= "$\eta_{{ \\rm sen}}={:.3f}\pm{:.3f}$".format(mwispFF ,mwispFFError  ) ##"Quadratic with Gaussian CDF "
-
-        if 0: #test
-
-            polyX = x[x<=mu]  # x[0:8]
-            polyY =  y[x<=mu]  # y[0:8]
-            axDiff.scatter(polyX, polyY, color='blue')
-
-            p0=np.polyfit(polyX,polyY,deg= 2 )
-
-            p = np.poly1d(p0)
-
-            axDiff.plot(polyX,  p(polyX),  c='black' , lw=1)
-            #mwispFF, mwispFFError = self.getFFandErrorCutoff( params, paramas_covariance,  targetSNR=2 ,dimension= len(params)  )
-
-        fittingX = np.arange(0, np.max(fitData[0] ), 0.01)
-        # axFitting.plot( fittingX  ,  useFunction(fittingX,params[0], params[1] , params[2]   ), color='blue'  )
-        # if useCutoff:
-        # fittingX = np.arange( - np.max(x), np.max(x), 0.01)
-
-        #useFunction= ffFunctionCutTest
-
-
-        #if useFunction == ffFunctionCutTest:
-            #if np.isnan(mwispFFError) or np.isinf(mwispFFError):
-                #mwispFFError=999
-
-
-        if 0:
-             # with astropy
-            fitter = modeling.fitting.LevMarLSQFitter()
-            model1 = modeling.models.Gaussian1D(amplitude=np.mean(y), mean=0, stddev=5)
-            model1.mean.fixed = True
-
-            model2 = modeling.models.Gaussian1D(amplitude=np.mean(y) / 2, mean=0, stddev=3)
-            model2.mean.fixed = True
-
-            gInit = model1   + model2
-
-            fitted_model = fitter(gInit, x, y, weights=1. / yError)
-            # fitted_model = fitter(gInit, x, y)
-            # print gInit.mean.value , gInit.stddev.value ,gInit.amplitude.value
-
-            # print fitted_model.mean_0.value,  fitted_model.stddev_0.value, fitted_model.amplitude_0.value
-            # print fitted_model.mean_1.value,  fitted_model.stddev_1.value, fitted_model.amplitude_1.value
-            # print model2.mean.value ,model2.stddev.value ,model2.amplitude.value
-
-            ffs = axFitting.plot(fittingX, fitted_model(fittingX), color='blue', lw=1.0  )
-        else:
-            #p  ass
-            pass
-            ffs = axFitting.plot(fittingX, useFunction(fittingX, *params), color='blue', lw=1.0 ,label=label     )
-
-
-        axFitting.axvline(x=0, ls="--", color='black',lw=1.2,alpha=0.5)
-        armStr = doFF.getArmStr()
-        lineStr = doFF.getLineStr()
-        fillingWMISP = r"{} molecular clouds in the {} arm".format(lineStr, armStr)
-        ffs2 = axFitting.plot(fittingX, useFunction(fittingX, *params), color='white', alpha=0, lw=1.0,
-                              label=fillingWMISP)
-
-        axFitting.legend(loc=1, handlelength=1, fontsize=20)
-
-        axFitting.set_xlabel(r"Cutoff ($\sigma$)")
-        # axFitting.set_ylabel("Flux (arcmin)")
-        axFitting.set_ylabel(r"Flux ($\rm K\ km\ s$$^{-1}$ $\mathrm{\Omega}_\mathrm{A}$)")
-        ###########################
-        saveTagFigue = "{}_factorFitting_ID{}{}_dim{}".format(doFF.calCode, calID, "",dim)
-        #axFitting.set_xlim(0,8)
-
-        if calID != 0:
-
-            if individuals and not testPoly:
-                saveTagFigue = saveTagFigue + "_indivi"
-                plt.savefig(self.figurePath + "{}.pdf".format(saveTagFigue), bbox_inches='tight')
-
-
-            if testPoly:
-                saveTagFigue = saveTagFigue + "_indivi"
-                plt.savefig(self.figurePath + "{}Poly.pdf".format(saveTagFigue), bbox_inches='tight')
-
-            if not testPoly and not individuals:
-                plt.savefig(self.figurePath + "{}.png".format(saveTagFigue), bbox_inches='tight', dpi=100)
-
-
-
-        else:
-            plt.savefig(doFF.paperFigurePath + "{}.png".format(saveTagFigue), bbox_inches='tight', dpi=100)
-            plt.savefig(doFF.paperFigurePath + "{}.pdf".format(saveTagFigue), bbox_inches='tight')
-
-        plt.close(fig)
-        gc.collect()
-
-        return  mwispFF, mwispFFError
-
-        print  useFunction(2 , *params) /  useFunction(0, *params) , "BFFFF of ",calCode
-        #return mwispFF, 0, fittingParaAndError, paramas_covariance
 
     def zzz(self):
         """
@@ -1705,25 +1367,269 @@ class fillingMain(object):
 doMain=fillingMain()
 
 
-###################
-if 1:
-    #doFF.calCode=doFF.codeRawLocalCO12 #codeRawLocalCO12
-    doFF.calCode=doFF.codeRawLocalCO12 #codeRawLocalCO12
 
-    #doFF.callFillingFactorAllSM( ) #this is over all cloud fits
-    doFF.printFillingCat()
-    #doFF.printFluxCat()
+
+if 0: #pipeline of calculating filling factors # stopping calling sensitvities as a beam filing factors
+
+
+    allCodeList =  doFF.allRawCodeList+doFF.surveyCodeList
+
+    for processCode in  allCodeList:
+
+        if processCode in   doFF.rawLocalCodeList  or processCode in  doFF.rawSgrCodeList :
+            continue
+
+
+
+        doFF.calCode=processCode
+        # SMOOTH
+        if 0:
+            doFF.calCode= processCode
+            doFF.smoothFITSbySMFactor()
+        # addnoise
+
+        if 1:
+            smFiles = doFF.getSmFITSFileList()
+
+            for eachSMF in smFiles:
+                print "Processing ", eachSMF
+                doFF.addNoiseByRMSFITS(eachSMF, noiseFactor=0.0)
+        #search cloud
+        if 1:
+            doMain.cleanFITS(processCode, onlyFirst=False)
+            doMain.removeUselessFITS(processCode)
+
+        #calculate BFF
+        if 1:
+            doFF.getFluxListForEachCloud(calCode=  processCode  )
+        if 1:
+            doMain.getFillingFactorAndEdge(  processCode, drawFigure=False )
+
 
 
     sys.exit()
 
+
+#test newe 
+
+
+
+
+
+if 0: #concept
+    doFF.drawBFFDiscuss()
+    sys.exit()
+
+if 0: #draw Figure  6
+
+    for eachCode in doFF.allRawCodeList:
+        doFF.calCode=eachCode
+        doFF.getOverallCutoff( eachCode  ,reCalculate=  False     ,dim= 5     ) #can get error
+
+    #doMain.getOverallCutoff( doFF.codeRawLocalCO12 ,reCalculate=  False     )
+    #doMain.getOverallCutoff( doFF.codeRawLocalCO12  ,reCalculate=  False   ,dim= 3    )
+    #doMain.getOverallCutoff( doFF.codeRawLocalCO12  ,reCalculate=  False   ,dim= 5    )
+
+    #doMain.getOverallCutoff(doFF.codeRawSgrCO12 ,reCalculate=  False     )
+    #doMain.getOverallCutoff(doFF.codeRawSgrCO13 ,reCalculate=  False     )
+
+    #doMain.getOverallCutoff(doFF.codeRawLocalCO13  ,reCalculate=  True       )
+    #doMain.getOverallCutoff(doFF.codeRawLocalCO18  ,reCalculate=  False     )
+    sys.exit()
+
+
+if 0: #draw figures for sensitivities
+    pass
+    #figure 1, two cases of cutoff specific molecular clouds
+    #figure 3, relationship between the two BFFs
+
+    #figure4, overall fiting of all clouds
+    #display the results of surveys, in total five figures
+
+    #pput those figures in discussion
+
+    #first, display two cases
+    ###################doFF.calculateFillingFactorCutoff( fluxTB,drawFigure=True,inputID=323137,saveTag="cutoffBFFcase", dim=5,targetSNR= 3 )
+    #draw first Table
+    doFF.calCode=doFF.codeRawLocalCO12
+    fluxTB=Table.read( "rawLocalCO12BFFclean.fit" )
+    if 0:
+
+        doFF.calculateFillingFactorCutoff( fluxTB,drawFigure=True,inputID=369770,saveTag="cutoffBFFcase", dim=5,targetSNR= 3 )
+        doFF.calculateFillingFactorCutoff( fluxTB,drawFigure=True,inputID=344936,saveTag="cutoffBFFcase", dim=5,targetSNR= 3 )
+        doFF.calculateFillingFactorCutoff( fluxTB,drawFigure=True,inputID=385436,saveTag="cutoffBFFcase", dim=5,targetSNR= 3 )
+
+    #relation between the two BFFs
+    if 0:
+        #need to draw compare with all filling factors
+        combineTB= doMain.getCombinCutoffTable()
+        doMain.drawBFFrelatin(  combineTB  )
+
+
+
+
+    if 0:
+        combinTB=doMain.getCombinCutoffTable()
+        allCO12=doMain.getCombinCutoffTableCO12()
+        allCO13=doMain.getCombinCutoffTableCO13()
+        allCO18=doMain.getCombinCutoffTableCO18()
+
+
+        doFF.drawCutoffBFF( doFF.codeRawLocalCO12 , saveTag="cutoffBFFAllMWISP", inputTB=combinTB , errorThresh=0.2, showLegend=True,cloudSource=None, TBofThreeLines=[allCO12,allCO13,allCO18])
+
+
+
+    if 1:
+        pass
+        #doMain.drawCutOFFBFFSurvey()
+        doFF.drawSurveyBFF()
+    sys.exit()
+
+
+
+
+if 0: #single test of draw filing factor
+
+
+    for i in [1,0]:
+        if i: #draw individual
+            testPoly = False
+            drawIndi = True
+        else: #draw polynomial
+            testPoly=True
+            drawIndi=True
+
+        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=95454, testPoly=testPoly, individuals=drawIndi )
+        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=95336, testPoly=testPoly, individuals=drawIndi )
+        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=115887, testPoly=testPoly, individuals=drawIndi )
+        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=129123, testPoly=testPoly, individuals=drawIndi )
+
+    sys.exit()
+
+
+
+###################
 if 0:
-    doMain.drawCutoffBFF(doFF.codeRawLocalCO13 , dim=  5 ,showX2=True   )
+    doFF.calCode=doFF.codeRawLocalCO12 #codeRawLocalCO12
+    #doFF.calCode=doFF.codeRawLocalCO12 #codeRawLocalCO12
+
+    #doFF.callFillingFactorAllSM( ) #this is over all cloud fits
+    #doFF.printFillingCat()
+    #doFF.printFluxCat()
+    #doFF.printCloudNumberTable()
+
+    sys.exit()
 
 
-    doMain.drawCutoffBFF(doFF.codeRawLocalCO12 , dim=  5 ,showX2=True   )
 
-    #doMain.drawCutoffBFF(doFF.codeRawLocalCO12 , dim=  5    )
+
+
+if 0:
+    doMain.fittingFFWithAllTBs(doFF.allRawCodeList,"AllClouds")
+    #doMain.fittingFFWithAllTBs(doFF.rawOutCodeList,"AllOutClouds")
+    #doMain.fittingFFWithAllTBs(doFF.rawLocalCodeList,"AllLocalClouds")
+    #doMain.fittingFFWithAllTBs(doFF.rawSgrCodeList,"smgrClouds")
+    #doMain.fittingFFWithAllTBs(doFF.rawScuCodeList,"AllScuClouds")
+
+    CO12All=[doFF.codeRawLocalCO12,doFF.codeRawSgrCO12,doFF.codeRawScuCO12,doFF.codeRawOutCO12]
+    CO13All=[doFF.codeRawLocalCO13,doFF.codeRawSgrCO13,doFF.codeRawScuCO13,doFF.codeRawOutCO13]
+    CO18All=[doFF.codeRawLocalCO18,doFF.codeRawSgrCO18,doFF.codeRawScuCO18,doFF.codeRawOutCO18]
+
+    #doMain.fittingFFWithAllTBs( CO12All ,"AllCO12Clouds")
+    #doMain.fittingFFWithAllTBs( CO13All ,"AllCO13Clouds")
+    #doMain.fittingFFWithAllTBs( CO18All ,"AllCO18Clouds")
+
+    sys.exit()
+
+
+
+
+
+if 0:
+    doMain.drawChiSquareTest(trainingRatio=0.8)
+    doMain.drawChiSquareTest(trainingRatio=0.7)
+
+    sys.exit()
+
+
+
+
+if  0:
+    for eachCode in doFF.allRawCodeList:
+        doFF.calCode=eachCode
+        doMain.getCutffFF(  eachCode   , drawFigure=False  , cutByPeak=False ,dim= 5 ) #the target SNR, should be 3 sigma, for individual clouds, but for overall
+        #doFF.drawCutoffBFF(eachCode,errorThresh=0.2,dim=5)
+    #for eachCode in doFF.surveyCodeList:
+        #doFF.calCode=eachCode
+        #doMain.getCutffFF(  eachCode   , drawFigure=False  , cutByPeak=False ,dim= 5 ) #the target SNR, should be 3 sigma, for individual clouds, but for overall
+        #doFF.drawCutoffBFF(eachCode,errorThresh=0.2,dim=5)
+
+
+    #for eachCode in doFF.allRawCodeList:
+
+    sys.exit()
+
+
+
+
+if 0:
+    doFF.calCode = doFF.codeRawLocalCO12
+    doFF.drawCutoffBFF(doFF.codeRawLocalCO12 , errorThresh=0.2)
+
+if 0:
+    for eachCode in doFF.surveyCodeList:
+        doFF.calCode = eachCode
+
+        doFF.drawCutoffBFF(eachCode, errorThresh=0.2)
+
+    for eachCode in doFF.allRawCodeList:
+    #for eachCode in doFF.surveyCodeList:
+        doFF.calCode=eachCode
+        doFF.drawCutoffBFF(eachCode,errorThresh=0.2 )
+
+
+
+
+
+
+
+
+if 0:
+    doFF.calCode= doFF.codeRawLocalCO12
+    #doMain.produceSameSizeClouds()
+    #doMain.compareCloudSameSize()
+
+
+
+if  0: # draw survey results
+
+    doFF.drawSurveyBFF()
+    sys.exit()
+
+
+
+
+
+
+
+if  0: #testing
+
+    for eachCode in doFF.allRawCodeList:
+    #for eachCode in [ doFF.codeRawLocalCO12,doFF.codeRawSgrCO12,doFF.codeRawScuCO12,doFF.codeRawOutCO12   ]:
+    #for eachCode in [ doFF.codeRawLocalCO13,doFF.codeRawSgrCO13,doFF.codeRawScuCO13,doFF.codeRawOutCO13   ]:
+    #for eachCode in [ doFF.codeRawLocalCO18,doFF.codeRawSgrCO18,doFF.codeRawScuCO18,doFF.codeRawOutCO18   ]:
+
+    #for eachCode in doFF.allRawCodeList :
+
+        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
+
+        tb=doMain.getFFTB(doFF.calCode)
+        testTB=Table.read(tb)
+
+        doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,50],useODR=False ,showColor="velocity")
+
+    sys.exit()
+
 
 
 
@@ -1731,13 +1637,31 @@ if 0:
 
 
     for eachCode in doFF.allRawCodeList:
+        doMain.drawCutoffBFF( eachCode , dim=5, showX2=True)
 
-        doMain.getCutffFF(  eachCode   , drawFigure=False  , cutByPeak=False ,dim= 5 )
+    #doMain.drawCutoffBFF(doFF.codeRawLocalCO13 , dim=  5 ,showX2=True   )
+    #doMain.drawCutoffBFF(doFF.codeRawLocalCO12 , dim=  5 ,showX2=True   )
+
+    #doMain.drawCutoffBFF(doFF.codeRawLocalCO12 , dim=  5    )
+
+
+
+
+
+
+
+
+if 0:
+
+
+    #for eachCode in doFF.allRawCodeList:
+
+        #doMain.getCutffFF(  eachCode   , drawFigure=False  , cutByPeak=False ,dim= 5 )
         #doMain.getCutffFF(  eachCode   , drawFigure=False , cutByPeak=False ,dim=3 )
 
 
 
-    sys.exit()
+    #sys.exit()
 
 
     doFF.calCode = doFF.codeRawLocalCO12
@@ -1745,7 +1669,7 @@ if 0:
 
     TB.sort("sum")
     TB.reverse()
-    doFF.calculateFillingFactorCutoff(TB, drawFigure=False ,  dim=5)
+    doFF.calculateFillingFactorCutoff(TB, drawFigure=True ,  dim=5)
     #doFF.calculateFillingFactorCutoff(TB, drawFigure=True, inputID=213561, saveTag="cutoffBFFcase", dim=5)
     #doFF.calculateFillingFactorCutoff(TB, drawFigure=True, inputID=113544, saveTag="cutoffBFFcase", dim=5)
 
@@ -1759,7 +1683,8 @@ if 0:
 if 0:
 
     for eachCode in doFF.allRawCodeList:
-        doMain.getOverallCutoff( eachCode  ,reCalculate=  False   ,dim= 5     ) #can get error
+        #doFF.calCode=eachCode
+        doFF.getOverallCutoff( eachCode  ,reCalculate=  False   ,dim= 5     ) #can get error
 
     #doMain.getOverallCutoff( doFF.codeRawLocalCO12 ,reCalculate=  False     )
     #doMain.getOverallCutoff( doFF.codeRawLocalCO12  ,reCalculate=  False   ,dim= 3    )
@@ -1830,85 +1755,13 @@ if 0:
 
 
 
-if 0: #draw figures for sensitivities
-    pass
-    #figure 1, two cases of cutoff specific molecular clouds
-    #figure 3, relationship between the two BFFs
-
-    #figure4, overall fiting of all clouds
-    #display the results of surveys, in total five figures
-
-    #pput those figures in discussion
-
-    #first, display two cases
-
-    #draw first Table
-    doFF.calCode=doFF.codeRawLocalCO12
-    fluxTB=Table.read( "rawLocalCO12BFFclean.fit" )
-    if 1:
-        doFF.calculateFillingFactorCutoff( fluxTB,drawFigure=True,inputID=369770,saveTag="cutoffBFFcase", dim=5)
-        doFF.calculateFillingFactorCutoff( fluxTB,drawFigure=True,inputID=344936,saveTag="cutoffBFFcase", dim=5)
-        doFF.calculateFillingFactorCutoff( fluxTB,drawFigure=True,inputID=323137,saveTag="cutoffBFFcase", dim=5)
-
-    #relation between the two BFFs
-    if 1:
-        doMain.drawBFFrelatin( fluxTB )
-
-    if 1:
-        combinTB=doMain.getCombinCutoffTable()
-
-        doMain.drawCutoffBFF( doFF.codeRawLocalCO12, saveTag="cutoffBFFAllMWISP",inputTB=combinTB ,errorThresh=0.2, showLegend=True,cloudSource="MWISP molecular clouds")
-
-
-    if 1:
-        doMain.drawCutOFFBFFSurvey()
-
-    sys.exit()
-
-
-
-if 0:
-
-    #for eachCode in doFF.allRawCodeList:
-    for eachCode in doFF.surveyCodeList:
-        doMain.drawCutoffBFF( eachCode    )
 
 
 
 
 
-if 0:
-    doFF.calCode= doFF.codeRawLocalCO12
-    #doMain.produceSameSizeClouds()
-    doMain.compareCloudSameSize()
 
 
-
-
-
-if  0:
-    doMain.fittingFFWithAllTBs(doFF.allRawCodeList,"AllClouds")
-    #doMain.fittingFFWithAllTBs(doFF.rawOutCodeList,"AllOutClouds")
-    #doMain.fittingFFWithAllTBs(doFF.rawLocalCodeList,"AllLocalClouds")
-    #doMain.fittingFFWithAllTBs(doFF.rawSgrCodeList,"smgrClouds")
-    #doMain.fittingFFWithAllTBs(doFF.rawScuCodeList,"AllScuClouds")
-
-    CO12All=[doFF.codeRawLocalCO12,doFF.codeRawSgrCO12,doFF.codeRawScuCO12,doFF.codeRawOutCO12]
-    CO13All=[doFF.codeRawLocalCO13,doFF.codeRawSgrCO13,doFF.codeRawScuCO13,doFF.codeRawOutCO13]
-    CO18All=[doFF.codeRawLocalCO18,doFF.codeRawSgrCO18,doFF.codeRawScuCO18,doFF.codeRawOutCO18]
-
-    #doMain.fittingFFWithAllTBs( CO12All ,"AllCO12Clouds")
-    #doMain.fittingFFWithAllTBs( CO13All ,"AllCO13Clouds")
-    #doMain.fittingFFWithAllTBs( CO18All ,"AllCO18Clouds")
-
-    sys.exit()
-
-
-
-if  0: # draw survey results
-
-    doFF.drawSurveyBFF()
-    sys.exit()
 
 
 
@@ -1928,76 +1781,7 @@ if 0: #testing
 
 
 
-if 0: #single test of draw filing factor
 
-
-    for i in [1,0]:
-        if i: #draw individual
-            testPoly = False
-            drawIndi = True
-        else: #draw polynomial
-            testPoly=True
-            drawIndi=True
-
-        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=95454, testPoly=testPoly, individuals=drawIndi )
-        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=95336, testPoly=testPoly, individuals=drawIndi )
-        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=115887, testPoly=testPoly, individuals=drawIndi )
-        doMain.drawFillingFactor(doFF.codeRawLocalCO12,drawFigure=True,inputID=129123, testPoly=testPoly, individuals=drawIndi )
-
-    sys.exit()
-
-
-
-
-
-if 0:
-    doMain.drawChiSquareTest(trainingRatio=0.8)
-    doMain.drawChiSquareTest(trainingRatio=0.7)
-
-    sys.exit()
-
-
-
-
-if 0: #pipeline of calculating filling factors
-
-
-    allCodeList =  doFF.allRawCodeList+doFF.surveyCodeList
-
-    for processCode in  allCodeList:
-
-        if processCode in   doFF.rawLocalCodeList  or processCode in  doFF.rawSgrCodeList :
-            continue
-
-
-
-        doFF.calCode=processCode
-        # SMOOTH
-        if 0:
-            doFF.calCode= processCode
-            doFF.smoothFITSbySMFactor()
-        # addnoise
-
-        if 1:
-            smFiles = doFF.getSmFITSFileList()
-
-            for eachSMF in smFiles:
-                print "Processing ", eachSMF
-                doFF.addNoiseByRMSFITS(eachSMF, noiseFactor=0.0)
-        #search cloud
-        if 1:
-            doMain.cleanFITS(processCode, onlyFirst=False)
-            doMain.removeUselessFITS(processCode)
-
-        #calculate BFF
-        if 1:
-            doFF.getFluxListForEachCloud(calCode=  processCode  )
-        if 1:
-            doMain.getFillingFactorAndEdge(  processCode, drawFigure=False )
-
-
-
-    sys.exit()
 
 
 
@@ -2017,15 +1801,6 @@ if 0:
 
 
 
-
-
-
-if 0:
-    doFF.drawBFFDiscuss()
-    sys.exit()
-
-
-
 if 0:
     doFF.calCode=doFF.codeRawLocalCO12 #codeRawLocalCO12
 
@@ -2037,27 +1812,6 @@ if 0:
     sys.exit()
 
 
-
-
-
-
-if  0: #testing
-
-    for eachCode in doFF.allRawCodeList:
-    #for eachCode in [ doFF.codeRawLocalCO12,doFF.codeRawSgrCO12,doFF.codeRawScuCO12,doFF.codeRawOutCO12   ]:
-    #for eachCode in [ doFF.codeRawLocalCO13,doFF.codeRawSgrCO13,doFF.codeRawScuCO13,doFF.codeRawOutCO13   ]:
-    #for eachCode in [ doFF.codeRawLocalCO18,doFF.codeRawSgrCO18,doFF.codeRawScuCO18,doFF.codeRawOutCO18   ]:
-
-    #for eachCode in doFF.allRawCodeList :
-
-        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
-
-        tb=doMain.getFFTB(doFF.calCode)
-        testTB=Table.read(tb)
-
-        doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,50],useODR=False ,showColor="velocity")
-
-    sys.exit()
 
 
 
