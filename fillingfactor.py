@@ -1786,12 +1786,12 @@ class checkFillingFactor(object):
             Vs=peakSigma
 
         #averageSNR=  useTB["sum"]/ useTB["pixN"]/self.getMeanRMS()
-        averageSNR=useTB[self.meanSNRcol]   #useTB["sum"]/ useTB["pixN"]/self.getMeanRMS()
 
-        print
+
 
         if showColor=="peak":
             #Vs=peakSigma
+            averageSNR = useTB[self.meanSNRcol]  # useTB["sum"]/ useTB["pixN"]/self.getMeanRMS()
 
             Vs=averageSNR #use average snr
 
@@ -3370,6 +3370,11 @@ class checkFillingFactor(object):
 
 
     def getSmFITSFileList(self,calCode=None):
+        """
+        This function only return smoothed files without adding any noise
+        :param calCode:
+        :return:
+        """
 
         fileList=[]
 
@@ -3479,8 +3484,7 @@ class checkFillingFactor(object):
         """
 
         processCode=self.getProcessCod(calCode)
-        searchStr = "{}*{}{:.1f}*{}{:.1f}.fits".format(processCode, self.smoothTag, smFactor, self.noiseTag,
-                                                       noiseFactor)
+        searchStr = "{}*{}{:.1f}*{}{:.1f}.fits".format(processCode, self.smoothTag, smFactor, self.noiseTag,   noiseFactor)
 
         if getCleanTBFile:
             searchStr =  "{}*{}{:.1f}*{}{:.1f}{}_Clean.fit".format(processCode,self.smoothTag, smFactor ,self.noiseTag,noiseFactor,dbscanCode )
@@ -4447,8 +4451,8 @@ class checkFillingFactor(object):
 
 
             errors = np.sqrt(np.diag(paramas_covariance))
-            print calID, params
-            print calID, errors
+            #print calID, params
+            #print calID, errors
 
 
             #params,errors=self.ffOdr(x,y,fluxError) #dot no use Odr for filing factor fitting, fore there is no error in axis
@@ -6674,13 +6678,185 @@ class checkFillingFactor(object):
         return "peakTMP{:.1f}".format( smFactor )
 
 
-    def getFluxColName(self,smFactor):
+
+
+    def getSmoothFluxCol(self, smFITS, TB, labelSets,withNoise=True ,  useAverageIntensity=False, overAllVox= False   ):
+        """
+
+        #get the flux change of clouds, without clipping and clipping upto 3 sigma the true error ,should be the root of s quare sum of all rms corresponding each voxel, only record the number of pixels is
+        inaccurate
+        :return:
+        """
+
+        ####
+        print "Extracting flux from ", smFITS, " dot no using "
+
+        if "NoiseAdd_" in smFITS:
+            pass
+            # the smFITS has noise added
+        else:
+            # the smFITS has noise added
+            print "No noise added in this files"
+            # for smFITS, we need to calculate its error based on smoothed rms, and add an extra cutoff flux, for example 3sigma
+            pass
+
+        dataSm, headSm = doFITS.readFITS(smFITS)
+        rmsFITS = self.getRMSFITS()
+
+        dataRMS, headRMS = doFITS.readFITS(rmsFITS)
+
+        dataSigma = dataSm / dataRMS
+
+        # calculate the angular size of eachClouds
+
+        ####
+
+        db = abs(headSm["CDELT2"]) * 60
+        dl = abs(headSm["CDELT1"]) * 60
+
+        # omega=  db*dl/0.25 #convert to MWISP unite #do not multiply omega, because a common factor on flux and error, does not change the filling factor
+
+        smFactor = self.getSmoothFactor(smFITS)
+        colName,errorColName, voxColName =self.getFluxColName(smFactor, withNoise= True   ) #need to
+
+        # if with noise, we should record the total flux and the clipped flux, and the clipped  flux error
+
+        colPeakName = self.getPeakColName(smFactor )
+
+        TB[colName] = TB["peak"] * 0
+        TB[errorColName] = TB["peak"] * 0
+        TB[voxColName] = TB["peak"] * 0
+
+
+
+        TB[colPeakName] = TB["peak"] * 0
+
+        widgets = ['Extracting flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+                   FileTransferSpeed()]  # see docs for other options
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+        i = 0
+        noise = self.getMeanRMS()
+
+        # do not use commont noise, use the rms fits
+
+        for eachRow in TB:
+            i = i + 1
+            # gc.collect()
+
+            ID = eachRow["_idx"]
+
+            cloudIndex = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
+            cloudIndexPix=(cloudIndex[1], cloudIndex[2]  ) #, used get the rms for each voxel, of course, pixels in the sampe spectra is the the same
+            rmsValues = dataRMS[ cloudIndexPix  ]
+
+
+            peakL, peakB, peakV = eachRow["peakL"], eachRow["peakB"], eachRow["peakV"]
+            peakL, peakB, peakV = map(int, [peakL, peakB, peakV])
+            peakValue = dataSm[peakV, peakB, peakL]
+
+            coValues = dataSm[cloudIndex]
+            sigmaValues = dataSigma[cloudIndex]
+
+            clipCriteria =  sigmaValues >= self.bffFluxCutSigma
+            coValuesClip = coValues[ clipCriteria  ]  # accurate sigma cut to each spectral and use 3sigma cut
+            rmsValuesClip =  rmsValues[   clipCriteria ]
+
+            pixelN =  len(coValuesClip) /1. #this is flux, do not care about the
+
+
+
+            if pixelN <  0.5  : #i.e., pixelN ==0
+                flux  = 0
+                fluxError = np.mean(rmsValues) * self.getVelResolution()  # assign one pixel to this error
+            else:
+
+                flux  = np.sum(coValuesClip, dtype=float) * self.getVelResolution()
+                #fluxError = np.sqrt( np.sum( rmsValuesClip**2   )  ) /pixelN  * self.getVelResolution() #w rong
+                fluxError = np.sqrt( np.sum( rmsValuesClip**2   )  )   * self.getVelResolution() # the last line is wrong, because this is not mean, you do not have to sum  all the errors
+
+            eachRow[voxColName] = pixelN
+
+            if useAverageIntensity and not overAllVox: #at this stage, we first try the average intensity of pixels large
+
+                flux  = np.sum(coValuesClip, dtype=float) * self.getVelResolution() / pixelN
+                #fluxError = np.sqrt( np.sum( rmsValuesClip**2   )  ) /pixelN  * self.getVelResolution() #w rong
+                fluxError = np.sqrt( np.sum( rmsValuesClip**2   )  ) * self.getVelResolution()  / pixelN   # the last line is wrong, because this is not mean, you do not have to sum  all the errors
+
+
+
+            if useAverageIntensity and   overAllVox: #at this stage, we first try the average intensity of pixels large
+                totalPix= eachRow["voxFluxSM1.0"]
+                flux  = np.sum(coValuesClip, dtype=float) * self.getVelResolution() /totalPix
+                #fluxError = np.sqrt( np.sum( rmsValuesClip**2   )  ) /pixelN  * self.getVelResolution() #w rong
+                fluxError = np.sqrt( np.sum( rmsValuesClip**2   )  ) * self.getVelResolution()  / totalPix   # the last line is wrong, because this is not mean, you do not have to sum  all the errors
+
+
+
+
+
+            #
+
+            eachRow[colName] = flux
+            eachRow[errorColName] = fluxError    #len(coValues)
+            eachRow[voxColName] = pixelN     #The pixelN here is the number of pixels above 3 sigma, however, in the average, we need to average over all molecular cloud, otherwise, you may not see monotonic functions
+
+
+
+
+            eachRow[colPeakName] = peakValue  # peak temperature
+
+
+
+
+            pbar.update(i)
+
+        pbar.finish()
+
+
+    def getIntensityColNameSMclip(self,smFactor , withClip=True,errorRaw= True  ):
+        """
+        if not clip, the average intensity is across the whole molecular cloud region, if clip, below the 2 sigma level, all data will be set as 0,
+
+        we can use two version of error, the rawData error and the smoothed data error
+        :param smFactor:
+        :return:
+        """
+        # the error of flux is only a rough estimate
+        # we do not make it accurate to the rms of each spectra
+
+
+        if withClip and errorRaw:
+            return "intensitySMclip{:.1f}".format( smFactor ), "errorRawIntensitySMclip{:.1f}".format( smFactor )  #do not use flux, use intensity for
+
+        if withClip and not errorRaw:
+            return "intensitySMclip{:.1f}".format( smFactor ),  "errorSmoothIntensitySMclip{:.1f}".format( smFactor ) #do not use flux, use intensity for
+
+
+
+        if not withClip and errorRaw: #no clipping
+            return "intensitySMtotal{:.1f}".format( smFactor ), "errorRawIntensitySMtotal{:.1f}".format( smFactor ) #do not use flux, use intensity for
+
+        if not  withClip and not errorRaw: #no clipping
+            return "intensitySMtotal{:.1f}".format( smFactor ),  "errorSmoothIntensitySMtotal{:.1f}".format( smFactor ) #do not use flux, use intensity for
+
+
+
+
+    def getFluxColName(self, smFactor, withNoise=True ):
         """
         The pix name is is to record the tao pix Number of the flux, which is used to estimate the error of the total flux
         :param smFactor:
         :return:
         """
-        return "fluxSM{:.1f}".format( smFactor ), "pixSM{:.1f}".format( smFactor )
+
+        #if withNoise:
+
+        return "fluxSM{:.1f}".format( smFactor ), "errorFluxSM{:.1f}".format( smFactor ), "voxFluxSM{:.1f}".format( smFactor ) #  the voxFluxSM is used to record the number voxels left in the
+
+        #else:
+        #return "intensitySMNoNoise{:.1f}".format( smFactor ), "errorRawIntensitySMNoNoise{:.1f}".format( smFactor ),"errorRawIntensitySMNoNoise{:.1f}".format( smFactor ) #the error is the most important
 
 
 
@@ -6705,51 +6881,87 @@ class checkFillingFactor(object):
 
 
 
-
-
-
-
-
-    def getSmoothFluxCol(self,smFITS, TB,  labelSets  ):
+    def getSmoothIntensityColClip(self,smFITS, TB,  labelSets    ):
         """
+        including total
         :return:
         """
 
         ####
-        print "Extracting flux from ", smFITS
-        dataSm,headSm= doFITS.readFITS(smFITS)
-        rmsFITS=self.getRMSFITS()
+        print "Extracting flux from", smFITS
 
-        dataRMS,headRMS=doFITS.readFITS(rmsFITS)
+        if "NoiseAdd_" in smFITS :
+            print "Function of getSmoothFluxColClip is only used to extract flux from fits files with no noise added "
+            return
+            #the smFITS has noise added
+        else:
+            #the smFITS has noise added
 
-        dataSigma=dataSm/dataRMS
+            #for smFITS, we need to calculate its error based on smoothed rms, and add an extra cutoff flux, for example 3sigma
+            print "This file has no noised added,"
 
-        #calculate the angular size of eachClouds
 
-        db=abs(headSm["CDELT2"] ) *60
+        #the smFITS is
 
-        dl= abs( headSm["CDELT1"] ) * 60
+        #the smooth factor is obtaind according to the name of smFITS,
+        #need to add four versions
 
-        #omega=  db*dl/0.25 #convert to MWISP unite #do not multiply omega, because a common factor on flux and error, does not change the filling factor
+        dataSm,headSm= doFITS.readFITS(smFITS) # the smoothed datacube
+
+
+
+        rmsFITSRaw=self.getRMSFITS()
+        dataRMSraw,headRMSraw=doFITS.readFITS(rmsFITSRaw)
+        dataSigmaRaw=dataSm/dataRMSraw
+
+        rmsFITSsmooth = self.checkRMSFITS( smFITS )
+        dataRMSsmooth,headRMSsmooth =doFITS.readFITS(rmsFITSsmooth ) # the raw dataSigma
+        #dataSigmaSmooth=dataSm/dataRMSsmooth
+        
 
 
         smFactor = self.getSmoothFactor(smFITS)
-        colName,colPixName=self.getFluxColName(smFactor)
+        
+
+        colNameClip ,colErrorRawNameClip = self.getIntensityColNameSMclip( smFactor ,  withClip=True, errorRaw= True    ) # Still the average intensity,
+        colNameClip , colErrorSmoothNameClip  = self.getIntensityColNameSMclip( smFactor ,  withClip=True, errorRaw= False    ) # Still the average intensity,
+
+
+        colNameTotal ,  colErrorRawNameTotal= self.getIntensityColNameSMclip( smFactor ,  withClip= False , errorRaw= True    ) # Still the average intensity,
+        colNameTotal ,  colErrorSmoothNameTotal = self.getIntensityColNameSMclip( smFactor ,  withClip=False , errorRaw= False    ) # Still the average intensity,
+
+
+
+
+        # if with noise, we should record the total flux and the clipped flux, and the clipped  flux error
+
+
         colPeakName=self.getPeakColName(smFactor)
 
-        TB[colName] = TB["peak"]*0
-        TB[colPixName] = TB["peak"]*0
+        #add two errors of colnames
+
+        TB[colNameTotal] = TB["peak"]*0
+        TB[ colErrorRawNameTotal ] = TB["peak"]*0
+        TB[ colErrorSmoothNameTotal ] = TB["peak"]*0
+
+
+
+        TB[colNameClip] = TB["peak"]*0
+        TB[colErrorRawNameClip] = TB["peak"]*0
+        TB[colErrorSmoothNameClip] = TB["peak"]*0
+
         TB[colPeakName] = TB["peak"]*0
 
-        widgets = ['Extracting flux:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
+
+
+        widgets = ['Extracting average intensity:', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(), ' ',
                    FileTransferSpeed()]  # see docs for other options
         pbar = ProgressBar(widgets=widgets, maxval=len(TB))
         pbar.start()
 
 
-
         i=0
-        noise=self.getMeanRMS()
+
 
         #do not use commont noise, use the rms fits
 
@@ -6759,21 +6971,78 @@ class checkFillingFactor(object):
 
             ID = eachRow["_idx"]
 
-            cloudIndex = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
+            cloudIndexVox = self.getIndices(labelSets, ID)  # np.where( cleanDataSM1==ID )
+            cloudIndexPix=(cloudIndexVox[1], cloudIndexVox[2]  ) #, used get the rms for each voxel, of course, pixels in the sampe spectra is the the same
+            rmsValuesRaw = dataRMSraw[ cloudIndexPix  ]
+            rmsValuesSmoooth = dataRMSsmooth[ cloudIndexPix  ]
+
+
+
+            #####
+            #####
 
             peakL,peakB,peakV= eachRow["peakL"],  eachRow["peakB"],  eachRow["peakV"]
             peakL, peakB, peakV=map(int, [peakL,peakB,peakV] )
             peakValue= dataSm[peakV,peakB,peakL]
 
 
-            coValues=   dataSm[cloudIndex]
-            sigmaValues=dataSigma[cloudIndex]
-            
-            coValues= coValues[sigmaValues>=self.bffFluxCutSigma  ] #accurate sigma cut to each spectral and use 3sigma cut
-            fluxID=np.sum(coValues,dtype=float)*self.getVelResolution()
+            coValues=   dataSm[cloudIndexVox]
+            sigmaValuesRaw= dataSigmaRaw[cloudIndexVox]  ##
 
-            eachRow[colName] = fluxID
-            eachRow[colPixName] =  len(coValues)
+
+
+            ##### clip the intensity based on the # but we do not know the
+            clipCriteria=  sigmaValuesRaw >=  2 #    if we clip, we according to the raw sigmas, to
+            # !!!!!!!!!!!!!!! Warning !!!!!!!!!!!!!!
+            #Warning, by clip Criteria, we use 2 sigma, which more consistent,
+            #Warning Warning, this is differnt from noise add case,  because with noise, we have us use 3 sigma
+
+
+
+            coValuesClip= coValues[ clipCriteria] #accurate sigma cut to each spectral and use 3sigma cut
+            #rmsValuesClipRaw =  rmsValuesRaw[ clipCriteria  ]
+            #rmsValuesClipSmooth =  rmsValuesSmoooth[ clipCriteria  ]
+
+
+
+
+            pixNtotal  = len(coValues)/1. # the length of coValues
+            pixNclip  = len(coValuesClip)/1. # the length of coValues
+
+
+
+            averageIntensity  = np.mean( coValues , dtype=float ) # average intensity
+            averageIntensityErrorRaw  =  np.sqrt( np.sum( rmsValuesRaw**2) ) / pixNtotal #  # should be the error mean values
+            averageIntensityErrorSmooth  =  np.sqrt( np.sum( rmsValuesSmoooth**2) ) / pixNtotal #  # should be the error mean values
+
+
+            #what about the clip, with the clip, we only care about the flux collectect
+
+            if pixNclip>0 :
+                averageIntensityClip =  np.sum( coValuesClip , dtype=float )/1./pixNtotal  # the average intensity should over all pixels, and the error is the same as the averageIntensity Error # average intensity #this clip is based on Un noised datae , should be decrease the
+                #averageIntensityErrorClip   =    np.sqrt( np.sum( rmsValuesClip**2) ) / pixNclip #  # should be the error mean values
+                averageIntensityErrorClipRaw    =  averageIntensityErrorRaw
+                averageIntensityErrorClipSmooth    =  averageIntensityErrorSmooth
+
+
+            else:
+                averageIntensityClip =  0  # average intensity #this clip is based on Un noised datae , should be decrease the
+                averageIntensityErrorClipRaw   =  averageIntensityErrorRaw    # even  the intensity is zeros, the error should be the same to  averageIntensity Error,
+                averageIntensityErrorClipSmooth    =  averageIntensityErrorSmooth
+
+
+
+            eachRow[colNameTotal] = averageIntensity
+            eachRow[colErrorRawNameTotal] = averageIntensityErrorRaw
+            eachRow[colErrorSmoothNameTotal] = averageIntensityErrorSmooth
+
+            eachRow[colNameClip] =  averageIntensityClip
+            eachRow[colErrorRawNameClip] = averageIntensityErrorClipRaw
+            eachRow[colErrorSmoothNameClip] = averageIntensityErrorClipSmooth
+
+
+
+
             eachRow[colPeakName] =   peakValue #peak temperature
 
             pbar.update(i)
@@ -6851,6 +7120,43 @@ class checkFillingFactor(object):
 
 
         return np.asarray(fluxList), np.asarray(fluxErrorList)
+
+
+    def getIntensityList(self, row ,  withClip = False,  errorSmooth  = False   ):
+        """
+        #This function is used to extract
+        :param row:
+        :return:
+        """
+
+        fluxList=[]
+        fluxErrorList=[]
+
+        #meanRMS=self.getMeanRMS() #do not use eror
+        for eachSm in self.smoothFactors:
+
+
+            colName, errorColName=self.getIntensityColNameSMclip(eachSm, withClip=withClip,   errorRaw  =  not errorSmooth  )
+
+
+            fluxList.append( row[colName]) #the flux is already K km/s
+            #totalVox= row[colPixName]
+
+            #totalVox=max([1,totalVox]) #  assign 1 pixel error to 0 flux
+
+            eRRor= row[errorColName]  #np.sqrt(totalVox)*meanRMS*self.getVelResolution()
+
+
+            fluxErrorList.append( eRRor)
+
+
+        #replace the first with raw sum and error
+
+        #fluxList[0]= row["sum"]*self.getVelResolution()
+        #fluxErrorList[0]=  np.sqrt( row["pixN"] )*meanRMS*self.getVelResolution()
+        return np.asarray(fluxList), np.asarray(fluxErrorList)
+
+
 
 
 
@@ -6932,13 +7238,13 @@ class checkFillingFactor(object):
 
         meanRMS=self.getMeanRMS()
         for eachSm in self.smoothFactors:
-            colName,colPixName=self.getFluxColName(eachSm)
+            colName,errorColPixName,voxColName=self.getFluxColName(eachSm)
             fluxList.append( row[colName]) #the flux is already K km/s
-            totalVox=row[colPixName]
+            #totalVox= row[colPixName]
 
-            totalVox=max([1,totalVox]) #  assign 1 pixel error to 0 flux
+            #totalVox=max([1,totalVox]) #  assign 1 pixel error to 0 flux
 
-            eRRor= np.sqrt(totalVox)*meanRMS*self.getVelResolution()
+            eRRor= row[errorColPixName]  #np.sqrt(totalVox)*meanRMS*self.getVelResolution()
 
 
 
@@ -6971,7 +7277,7 @@ class checkFillingFactor(object):
         wmsipFilling, cfaFilling, fittingParaAndError = self.getFillingFactorAndDraw(beamArray, fluxList, calID=ID,   drawFigure=drawFigure)
         return wmsipFilling
 
-    def calculateFillingFactorPeak(self,TB,drawFigure=False,inputID=None):
+    def calculateFillingFactorPeak(self,TB,drawFigure=False,inputID=None,drawCode = "" ):
 
         """
         Use the change of cloud peak as indicator of beam filling factor, return a column of filling factors and errors
@@ -7006,34 +7312,26 @@ class checkFillingFactor(object):
             ID=eachRow[ self.idCol ]
             if inputID!=None and ID==inputID: #for debug
 
-
-
-                wmsipFilling, cfaFilling, fittingParaAndError, pcov = self.getFillingFactorAndDraw(beamArray, fluxList,   fluxError, calID=ID,   drawFigure=True)
+                wmsipFilling, cfaFilling, fittingParaAndError, pcov = self.getFillingFactorAndDraw(beamArray, fluxList,   fluxError, calID=ID,   drawFigure=True, drawCode= drawCode)
                 print "filling factor", wmsipFilling
                 print "Parameters", fittingParaAndError[0]
                 print "Para error", fittingParaAndError[1]
 
                 return
-
             #crop
 
 
             wmsipFilling, cfaFilling,  fittingParaAndError, pcov =self.getFillingFactorAndDraw(beamArray,fluxList,fluxError,calID=ID,drawFigure=drawFigure)
-
             para, paraError = fittingParaAndError
 
 
             #print para,pcov
             #eachRow[self.cutFFffMWISPCol]=wmsipFilling
-            ff,ffError=self.getFFandError(para,pcov,self.getBeamSize() )
-
-
-
+            ff,ffError=self.getFFandError( para, pcov, self.getBeamSize() )
 
 
 
             ffPeakList.append(ff)
-
             ffPeakErrorList.append(ffError)
 
 
@@ -7142,13 +7440,118 @@ class checkFillingFactor(object):
         #TB.write( saveName , overwrite=True )
         return TB
 
+    def getSaveBFFTag(self, withClip = True, errorSmooth = False ):
+
+        drawCode= ""
+
+        if not withClip  and errorSmooth:
+            drawCode= "intBFFtotalErrorSM"
+
+        if not withClip and not errorSmooth:
+            drawCode= "intBFFtotalErrorRaw"
+
+        if withClip and  errorSmooth:
+            drawCode= "intBFFclipErrorSM"
+
+        if withClip and not errorSmooth:
+            drawCode= "intBFFclipErrorRaw"
+
+        return  drawCode
 
 
 
 
-    def calculateFillingFactor(self,TBFile,drawFigure=False,inputID=None,testPoly=False, individuals=False):
+    def calculateFillingFactorIntensity(self, TBFile, drawFigure=False, inputID=None, testPoly=False, individuals=False,  drawCode="" ,  withClip = True,  errorSmooth = False  ):
 
         """
+        #the function used to calculate filling factors
+        :param TB:
+        :return:
+        """
+
+        drawCode = self.getSaveBFFTag(withClip = withClip, errorSmooth= errorSmooth )
+
+        ############################################
+
+        TB = Table.read(TBFile)
+
+        TB = self.addCovColnames(TB)  #  this step essentially does nothing, because
+
+        saveName = drawCode+"_" + TBFile
+
+        processBeam = self.getBeamSize()  # in arcmin
+        beamArray = self.smoothFactors * processBeam
+
+        # add progress bar
+        widgets = ['Calculating intensity BFF clip: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'), ' ', ETA(),  ' ',  FileTransferSpeed()]  # see docs for other option
+        pbar = ProgressBar(widgets=widgets, maxval=len(TB))
+        pbar.start()
+
+        i = 0
+
+        if inputID != None:
+            eachRow = TB[TB["_idx"] == inputID][0]
+            fluxList, fluxError = self.getIntensityList(eachRow, withClip = withClip, errorSmooth =errorSmooth  )
+
+
+            print "The flux of {} is below, drawing code {}".format( inputID , drawCode  )
+            print fluxList
+
+            print fluxError
+            l, b, v = eachRow["x_cen"], eachRow["y_cen"], eachRow["v_cen"]
+
+            wmsipFilling, cfaFilling, fittingParaAndError, pcov = self.getFillingFactorAndDraw(beamArray, fluxList,
+                                                                                               fluxError, calID=inputID,
+                                                                                               individuals=individuals,
+                                                                                               drawFigure=True,
+                                                                                               testPoly=testPoly,
+                                                                                               testMCMC=False,
+                                                                                               inputLBV=[l, b, v] ,drawCode= drawCode )
+            # wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDrawCutoff(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,dim=5 )
+
+            # wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDraw(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,testMCMC=False)
+            print "filling factor", wmsipFilling
+            print "Parameters", fittingParaAndError[0]
+            print "Para error", fittingParaAndError[1]
+
+            return
+
+        for eachRow in TB:
+            i = i + 1
+            pbar.update(i)
+            fluxList, fluxError = self.getIntensityList(eachRow, withClip= True, errorSmooth=errorSmooth )
+
+            ID = eachRow[self.idCol]
+
+
+
+            wmsipFilling, cfaFilling, fittingParaAndError, pcov = self.getFillingFactorAndDraw(beamArray, fluxList,   fluxError, calID=ID,   drawFigure=drawFigure ,drawCode= drawCode )
+
+            para, paraError = fittingParaAndError
+            eachRow[self.ffMWISPCol] = wmsipFilling
+            eachRow[self.ffCfACol] = cfaFilling
+
+            eachRow[self.aCol] = para[0]
+            eachRow[self.bCol] = para[1]
+            eachRow[self.cCol] = para[2]
+
+            eachRow[self.aErrorCol] = paraError[0]
+            eachRow[self.bErrorCol] = paraError[1]
+            eachRow[self.cErrorCol] = paraError[2]
+
+            self.savePcov(eachRow, pcov)
+
+        pbar.finish()
+        TB.write(saveName, overwrite=True)
+        return saveName
+
+
+
+    def calculateFillingFactor(self,TBFile,drawFigure=False,inputID=None,testPoly=False, individuals=False, drawCode=""):
+
+        """
+        this is for flux, not intesntisyt
+        #the function used to calculate filling factors
         :param TB:
         :return:
         """
@@ -7168,19 +7571,20 @@ class checkFillingFactor(object):
 
         i=0
 
-
-
         if inputID!=None:
             
             eachRow=TB[TB["_idx"] ==inputID ][0]
-            fluxList,fluxError = self.getFluxList(eachRow)
+            fluxList, fluxError = self.getFluxList(eachRow   )
+
+
+
 
             fluxList=fluxList
             fluxError=fluxError
 
             l,b,v = eachRow["x_cen"],  eachRow["y_cen"],  eachRow["v_cen"]
 
-            wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDraw(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,testMCMC=False,inputLBV=[l,b,v])
+            wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDraw(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,testMCMC=False,inputLBV=[l,b,v], drawCode= drawCode  )
             #wmsipFilling, cfaFilling, fittingParaAndError ,pcov= self.getFillingFactorAndDrawCutoff(beamArray, fluxList, fluxError,   calID=inputID, individuals=individuals, drawFigure=True,testPoly=testPoly,dim=5 )
 
 
@@ -7472,6 +7876,8 @@ class checkFillingFactor(object):
         TBName = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,getCleanTBFile=True)
 
 
+
+
         cleanTB = Table.read(TBName)
         ffTB=self.addFFColnames( cleanTB )
 
@@ -7506,7 +7912,7 @@ class checkFillingFactor(object):
         return
         ####
 
-    def getFluxListForEachCloud(self,calCode=None, drawFigure=False, useSigmaCut=True, calAllCloud=True ):
+    def getFluxListForEachCloud(self, calCode=None ,  drawFigure=False, useSigmaCut=True, calAllCloud=True,  overAllVox= True ):
 
         """
         Due to the memory problem, this part of code need to be revise
@@ -7519,12 +7925,13 @@ class checkFillingFactor(object):
         :param calAllCloud:
         :return:
         """
-        if calCode!=None:
+
+        if calCode is not None:
             self.calCode= calCode
 
+        ####################
 
-
-        TBName = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,getCleanTBFile=True)
+        TBName = self.getSmoothAndNoiseFITSSingle( smFactor=1.0, noiseFactor=0.0, getCleanTBFile=True )
 
 
 
@@ -7535,8 +7942,18 @@ class checkFillingFactor(object):
         #rawCOFITS=self.getRawCOFITS(calCode)
         #CODataRaw, COHeadRaw = doFITS.readFITS( rawCOFITS )
 
-        cleanFITSRawBeam = self.getSmoothAndNoiseFITSSingle(smFactor=1.0,noiseFactor=0.0,  getCleanFITS =True)
+
+
+        #
+
+
+
+
+
+        cleanFITSRawBeam = self.getSmoothAndNoiseFITSSingle( smFactor=1.0 , noiseFactor=0.0,   getCleanFITS =True )
         cleanDataSM1,head=doFITS.readFITS(cleanFITSRawBeam)
+        #
+
 
         clusterIndex1D = np.where(cleanDataSM1 > 0)
         clusterValue1D = cleanDataSM1[clusterIndex1D]
@@ -7545,22 +7962,25 @@ class checkFillingFactor(object):
         labelSets=[Z0, Y0, X0, clusterValue1D ]
 
 
-
         #the next step is to extract flux
 
         allSmoothFiles = self.getSmoothListFixNoise(noiseFactor=0.)
-
+        smFileNoNoise= self.getSmFITSFileList( self.calCode )
 
 
         for eachSmFile in allSmoothFiles:
+            self.getSmoothFluxCol(eachSmFile,ffTB,labelSets, useAverageIntensity=useAverageIntensity ,overAllVox= overAllVox  )
 
-            self.getSmoothFluxCol(eachSmFile,ffTB,labelSets )
+        for eachSmFileNoNoise in smFileNoNoise: #run this first to debug
+            self.getSmoothIntensityColClip( eachSmFileNoNoise ,ffTB,labelSets )
+
+
+
 
 
         ffTB.write("fluxTB_" + os.path.basename(TBName) ,overwrite=True )
 
         #step, fitting filling factor
-
 
         return
         ####

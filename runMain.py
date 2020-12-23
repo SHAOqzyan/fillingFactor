@@ -110,9 +110,39 @@ class fillingMain(object):
         ffTBName=doFF.calculateFillingFactor(fluxTBFile, drawFigure=drawFigure, inputID=inputID,testPoly=testPoly,individuals=individuals )
 
 
+    def getFillingFactorIntensityAndClip(self,calCode, drawFigure = False,inputID = None  ):
+        """
+        #used to add
+        :param calCode:
+        :param drawFigure:
+        :return:
+        """
+        doFF.calCode=calCode
+        smTBFile = doFF.getSmoothAndNoiseFITSSingle(getCleanTBFile=True)
 
 
-    def getFillingFactorAndEdge(self,calCode,drawFigure=False):
+
+        fluxTBFile="pureEdgeInfo_fillingFactor_fluxTB_"+os.path.basename(smTBFile)
+
+        if  inputID is   None:
+            ffTBName1=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure , withClip =False, errorSmooth= False    )
+            ffTBName2=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure , withClip =False, errorSmooth= True    )
+            ffTBName3=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure , withClip =True, errorSmooth= False    )
+            ffTBName4=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure , withClip =True, errorSmooth= True   )
+
+
+        else:
+
+            drawFigure = True
+
+
+            ffTBName1=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure,inputID=   inputID , withClip =False, errorSmooth= False    )
+            ffTBName2=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure, inputID=   inputID , withClip =False, errorSmooth= True    )
+            ffTBName3=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure, inputID=   inputID , withClip =True, errorSmooth= False    )
+            ffTBName4=doFF.calculateFillingFactorIntensity(fluxTBFile, drawFigure=drawFigure, inputID=   inputID , withClip =True, errorSmooth= True   )
+
+
+    def getFillingFactorAndEdge(self,calCode,drawFigure=False,inputID=None):
 
         #get fluxTB
         doFF.calCode=calCode
@@ -129,14 +159,22 @@ class fillingMain(object):
             return
 
 
+        if inputID is not None:
+            ffTBName=doFF.calculateFillingFactor(fluxTBFile, drawFigure=drawFigure, inputID= inputID ,drawCode= "BFFFlux")
 
-        #getFillingfactor
-        ffTBName=doFF.calculateFillingFactor(fluxTBFile, drawFigure=drawFigure)
 
-        #get edgeInfo
-        cleanFITSName = doFF.getSmoothAndNoiseFITSSingle(  getCleanFITS=True)
 
-        doFF.getCloudCubes(cleanFITSName, ffTBName, writeFITS=False )
+        else:
+
+
+
+            #getFillingfactor
+            ffTBName=doFF.calculateFillingFactor(fluxTBFile, drawFigure=drawFigure)
+
+            #get edgeInfo
+            cleanFITSName = doFF.getSmoothAndNoiseFITSSingle(  getCleanFITS=True)
+
+            doFF.getCloudCubes(cleanFITSName, ffTBName, writeFITS=False )
 
 
     def getFFTB(self,calCode):
@@ -1360,11 +1398,89 @@ class fillingMain(object):
         """
         pass
 
-
+#95336  95454  115887  129123
 
 #\eta_{\mathrm{bf}}
 
 doMain=fillingMain()
+
+
+
+
+#bad ,there is somthing wrong with
+
+# 95454  95336  115887  129123
+if  0: # test filling factors
+    processCode= doFF.codeRawOutCO12  # test local CO12
+    ### 137731, 161989
+    testID = 108145 # 161989 #   115887   # 95454 # None
+    #doFF.getFluxListForEachCloud(calCode=processCode)
+    doMain.getFillingFactorAndEdge(processCode, drawFigure=False, inputID= testID )
+
+
+    doMain.getFillingFactorIntensityAndClip( processCode , drawFigure = False  , inputID=  testID  )
+
+
+
+    sys.exit()
+
+if 1: # CO12OuterArmTest
+
+    processCode =  doFF.codeRawOutCO12    #only test CO13 in the outer arm,
+
+    doFF.getFluxListForEachCloud(calCode=processCode,   overAllVox=True  ) # useAverageIntensity
+    doMain.getFillingFactorAndEdge(processCode, drawFigure=False)
+    doMain.getFillingFactorIntensityAndClip(processCode, drawFigure=False)
+
+    sys.exit()
+
+
+if 0:
+    allCodeList =  doFF.allRawCodeList+doFF.surveyCodeList
+
+    for processCode in  allCodeList:
+        #processCode =  doFF.codeRawOutCO12    #only test CO13 in the outer arm,
+
+        doFF.getFluxListForEachCloud(calCode=processCode)
+        doMain.getFillingFactorAndEdge(processCode, drawFigure=False)
+        doMain.getFillingFactorIntensityAndClip(processCode, drawFigure=False)
+
+
+
+    sys.exit()
+
+
+
+
+if  0: #testing
+
+    for eachCode in doFF.allRawCodeList:
+    #for eachCode in [ doFF.codeRawLocalCO12,doFF.codeRawSgrCO12,doFF.codeRawScuCO12,doFF.codeRawOutCO12   ]:
+    #for eachCode in [ doFF.codeRawLocalCO13,doFF.codeRawSgrCO13,doFF.codeRawScuCO13,doFF.codeRawOutCO13   ]:
+    #for eachCode in [ doFF.codeRawLocalCO18,doFF.codeRawSgrCO18,doFF.codeRawScuCO18,doFF.codeRawOutCO18   ]:
+
+    #for eachCode in doFF.allRawCodeList :
+
+
+
+        doFF.calCode= doFF.codeRawOutCO12
+        
+        tb=doMain.getFFTB(doFF.calCode)
+        #tb = "intBFFClip_intBFFTotal_pureEdgeInfo_fillingFactor_fluxTB_rawOutCO12rawOutCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+
+
+        #tb = "intBFFClip_intBFFTotal_pureEdgeInfo_fillingFactor_fluxTB_rawLocalCO12rawLocalCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+        #tb = "pureEdgeInfo_fillingFactor_fluxTB_rawOutCO12rawOutCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+
+
+        tb = "intBFFTotal_pureEdgeInfo_fillingFactor_fluxTB_rawOutCO12rawOutCO12_SmFactor_1.0_NoiseAdd_0.0dbscanS2P4Con1_Clean.fit"
+
+        testTB=Table.read(tb)  
+        doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,50],useODR=False ,showColor="velocity")
+
+
+        sys.exit()
+
 
 
 
@@ -1378,7 +1494,6 @@ if 0: #pipeline of calculating filling factors # stopping calling sensitvities a
 
         if processCode in   doFF.rawLocalCodeList  or processCode in  doFF.rawSgrCodeList :
             continue
-
 
 
         doFF.calCode=processCode
@@ -1410,7 +1525,6 @@ if 0: #pipeline of calculating filling factors # stopping calling sensitvities a
     sys.exit()
 
 
-#test newe 
 
 
 
@@ -1436,6 +1550,7 @@ if 0: #draw Figure  6
     #doMain.getOverallCutoff(doFF.codeRawLocalCO13  ,reCalculate=  True       )
     #doMain.getOverallCutoff(doFF.codeRawLocalCO18  ,reCalculate=  False     )
     sys.exit()
+
 
 
 if 0: #draw figures for sensitivities
@@ -1610,25 +1725,6 @@ if  0: # draw survey results
 
 
 
-
-
-if  0: #testing
-
-    for eachCode in doFF.allRawCodeList:
-    #for eachCode in [ doFF.codeRawLocalCO12,doFF.codeRawSgrCO12,doFF.codeRawScuCO12,doFF.codeRawOutCO12   ]:
-    #for eachCode in [ doFF.codeRawLocalCO13,doFF.codeRawSgrCO13,doFF.codeRawScuCO13,doFF.codeRawOutCO13   ]:
-    #for eachCode in [ doFF.codeRawLocalCO18,doFF.codeRawSgrCO18,doFF.codeRawScuCO18,doFF.codeRawOutCO18   ]:
-
-    #for eachCode in doFF.allRawCodeList :
-
-        doFF.calCode=  eachCode  #doFF.codeRawLocalCO18
-
-        tb=doMain.getFFTB(doFF.calCode)
-        testTB=Table.read(tb)
-
-        doFF.fittingAngularSizeFF( tb,showSizeRange=[-1,50],useODR=False ,showColor="velocity")
-
-    sys.exit()
 
 
 
